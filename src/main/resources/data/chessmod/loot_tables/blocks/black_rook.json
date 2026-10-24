@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:black_rook"
+          "name": "chessmod:black_rook",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:black_rook",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:black_king"
+          "name": "chessmod:black_king",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:black_king",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

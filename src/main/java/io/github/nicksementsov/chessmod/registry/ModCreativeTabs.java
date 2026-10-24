@@ -3,6 +3,7 @@ package io.github.nicksementsov.chessmod.registry;
 import io.github.nicksementsov.chessmod.ChessMod;
 import io.github.nicksementsov.chessmod.chess.PieceType;
 import io.github.nicksementsov.chessmod.chess.Side;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -18,7 +19,9 @@ public final class ModCreativeTabs {
             .title(Component.translatable("itemGroup.chessmod.chess"))
             .icon(() -> new ItemStack(ModBlocks.pieceItem(Side.WHITE, PieceType.KING).get()))
             .displayItems((parameters, output) -> {
-                output.accept(ModBlocks.CHESS_BOARD_ITEM.get());
+                for (ChessStyle style : ChessStyle.values()) {
+                    output.accept(style.applyTo(new ItemStack(ModBlocks.CHESS_BOARD_ITEM.get())));
+                }
                 for (Side side : Side.values()) {
                     for (PieceType type : PieceType.values()) {
                         output.accept(ModBlocks.pieceItem(side, type).get());

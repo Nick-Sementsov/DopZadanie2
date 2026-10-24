@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:white_queen"
+          "name": "chessmod:white_queen",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:white_queen",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

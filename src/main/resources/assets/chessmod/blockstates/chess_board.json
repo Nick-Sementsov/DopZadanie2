@@ -1,18 +1,93 @@
 {
   "variants": {
-    "facing=south": {
-      "model": "chessmod:block/chess_board"
+    "facing=south,style=classic": {
+      "model": "chessmod:block/board/classic"
     },
-    "facing=west": {
-      "model": "chessmod:block/chess_board",
+    "facing=south,style=marble": {
+      "model": "chessmod:block/board/marble"
+    },
+    "facing=south,style=tournament": {
+      "model": "chessmod:block/board/tournament"
+    },
+    "facing=south,style=nether": {
+      "model": "chessmod:block/board/nether"
+    },
+    "facing=south,style=frost": {
+      "model": "chessmod:block/board/frost"
+    },
+    "facing=south,style=end": {
+      "model": "chessmod:block/board/end"
+    },
+    "facing=west,style=classic": {
+      "model": "chessmod:block/board/classic",
       "y": 90
     },
-    "facing=north": {
-      "model": "chessmod:block/chess_board",
+    "facing=west,style=marble": {
+      "model": "chessmod:block/board/marble",
+      "y": 90
+    },
+    "facing=west,style=tournament": {
+      "model": "chessmod:block/board/tournament",
+      "y": 90
+    },
+    "facing=west,style=nether": {
+      "model": "chessmod:block/board/nether",
+      "y": 90
+    },
+    "facing=west,style=frost": {
+      "model": "chessmod:block/board/frost",
+      "y": 90
+    },
+    "facing=west,style=end": {
+      "model": "chessmod:block/board/end",
+      "y": 90
+    },
+    "facing=north,style=classic": {
+      "model": "chessmod:block/board/classic",
       "y": 180
     },
-    "facing=east": {
-      "model": "chessmod:block/chess_board",
+    "facing=north,style=marble": {
+      "model": "chessmod:block/board/marble",
+      "y": 180
+    },
+    "facing=north,style=tournament": {
+      "model": "chessmod:block/board/tournament",
+      "y": 180
+    },
+    "facing=north,style=nether": {
+      "model": "chessmod:block/board/nether",
+      "y": 180
+    },
+    "facing=north,style=frost": {
+      "model": "chessmod:block/board/frost",
+      "y": 180
+    },
+    "facing=north,style=end": {
+      "model": "chessmod:block/board/end",
+      "y": 180
+    },
+    "facing=east,style=classic": {
+      "model": "chessmod:block/board/classic",
+      "y": 270
+    },
+    "facing=east,style=marble": {
+      "model": "chessmod:block/board/marble",
+      "y": 270
+    },
+    "facing=east,style=tournament": {
+      "model": "chessmod:block/board/tournament",
+      "y": 270
+    },
+    "facing=east,style=nether": {
+      "model": "chessmod:block/board/nether",
+      "y": 270
+    },
+    "facing=east,style=frost": {
+      "model": "chessmod:block/board/frost",
+      "y": 270
+    },
+    "facing=east,style=end": {
+      "model": "chessmod:block/board/end",
       "y": 270
     }
   }

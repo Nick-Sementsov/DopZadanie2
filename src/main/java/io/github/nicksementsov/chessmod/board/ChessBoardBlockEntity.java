@@ -9,6 +9,7 @@ import io.github.nicksementsov.chessmod.chess.Move;
 import io.github.nicksementsov.chessmod.chess.Position;
 import io.github.nicksementsov.chessmod.chess.Side;
 import io.github.nicksementsov.chessmod.registry.ModBlockEntities;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
@@ -217,6 +218,7 @@ public class ChessBoardBlockEntity extends BlockEntity {
             case SIT -> trySit(player, Side.byName(data, null));
             case OFFER_DRAW -> tryOfferDraw(player);
             case ANSWER_OFFER -> tryAnswerOffer(player, "accept".equals(data));
+            case SET_STYLE -> trySetStyle(player, ChessStyle.byName(data, null));
         }
     }
 
@@ -249,6 +251,19 @@ public class ChessBoardBlockEntity extends BlockEntity {
             takeSeat(player, side);
         }
         playMove(move, player);
+    }
+
+    private void trySetStyle(ServerPlayer player, @Nullable ChessStyle style) {
+        if (style == null || level == null) {
+            return;
+        }
+        if (!mayControl(player)) {
+            deny(player, "message.chessmod.not_player");
+            return;
+        }
+        // The block entity stays in place when only a property of the same block changes.
+        level.setBlock(worldPosition, getBlockState().setValue(ChessBoardBlock.STYLE, style), Block.UPDATE_ALL);
+        playSound(SoundEvents.AMETHYST_BLOCK_CHIME, 0.8f, 1.2f);
     }
 
     private void trySit(ServerPlayer player, @Nullable Side side) {

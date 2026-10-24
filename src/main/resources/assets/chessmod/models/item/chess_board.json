@@ -1,3 +1,35 @@
 {
-  "parent": "chessmod:block/chess_board"
+  "parent": "chessmod:block/board/classic",
+  "overrides": [
+    {
+      "predicate": {
+        "chessmod:style": 0.05
+      },
+      "model": "chessmod:block/board/marble"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.15
+      },
+      "model": "chessmod:block/board/tournament"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.25
+      },
+      "model": "chessmod:block/board/nether"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.35
+      },
+      "model": "chessmod:block/board/frost"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.45
+      },
+      "model": "chessmod:block/board/end"
+    }
+  ]
 }

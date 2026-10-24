@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:white_knight"
+          "name": "chessmod:white_knight",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:white_knight",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

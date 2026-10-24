@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:white_rook"
+          "name": "chessmod:white_rook",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:white_rook",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

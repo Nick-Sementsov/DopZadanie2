@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:chess_board"
+          "name": "chessmod:chess_board",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:chess_board",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

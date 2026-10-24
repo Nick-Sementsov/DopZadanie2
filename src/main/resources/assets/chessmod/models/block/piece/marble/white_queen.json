@@ -1,0 +1,7 @@
+{
+  "parent": "chessmod:block/template_chess_queen",
+  "textures": {
+    "body": "chessmod:block/piece/marble_white",
+    "accent": "chessmod:block/piece/marble_accent"
+  }
+}

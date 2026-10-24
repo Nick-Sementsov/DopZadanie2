@@ -14,6 +14,8 @@
   "block.chessmod.black_rook": "Black Rook",
   "block.chessmod.black_queen": "Black Queen",
   "block.chessmod.black_king": "Black King",
+  "tooltip.chessmod.style": "Style: %s",
+  "tooltip.chessmod.change_style": "Right-click with an empty hand to change the style",
 
   "gui.chessmod.title": "Chess",
   "gui.chessmod.turn.white": "White to move",
@@ -55,6 +57,8 @@
   "gui.chessmod.button.resign": "Resign",
   "gui.chessmod.button.resign_confirm": "Sure?",
   "gui.chessmod.button.flip": "Flip Board",
+  "gui.chessmod.button.style": "Board and piece style",
+  "gui.chessmod.style.title": "Chess Style",
   "gui.chessmod.button.start": "Start",
   "gui.chessmod.button.back": "Back",
   "gui.chessmod.button.sit": "Sit",
@@ -78,6 +82,13 @@
   "gui.chessmod.difficulty.easy": "Easy",
   "gui.chessmod.difficulty.medium": "Medium",
   "gui.chessmod.difficulty.hard": "Hard",
+
+  "style.chessmod.classic": "Classic",
+  "style.chessmod.marble": "Marble",
+  "style.chessmod.tournament": "Tournament",
+  "style.chessmod.nether": "Nether",
+  "style.chessmod.frost": "Frost",
+  "style.chessmod.end": "The End",
 
   "chessmod.notation.K": "K",
   "chessmod.notation.Q": "Q",

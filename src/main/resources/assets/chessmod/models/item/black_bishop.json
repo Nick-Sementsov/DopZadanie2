@@ -1,3 +1,35 @@
 {
-  "parent": "chessmod:block/black_bishop"
+  "parent": "chessmod:block/piece/classic/black_bishop",
+  "overrides": [
+    {
+      "predicate": {
+        "chessmod:style": 0.05
+      },
+      "model": "chessmod:block/piece/marble/black_bishop"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.15
+      },
+      "model": "chessmod:block/piece/tournament/black_bishop"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.25
+      },
+      "model": "chessmod:block/piece/nether/black_bishop"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.35
+      },
+      "model": "chessmod:block/piece/frost/black_bishop"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.45
+      },
+      "model": "chessmod:block/piece/end/black_bishop"
+    }
+  ]
 }

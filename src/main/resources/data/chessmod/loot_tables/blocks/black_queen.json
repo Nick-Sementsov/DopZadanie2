@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:black_queen"
+          "name": "chessmod:black_queen",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:black_queen",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

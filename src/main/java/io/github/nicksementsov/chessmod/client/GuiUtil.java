@@ -1,6 +1,9 @@
 package io.github.nicksementsov.chessmod.client;
 
 import io.github.nicksementsov.chessmod.ChessMod;
+import io.github.nicksementsov.chessmod.chess.Piece;
+import io.github.nicksementsov.chessmod.chess.Side;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
@@ -26,8 +29,14 @@ final class GuiUtil {
 
     static final int ICON_V = 256;
     static final int ICON_SIZE = 9;
-    /** Flip-board icon: normal, hovered and disabled states stacked {@link #ICON_SIZE} apart. */
+    /** Flip-board and style icons: normal, hovered and disabled states stacked {@link #ICON_SIZE} apart. */
     static final int FLIP_ICON_V = 270;
+    static final int STYLE_ICON_U = 9;
+
+    /** Each style has its own 160x160 board (20 px squares, a8 in the top left) and a 96x32 sheet of piece sprites. */
+    static final int STYLE_BOARD_SIZE = 160;
+    private static final int STYLE_PIECES_WIDTH = 96;
+    private static final int STYLE_PIECES_HEIGHT = 32;
 
     private static final int FRAME_U = 128;
     private static final int FRAME_V = 200;
@@ -41,6 +50,18 @@ final class GuiUtil {
     static final int TEXT_GREEN = 0xA8E888;
 
     private GuiUtil() {
+    }
+
+    static ResourceLocation boardTexture(ChessStyle style) {
+        return ChessMod.id("textures/gui/board/" + style.getSerializedName() + ".png");
+    }
+
+    /** Draws a piece sprite of the given style; sprites are 16x16, white on the top row, in {@code PieceType} order. */
+    static void blitPiece(GuiGraphics graphics, ChessStyle style, int piece, int x, int y) {
+        int u = Piece.type(piece).ordinal() * PIECE_SIZE;
+        int v = Piece.side(piece) == Side.WHITE ? 0 : PIECE_SIZE;
+        graphics.blit(ChessMod.id("textures/gui/pieces/" + style.getSerializedName() + ".png"), x, y, u, v,
+                PIECE_SIZE, PIECE_SIZE, STYLE_PIECES_WIDTH, STYLE_PIECES_HEIGHT);
     }
 
     static void blit(GuiGraphics graphics, int x, int y, int u, int v, int width, int height) {

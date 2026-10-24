@@ -2,6 +2,7 @@ package io.github.nicksementsov.chessmod.board;
 
 import io.github.nicksementsov.chessmod.client.ClientHooks;
 import io.github.nicksementsov.chessmod.registry.ModBlockEntities;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -38,16 +40,17 @@ import java.util.List;
 /** A chess board. {@link #FACING} points towards the side where white sits. */
 public class ChessBoardBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final EnumProperty<ChessStyle> STYLE = ChessStyle.PROPERTY;
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 2, 16);
 
     public ChessBoardBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.SOUTH));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.SOUTH).setValue(STYLE, ChessStyle.CLASSIC));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, STYLE);
     }
 
     @Override
@@ -116,6 +119,7 @@ public class ChessBoardBlock extends BaseEntityBlock {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable BlockGetter level, List<Component> tooltip, TooltipFlag flag) {
+        tooltip.add(Component.translatable("tooltip.chessmod.style", ChessStyle.fromStack(stack).displayName()).withStyle(ChatFormatting.GOLD));
         tooltip.add(Component.translatable("block.chessmod.chess_board.tooltip").withStyle(ChatFormatting.GRAY));
     }
 }

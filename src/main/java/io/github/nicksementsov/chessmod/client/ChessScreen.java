@@ -2,6 +2,7 @@ package io.github.nicksementsov.chessmod.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.nicksementsov.chessmod.board.BoardAction;
+import io.github.nicksementsov.chessmod.board.ChessBoardBlock;
 import io.github.nicksementsov.chessmod.board.ChessBoardBlockEntity;
 import io.github.nicksementsov.chessmod.board.ChessTexts;
 import io.github.nicksementsov.chessmod.board.GameMode;
@@ -15,6 +16,7 @@ import io.github.nicksementsov.chessmod.chess.Position;
 import io.github.nicksementsov.chessmod.chess.Side;
 import io.github.nicksementsov.chessmod.chess.Square;
 import io.github.nicksementsov.chessmod.network.ChessActionPacket;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
@@ -79,6 +81,7 @@ public class ChessScreen extends Screen {
     private long resignArmedUntil;
 
     private String knownOrientation = "";
+    private ChessStyle style = ChessStyle.CLASSIC;
 
     private Button undoButton;
     private Button resignButton;
@@ -128,6 +131,9 @@ public class ChessScreen extends Screen {
         ImageButton flipButton = addRenderableWidget(new ImageButton(left + 176, top + 7, ICON_SIZE, ICON_SIZE, 0, FLIP_ICON_V,
                 ICON_SIZE, TEXTURE, TEXTURE_SIZE, TEXTURE_SIZE, button -> flipped = !flipped));
         flipButton.setTooltip(Tooltip.create(Component.translatable("gui.chessmod.button.flip")));
+        ImageButton styleButton = addRenderableWidget(new ImageButton(left + 165, top + 7, ICON_SIZE, ICON_SIZE, STYLE_ICON_U, FLIP_ICON_V,
+                ICON_SIZE, TEXTURE, TEXTURE_SIZE, TEXTURE_SIZE, button -> minecraft.setScreen(new StyleScreen(this, pos))));
+        styleButton.setTooltip(Tooltip.create(Component.translatable("gui.chessmod.button.style")));
         ChessBoardBlockEntity board = board();
         if (board != null) {
             syncWithBoard(board);
@@ -273,7 +279,9 @@ public class ChessScreen extends Screen {
         if (board != null) {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
+            style = board.getBlockState().getValue(ChessBoardBlock.STYLE);
             blit(graphics, left, top, 0, 0, PANEL_WIDTH, PANEL_HEIGHT);
+            graphics.blit(boardTexture(style), left + BOARD_X, top + BOARD_Y, 0, 0, BOARD_SIZE, BOARD_SIZE, STYLE_BOARD_SIZE, STYLE_BOARD_SIZE);
             renderCoordinates(graphics);
             renderBoard(graphics, board, mouseX, mouseY);
             renderSidePanel(graphics, board);
@@ -364,12 +372,10 @@ public class ChessScreen extends Screen {
         blit(graphics, squareX(square), squareY(square), u, HIGHLIGHT_V, SQUARE, SQUARE);
     }
 
-    private static void renderPiece(GuiGraphics graphics, int piece, float x, float y) {
-        int u = Piece.type(piece).ordinal() * PIECE_SIZE;
-        int v = Piece.side(piece) == Side.WHITE ? WHITE_PIECES_V : BLACK_PIECES_V;
+    private void renderPiece(GuiGraphics graphics, int piece, float x, float y) {
         graphics.pose().pushPose();
         graphics.pose().translate(x, y, 0);
-        blit(graphics, 0, 0, u, v, PIECE_SIZE, PIECE_SIZE);
+        blitPiece(graphics, style, piece, 0, 0);
         graphics.pose().popPose();
     }
 

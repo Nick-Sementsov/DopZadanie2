@@ -7,7 +7,16 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "chessmod:white_bishop"
+          "name": "chessmod:white_bishop",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "chessmod:white_bishop",
+              "properties": [
+                "style"
+              ]
+            }
+          ]
         }
       ],
       "conditions": [

@@ -14,6 +14,8 @@
   "block.chessmod.black_rook": "Чёрная ладья",
   "block.chessmod.black_queen": "Чёрный ферзь",
   "block.chessmod.black_king": "Чёрный король",
+  "tooltip.chessmod.style": "Стиль: %s",
+  "tooltip.chessmod.change_style": "ПКМ пустой рукой — сменить стиль",
 
   "gui.chessmod.title": "Шахматы",
   "gui.chessmod.turn.white": "Ход белых",
@@ -55,6 +57,8 @@
   "gui.chessmod.button.resign": "Сдаться",
   "gui.chessmod.button.resign_confirm": "Точно?",
   "gui.chessmod.button.flip": "Перевернуть доску",
+  "gui.chessmod.button.style": "Стиль доски и фигур",
+  "gui.chessmod.style.title": "Стиль шахмат",
   "gui.chessmod.button.start": "Начать",
   "gui.chessmod.button.back": "Назад",
   "gui.chessmod.button.sit": "Сесть",
@@ -78,6 +82,13 @@
   "gui.chessmod.difficulty.easy": "Лёгкая",
   "gui.chessmod.difficulty.medium": "Средняя",
   "gui.chessmod.difficulty.hard": "Сложная",
+
+  "style.chessmod.classic": "Классика",
+  "style.chessmod.marble": "Мрамор",
+  "style.chessmod.tournament": "Турнир",
+  "style.chessmod.nether": "Незер",
+  "style.chessmod.frost": "Лёд",
+  "style.chessmod.end": "Энд",
 
   "chessmod.notation.K": "Кр",
   "chessmod.notation.Q": "Ф",

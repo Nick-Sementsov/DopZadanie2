@@ -14,5 +14,7 @@ public enum BoardAction {
     /** Offers a draw; the computer answers at once, another player answers with {@link #ANSWER_OFFER}. */
     OFFER_DRAW,
     /** Data: {@code accept} or {@code decline}. Answers the opponent's take-back or draw offer. */
-    ANSWER_OFFER
+    ANSWER_OFFER,
+    /** Data: a {@link io.github.nicksementsov.chessmod.style.ChessStyle} name. Changes the look of the board and pieces. */
+    SET_STYLE
 }

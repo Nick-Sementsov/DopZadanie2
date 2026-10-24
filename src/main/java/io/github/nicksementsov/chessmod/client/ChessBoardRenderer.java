@@ -14,6 +14,7 @@ import io.github.nicksementsov.chessmod.chess.Side;
 import io.github.nicksementsov.chessmod.chess.Square;
 import io.github.nicksementsov.chessmod.piece.ChessPieceBlock;
 import io.github.nicksementsov.chessmod.registry.ModBlocks;
+import io.github.nicksementsov.chessmod.style.ChessStyle;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
@@ -53,6 +54,7 @@ public class ChessBoardRenderer implements BlockEntityRenderer<ChessBoardBlockEn
         ChessGame game = board.game();
         Position position = game.position();
         Direction facing = board.getBlockState().getValue(ChessBoardBlock.FACING);
+        ChessStyle style = board.getBlockState().getValue(ChessBoardBlock.STYLE);
 
         poseStack.pushPose();
         // In board space white sits at +Z (south); turn the board so white sits on the FACING side.
@@ -89,16 +91,18 @@ public class ChessBoardRenderer implements BlockEntityRenderer<ChessBoardBlockEn
                     y += Mth.sin(progress * Mth.PI) * HOP_HEIGHT;
                 }
             }
-            renderPiece(piece, x, y, z, poseStack, buffers, packedLight);
+            renderPiece(piece, style, x, y, z, poseStack, buffers, packedLight);
         }
         poseStack.popPose();
     }
 
-    private void renderPiece(int piece, float x, float y, float z, PoseStack poseStack, MultiBufferSource buffers, int light) {
+    private void renderPiece(int piece, ChessStyle style, float x, float y, float z, PoseStack poseStack, MultiBufferSource buffers, int light) {
         Side side = Piece.side(piece);
         ChessPieceBlock block = ModBlocks.piece(side, Piece.type(piece)).get();
         // Pieces face the opponent: white looks towards rank 8 (north in board space).
-        BlockState state = block.defaultBlockState().setValue(ChessPieceBlock.FACING, side == Side.WHITE ? Direction.NORTH : Direction.SOUTH);
+        BlockState state = block.defaultBlockState()
+                .setValue(ChessPieceBlock.FACING, side == Side.WHITE ? Direction.NORTH : Direction.SOUTH)
+                .setValue(ChessPieceBlock.STYLE, style);
         poseStack.pushPose();
         poseStack.translate(x, y, z);
         poseStack.scale(PIECE_SCALE, PIECE_SCALE, PIECE_SCALE);

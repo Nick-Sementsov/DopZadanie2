@@ -1,18 +1,93 @@
 {
   "variants": {
-    "facing=north": {
-      "model": "chessmod:block/black_rook"
+    "facing=north,style=classic": {
+      "model": "chessmod:block/piece/classic/black_rook"
     },
-    "facing=east": {
-      "model": "chessmod:block/black_rook",
+    "facing=north,style=marble": {
+      "model": "chessmod:block/piece/marble/black_rook"
+    },
+    "facing=north,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_rook"
+    },
+    "facing=north,style=nether": {
+      "model": "chessmod:block/piece/nether/black_rook"
+    },
+    "facing=north,style=frost": {
+      "model": "chessmod:block/piece/frost/black_rook"
+    },
+    "facing=north,style=end": {
+      "model": "chessmod:block/piece/end/black_rook"
+    },
+    "facing=east,style=classic": {
+      "model": "chessmod:block/piece/classic/black_rook",
       "y": 90
     },
-    "facing=south": {
-      "model": "chessmod:block/black_rook",
+    "facing=east,style=marble": {
+      "model": "chessmod:block/piece/marble/black_rook",
+      "y": 90
+    },
+    "facing=east,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_rook",
+      "y": 90
+    },
+    "facing=east,style=nether": {
+      "model": "chessmod:block/piece/nether/black_rook",
+      "y": 90
+    },
+    "facing=east,style=frost": {
+      "model": "chessmod:block/piece/frost/black_rook",
+      "y": 90
+    },
+    "facing=east,style=end": {
+      "model": "chessmod:block/piece/end/black_rook",
+      "y": 90
+    },
+    "facing=south,style=classic": {
+      "model": "chessmod:block/piece/classic/black_rook",
       "y": 180
     },
-    "facing=west": {
-      "model": "chessmod:block/black_rook",
+    "facing=south,style=marble": {
+      "model": "chessmod:block/piece/marble/black_rook",
+      "y": 180
+    },
+    "facing=south,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_rook",
+      "y": 180
+    },
+    "facing=south,style=nether": {
+      "model": "chessmod:block/piece/nether/black_rook",
+      "y": 180
+    },
+    "facing=south,style=frost": {
+      "model": "chessmod:block/piece/frost/black_rook",
+      "y": 180
+    },
+    "facing=south,style=end": {
+      "model": "chessmod:block/piece/end/black_rook",
+      "y": 180
+    },
+    "facing=west,style=classic": {
+      "model": "chessmod:block/piece/classic/black_rook",
+      "y": 270
+    },
+    "facing=west,style=marble": {
+      "model": "chessmod:block/piece/marble/black_rook",
+      "y": 270
+    },
+    "facing=west,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_rook",
+      "y": 270
+    },
+    "facing=west,style=nether": {
+      "model": "chessmod:block/piece/nether/black_rook",
+      "y": 270
+    },
+    "facing=west,style=frost": {
+      "model": "chessmod:block/piece/frost/black_rook",
+      "y": 270
+    },
+    "facing=west,style=end": {
+      "model": "chessmod:block/piece/end/black_rook",
       "y": 270
     }
   }
