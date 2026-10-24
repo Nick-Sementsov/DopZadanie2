@@ -233,6 +233,18 @@ ICON = [
     ".........",
 ]
 
+FLIP_ICON = [
+    ".........",
+    "..#......",
+    ".###.....",
+    "#.#.#....",
+    "..#...#..",
+    "....#.#.#",
+    ".....###.",
+    "......#..",
+    ".........",
+]
+
 SPRITE_COLOURS = {
     "white": {"outline": (58, 42, 30), "light": (255, 253, 247), "base": (236, 226, 206), "shadow": (192, 175, 150)},
     "black": {"outline": (12, 10, 16), "light": (108, 104, 124), "base": (62, 59, 73), "shadow": (36, 34, 45)},
@@ -359,9 +371,9 @@ def gui_texture():
     panel[6:186, 6:186] = frame
     panel[16:176, 16:176] = checkerboard(20, 700)
 
-    history = np.array([38, 25, 16], dtype=float)[None, None, :] * (0.95 + 0.1 * value_noise(114, 58, 6, 6, 800))[:, :, None]
-    shade_edges(history, 0, 0, 114, 58, 0.55, 1.6)
-    panel[70:128, 192:306] = history
+    history = np.array([38, 25, 16], dtype=float)[None, None, :] * (0.95 + 0.1 * value_noise(114, 54, 6, 6, 800))[:, :, None]
+    shade_edges(history, 0, 0, 114, 54, 0.55, 1.6)
+    panel[72:126, 192:306] = history
 
     alpha = np.full((192, 312), 255)
     for cy, cx in [(0, 0), (0, 311), (191, 0), (191, 311)]:
@@ -405,6 +417,17 @@ def gui_texture():
             atlas[224 + 16 * side_index:240 + 16 * side_index, piece_index * 16:(piece_index + 1) * 16] = \
                 sprite(SPRITES[piece], SPRITE_COLOURS[side])
         atlas[256:265, 9 * side_index:9 * side_index + 9] = sprite(ICON, SPRITE_COLOURS[side])
+
+    # Flip-board button (an up and a down arrow): normal, hovered and disabled states, 9 px apart.
+    for state, (background, arrow) in enumerate((((26, 15, 8, 170), (243, 230, 207, 255)),
+                                                  ((70, 46, 20, 220), (255, 211, 122, 255)),
+                                                  ((26, 15, 8, 120), (120, 100, 80, 255)))):
+        y0 = 270 + 9 * state
+        atlas[y0:y0 + 9, 0:9] = background
+        for y, row in enumerate(FLIP_ICON):
+            for x, c in enumerate(row):
+                if c == "#":
+                    atlas[y0 + y, x] = arrow
 
     save_png(Image.fromarray(atlas, "RGBA"), "textures/gui/chess_board.png")
     return atlas

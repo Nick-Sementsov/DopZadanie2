@@ -44,6 +44,8 @@ public final class ChessAI {
     private static final int INFINITY = 1_000_000;
     private static final int MAX_QUIESCENCE_DEPTH = 8;
     private static final int MAX_CHECK_EXTENSION_PLY = 16;
+    /** How far behind (in centipawns) the computer must be before it agrees to a draw. */
+    private static final int DRAW_ACCEPT_MARGIN = 150;
 
     // Piece-square tables from white's point of view, rank 8 first (Tomasz Michniewski's "simplified evaluation").
     private static final int[] PAWN_TABLE = {
@@ -297,6 +299,16 @@ public final class ChessAI {
             }
             order[j + 1] = index;
         }
+    }
+
+    /**
+     * Whether the computer playing {@code side} accepts a draw offer: only when its position is clearly worse,
+     * judged after the pending captures are played out.
+     */
+    public static boolean acceptsDraw(Position position, Side side) {
+        ChessAI judge = new ChessAI(Difficulty.HARD, Set.of(), 500);
+        int score = judge.quiescence(position.copy(), -INFINITY, INFINITY, 0);
+        return (position.sideToMove() == side ? score : -score) <= -DRAW_ACCEPT_MARGIN;
     }
 
     /** Static evaluation in centipawns from the point of view of the side to move. */

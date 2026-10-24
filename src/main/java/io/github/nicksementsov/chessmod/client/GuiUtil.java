@@ -26,6 +26,8 @@ final class GuiUtil {
 
     static final int ICON_V = 256;
     static final int ICON_SIZE = 9;
+    /** Flip-board icon: normal, hovered and disabled states stacked {@link #ICON_SIZE} apart. */
+    static final int FLIP_ICON_V = 270;
 
     private static final int FRAME_U = 128;
     private static final int FRAME_V = 200;

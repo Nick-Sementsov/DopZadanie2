@@ -3,10 +3,12 @@ package io.github.nicksementsov.chessmod.board;
 import java.util.Locale;
 
 public enum GameMode {
-    /** Two people at the same board (or one person playing both sides). */
-    TWO_PLAYERS,
     /** One person against the built-in computer opponent. */
-    VS_COMPUTER;
+    VS_COMPUTER,
+    /** Two different players, one on each side. Take-backs and draws need the opponent's consent. */
+    TWO_PLAYERS,
+    /** One person moves both sides, e.g. to study a position or to show a game to friends. */
+    SOLO;
 
     public String serializedName() {
         return name().toLowerCase(Locale.ROOT);

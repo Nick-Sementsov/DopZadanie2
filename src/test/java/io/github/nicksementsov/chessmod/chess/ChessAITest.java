@@ -60,6 +60,15 @@ class ChessAITest {
     }
 
     @Test
+    void acceptsDrawOnlyWhenWorse() {
+        // White has an extra queen: the computer playing black is glad to draw, playing white it refuses.
+        Position position = Position.fromFen("4k3/8/8/8/8/8/8/3QK3 b - - 0 1");
+        assertTrue(ChessAI.acceptsDraw(position, Side.BLACK));
+        assertTrue(!ChessAI.acceptsDraw(position, Side.WHITE));
+        assertTrue(!ChessAI.acceptsDraw(Position.start(), Side.BLACK), "an equal position is played on");
+    }
+
+    @Test
     void noMovesMeansNoChoice() {
         assertNull(choose("7k/5Q2/7K/8/8/8/8/8 b - - 0 1", ChessAI.Difficulty.HARD));
     }

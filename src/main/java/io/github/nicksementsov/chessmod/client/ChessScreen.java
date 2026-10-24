@@ -5,6 +5,7 @@ import io.github.nicksementsov.chessmod.board.BoardAction;
 import io.github.nicksementsov.chessmod.board.ChessBoardBlockEntity;
 import io.github.nicksementsov.chessmod.board.ChessTexts;
 import io.github.nicksementsov.chessmod.board.GameMode;
+import io.github.nicksementsov.chessmod.board.Offer;
 import io.github.nicksementsov.chessmod.chess.ChessGame;
 import io.github.nicksementsov.chessmod.chess.GameStatus;
 import io.github.nicksementsov.chessmod.chess.Move;
@@ -18,6 +19,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
@@ -43,8 +46,8 @@ public class ChessScreen extends Screen {
     private static final int BOARD_SIZE = SQUARE * 8;
     private static final int SIDE_X = 192;
     private static final int SIDE_WIDTH = 114;
-    private static final int HISTORY_Y = 70;
-    private static final int HISTORY_HEIGHT = 58;
+    private static final int HISTORY_Y = 72;
+    private static final int HISTORY_HEIGHT = 54;
     private static final int HISTORY_ROW = 9;
     private static final int HISTORY_ROWS = (HISTORY_HEIGHT - 4) / HISTORY_ROW;
     private static final double MAX_DISTANCE_SQR = 8 * 8;
@@ -75,8 +78,14 @@ public class ChessScreen extends Screen {
     private long flashUntil;
     private long resignArmedUntil;
 
+    private String knownOrientation = "";
+
     private Button undoButton;
     private Button resignButton;
+    private Button drawButton;
+    private Button acceptButton;
+    private Button declineButton;
+    private final Button[] sitButtons = new Button[2];
 
     public ChessScreen(BlockPos pos) {
         super(Component.translatable("gui.chessmod.title"));
@@ -97,14 +106,28 @@ public class ChessScreen extends Screen {
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;
         int x = left + SIDE_X;
+        for (Side side : Side.values()) {
+            sitButtons[side.ordinal()] = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.sit"),
+                    button -> ChessActionPacket.send(pos, BoardAction.SIT, side.serializedName()))
+                    .bounds(x + SIDE_WIDTH - 38, top + playerRowY(side) - 2, 38, 12).build());
+        }
+        acceptButton = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.accept"),
+                button -> ChessActionPacket.send(pos, BoardAction.ANSWER_OFFER, "accept"))
+                .bounds(x + 2, top + HISTORY_Y + 34, 54, 14).build());
+        declineButton = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.decline"),
+                button -> ChessActionPacket.send(pos, BoardAction.ANSWER_OFFER, "decline"))
+                .bounds(x + 58, top + HISTORY_Y + 34, 54, 14).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.new_game"),
-                button -> minecraft.setScreen(new NewGameScreen(this, pos))).bounds(x, top + 132, SIDE_WIDTH, 16).build());
+                button -> minecraft.setScreen(new NewGameScreen(this, pos))).bounds(x, top + 130, SIDE_WIDTH, 16).build());
         undoButton = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.undo"),
-                button -> ChessActionPacket.send(pos, BoardAction.UNDO, "")).bounds(x, top + 150, 56, 16).build());
+                button -> ChessActionPacket.send(pos, BoardAction.UNDO, "")).bounds(x, top + 148, 56, 16).build());
         resignButton = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.resign"),
-                button -> resign()).bounds(x + 58, top + 150, 56, 16).build());
-        addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.flip"),
-                button -> flipped = !flipped).bounds(x, top + 168, SIDE_WIDTH, 16).build());
+                button -> resign()).bounds(x + 58, top + 148, 56, 16).build());
+        drawButton = addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.draw"),
+                button -> ChessActionPacket.send(pos, BoardAction.OFFER_DRAW, "")).bounds(x, top + 166, SIDE_WIDTH, 16).build());
+        ImageButton flipButton = addRenderableWidget(new ImageButton(left + 176, top + 7, ICON_SIZE, ICON_SIZE, 0, FLIP_ICON_V,
+                ICON_SIZE, TEXTURE, TEXTURE_SIZE, TEXTURE_SIZE, button -> flipped = !flipped));
+        flipButton.setTooltip(Tooltip.create(Component.translatable("gui.chessmod.button.flip")));
         ChessBoardBlockEntity board = board();
         if (board != null) {
             syncWithBoard(board);
@@ -121,12 +144,18 @@ public class ChessScreen extends Screen {
         syncWithBoard(board);
     }
 
-    /** Reacts to changes that arrived from the server: a new game, a move, a take-back. */
+    /** Reacts to changes that arrived from the server: a new game, a move, a take-back, a player sitting down. */
     private void syncWithBoard(ChessBoardBlockEntity board) {
         ChessGame game = board.game();
+        // Everyone sees their own pieces at the bottom; recomputed when someone sits down or a new game starts.
+        Side mySide = mySide(board);
+        String orientation = board.gameId() + ":" + mySide;
+        if (!orientation.equals(knownOrientation)) {
+            knownOrientation = orientation;
+            flipped = mySide == Side.BLACK;
+        }
         if (board.gameId() != knownGameId) {
             knownGameId = board.gameId();
-            flipped = prefersBlackAtBottom(board);
             bannerHidden = false;
             clearSelection();
         }
@@ -142,23 +171,63 @@ public class ChessScreen extends Screen {
         }
 
         UUID me = playerId();
-        boolean mayControl = (board.playerId(Side.WHITE) == null && board.playerId(Side.BLACK) == null) || board.isParticipant(me);
-        int humanMoves = board.mode() == GameMode.VS_COMPUTER
-                ? (board.computerSide() == Side.BLACK ? (game.ply() + 1) / 2 : game.ply() / 2)
-                : game.ply();
-        undoButton.active = mayControl && humanMoves > 0 && game.status() != GameStatus.RESIGNATION;
-        resignButton.active = !game.isOver() && board.isParticipant(me);
+        GameMode mode = board.mode();
+        boolean againstPlayer = mode == GameMode.TWO_PLAYERS && board.hasTwoPlayers();
+        Side mySeat = board.sideOf(me);
+        boolean participant = board.isParticipant(me);
+        if (againstPlayer) {
+            undoButton.active = mySeat != null && !game.isOver() && game.movesPlayedBy(mySeat) > 0 && board.offer() == Offer.NONE;
+            undoButton.setTooltip(Tooltip.create(Component.translatable("gui.chessmod.tooltip.takeback")));
+        } else {
+            boolean noSeats = board.playerId(Side.WHITE) == null && board.playerId(Side.BLACK) == null;
+            int ownMoves = mode == GameMode.VS_COMPUTER ? game.movesPlayedBy(board.computerSide().opposite()) : game.ply();
+            undoButton.active = (noSeats || participant) && ownMoves > 0
+                    && game.status() != GameStatus.RESIGNATION && !game.isDrawAgreed();
+            undoButton.setTooltip(null);
+        }
+        resignButton.active = !game.isOver() && participant;
         boolean armed = Util.getMillis() < resignArmedUntil;
         resignButton.setMessage(Component.translatable(armed ? "gui.chessmod.button.resign_confirm" : "gui.chessmod.button.resign")
                 .withStyle(armed ? ChatFormatting.RED : ChatFormatting.RESET));
+        boolean myOfferPending = board.offer() != Offer.NONE && me.equals(board.playerId(board.offerFrom()));
+        drawButton.active = !game.isOver() && participant && !myOfferPending
+                && (mode != GameMode.TWO_PLAYERS || board.hasTwoPlayers());
+
+        for (Side side : Side.values()) {
+            sitButtons[side.ordinal()].visible = canSit(board, side);
+        }
+        boolean prompt = offerToAnswer(board) != Offer.NONE;
+        acceptButton.visible = prompt;
+        declineButton.visible = prompt;
     }
 
-    private boolean prefersBlackAtBottom(ChessBoardBlockEntity board) {
+    /** The side shown at the bottom of the board for this player. */
+    private Side mySide(ChessBoardBlockEntity board) {
         if (board.mode() == GameMode.VS_COMPUTER) {
-            return board.computerSide() == Side.WHITE;
+            return board.computerSide().opposite();
         }
         UUID me = playerId();
-        return me.equals(board.playerId(Side.BLACK)) && !me.equals(board.playerId(Side.WHITE));
+        boolean white = me.equals(board.playerId(Side.WHITE));
+        boolean black = me.equals(board.playerId(Side.BLACK));
+        return black && !white ? Side.BLACK : Side.WHITE;
+    }
+
+    /** A free seat in a two-player game that this player may take (one person cannot take both). */
+    private boolean canSit(ChessBoardBlockEntity board, Side side) {
+        return board.mode() == GameMode.TWO_PLAYERS && !board.game().isOver() && board.playerId(side) == null
+                && !playerId().equals(board.playerId(side.opposite()));
+    }
+
+    /** The opponent's take-back or draw offer this player has to answer, if any. */
+    private Offer offerToAnswer(ChessBoardBlockEntity board) {
+        if (board.offer() == Offer.NONE || board.mode() != GameMode.TWO_PLAYERS) {
+            return Offer.NONE;
+        }
+        return playerId().equals(board.playerId(board.offerFrom().opposite())) ? board.offer() : Offer.NONE;
+    }
+
+    private static int playerRowY(Side side) {
+        return side == Side.WHITE ? 45 : 58;
     }
 
     private void resign() {
@@ -334,17 +403,36 @@ public class ChessScreen extends Screen {
         ChessGame game = board.game();
         int x = left + SIDE_X;
         int centreX = x + SIDE_WIDTH / 2;
-        graphics.drawCenteredString(font, title, centreX, top + 10, TEXT_GOLD);
+        graphics.drawCenteredString(font, title, centreX, top + 8, TEXT_GOLD);
 
         List<Component> status = statusLines(board);
         for (int i = 0; i < status.size() && i < 2; i++) {
             FormattedCharSequence line = font.split(status.get(i), SIDE_WIDTH).get(0);
-            graphics.drawCenteredString(font, line, centreX, top + 24 + i * 10, TEXT);
+            graphics.drawCenteredString(font, line, centreX, top + 21 + i * 10, TEXT);
         }
 
-        renderPlayer(graphics, board, Side.WHITE, top + 48);
-        renderPlayer(graphics, board, Side.BLACK, top + 58);
-        renderHistory(graphics, game, x, top + HISTORY_Y);
+        renderPlayer(graphics, board, Side.WHITE, top + playerRowY(Side.WHITE));
+        renderPlayer(graphics, board, Side.BLACK, top + playerRowY(Side.BLACK));
+        Offer offer = offerToAnswer(board);
+        if (offer != Offer.NONE) {
+            renderOfferPrompt(graphics, board, offer, x, top + HISTORY_Y);
+        } else {
+            renderHistory(graphics, game, x, top + HISTORY_Y);
+        }
+    }
+
+    /** The opponent asks for something: shown over the move list, with the accept and decline buttons below the text. */
+    private void renderOfferPrompt(GuiGraphics graphics, ChessBoardBlockEntity board, Offer offer, int x, int y) {
+        graphics.fill(x, y, x + SIDE_WIDTH, y + HISTORY_HEIGHT, 0xF0261810);
+        graphics.fill(x, y, x + SIDE_WIDTH, y + 1, 0xFFD8A84A);
+        graphics.fill(x, y + HISTORY_HEIGHT - 1, x + SIDE_WIDTH, y + HISTORY_HEIGHT, 0xFFD8A84A);
+        graphics.fill(x, y, x + 1, y + HISTORY_HEIGHT, 0xFFD8A84A);
+        graphics.fill(x + SIDE_WIDTH - 1, y, x + SIDE_WIDTH, y + HISTORY_HEIGHT, 0xFFD8A84A);
+        Component text = Component.translatable("gui.chessmod.offer." + offer.serializedName(), board.playerName(board.offerFrom()));
+        List<FormattedCharSequence> lines = font.split(text, SIDE_WIDTH - 8);
+        for (int i = 0; i < lines.size() && i < 3; i++) {
+            graphics.drawCenteredString(font, lines.get(i), x + SIDE_WIDTH / 2, y + 5 + i * 10, TEXT_GOLD);
+        }
     }
 
     private List<Component> statusLines(ChessBoardBlockEntity board) {
@@ -364,6 +452,12 @@ public class ChessScreen extends Screen {
         } else if (board.isComputer(toMove)) {
             int dots = (int) (Util.getMillis() / 400 % 4);
             second = Component.translatable("gui.chessmod.thinking").append(".".repeat(dots)).withStyle(ChatFormatting.GRAY);
+        } else if (board.offer() != Offer.NONE && playerId().equals(board.playerId(board.offerFrom()))) {
+            second = Component.translatable("gui.chessmod.waiting_answer").withStyle(ChatFormatting.GRAY);
+        } else if (board.mode() == GameMode.TWO_PLAYERS && board.playerId(toMove) == null) {
+            boolean free = canSit(board, toMove);
+            second = Component.translatable(free ? "gui.chessmod.seat_free_hint" : "gui.chessmod.waiting_opponent")
+                    .withStyle(free ? ChatFormatting.GREEN : ChatFormatting.GRAY);
         } else if (mayMove(board, toMove)) {
             second = Component.translatable("gui.chessmod.your_move").withStyle(ChatFormatting.GREEN);
         } else {
@@ -376,10 +470,12 @@ public class ChessScreen extends Screen {
         int x = left + SIDE_X;
         blit(graphics, x + 1, y - 1, side == Side.WHITE ? 0 : ICON_SIZE, ICON_V, ICON_SIZE, ICON_SIZE);
         boolean toMove = !board.game().isOver() && board.game().sideToMove() == side;
-        String name = displayName(board, side, true);
+        // Next to the "Sit" button there is only room for a short word.
+        String name = canSit(board, side) ? I18n.get("gui.chessmod.player.free_short") : displayName(board, side, true);
         int advantage = Math.round(board.game().materialBalance() / 100f) * (side == Side.WHITE ? 1 : -1);
-        String bonus = advantage > 0 ? "+" + advantage : "";
-        int nameWidth = SIDE_WIDTH - 14 - font.width(bonus) - 3;
+        boolean sit = canSit(board, side);
+        String bonus = advantage > 0 && !sit ? "+" + advantage : "";
+        int nameWidth = SIDE_WIDTH - 14 - (sit ? 40 : font.width(bonus) + 3);
         String shown = font.plainSubstrByWidth(name, nameWidth);
         if (!shown.equals(name)) {
             shown = font.plainSubstrByWidth(name, nameWidth - font.width("…")) + "…";
@@ -426,7 +522,7 @@ public class ChessScreen extends Screen {
                 if (index == moves.size() - 1) {
                     graphics.fill(cellX - 2, rowY - 1, cellX + 41, rowY + 8, 0x50FFD37A);
                 }
-                graphics.drawString(font, localizedSan(moves.get(index)), cellX, rowY, TEXT, false);
+                graphics.drawString(font, ChessTexts.san(moves.get(index)), cellX, rowY, TEXT, false);
             }
         }
         graphics.disableScissor();
@@ -440,21 +536,6 @@ public class ChessScreen extends Screen {
 
     private static int historyRows(ChessGame game) {
         return (game.ply() + 1) / 2;
-    }
-
-    /** Replaces the English piece letters of SAN with the ones of the current language (e.g. Кр, Ф, Л, С, К). */
-    static String localizedSan(String san) {
-        if (san.startsWith("O-O")) {
-            String castle = I18n.get(san.startsWith("O-O-O") ? "chessmod.notation.castle_long" : "chessmod.notation.castle_short");
-            return castle + san.substring(san.startsWith("O-O-O") ? 5 : 3);
-        }
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < san.length(); i++) {
-            char c = san.charAt(i);
-            boolean pieceLetter = "KQRBN".indexOf(c) >= 0 && (i == 0 || san.charAt(i - 1) == '=');
-            result.append(pieceLetter ? I18n.get("chessmod.notation." + c) : String.valueOf(c));
-        }
-        return result.toString();
     }
 
     private void renderPromotionChoice(GuiGraphics graphics, ChessBoardBlockEntity board, int mouseX, int mouseY) {
@@ -639,6 +720,13 @@ public class ChessScreen extends Screen {
         if (board.isComputer(side)) {
             if (explain) {
                 flash(Component.translatable("gui.chessmod.computer_pieces").withStyle(ChatFormatting.RED));
+            }
+            return false;
+        }
+        UUID other = board.playerId(side.opposite());
+        if (board.mode() == GameMode.TWO_PLAYERS && board.playerId(side) == null && playerId().equals(other)) {
+            if (explain) {
+                flash(Component.translatable("gui.chessmod.already_seated." + side.opposite().serializedName()).withStyle(ChatFormatting.RED));
             }
             return false;
         }

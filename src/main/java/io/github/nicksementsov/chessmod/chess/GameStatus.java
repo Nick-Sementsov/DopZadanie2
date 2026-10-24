@@ -9,10 +9,12 @@ public enum GameStatus {
     THREEFOLD_REPETITION,
     FIFTY_MOVE_RULE,
     INSUFFICIENT_MATERIAL,
+    DRAW_AGREEMENT,
     RESIGNATION;
 
     public boolean isDraw() {
-        return this == STALEMATE || this == THREEFOLD_REPETITION || this == FIFTY_MOVE_RULE || this == INSUFFICIENT_MATERIAL;
+        return this == STALEMATE || this == THREEFOLD_REPETITION || this == FIFTY_MOVE_RULE || this == INSUFFICIENT_MATERIAL
+                || this == DRAW_AGREEMENT;
     }
 
     public String serializedName() {

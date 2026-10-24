@@ -33,6 +33,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -68,6 +69,9 @@ public class ChessBoardBlockEntity extends BlockEntity {
     private int gameId;
     /** Changes whenever the game is replaced or moves are taken back, so stale computer moves are ignored. */
     private int revision;
+
+    private Offer offer = Offer.NONE;
+    private Side offerFrom = Side.WHITE;
 
     private boolean computerThinking;
     private int ticksSinceMove;
@@ -125,6 +129,31 @@ public class ChessBoardBlockEntity extends BlockEntity {
         return player.equals(playerIds[0]) || player.equals(playerIds[1]);
     }
 
+    /** The side a player sits on; when one person plays both sides, the side to move. */
+    @Nullable
+    public Side sideOf(UUID player) {
+        boolean white = player.equals(playerIds[0]);
+        boolean black = player.equals(playerIds[1]);
+        if (white && black) {
+            return game.sideToMove();
+        }
+        return white ? Side.WHITE : black ? Side.BLACK : null;
+    }
+
+    /** True when two different people sit at the board. */
+    public boolean hasTwoPlayers() {
+        return playerIds[0] != null && playerIds[1] != null && !playerIds[0].equals(playerIds[1]);
+    }
+
+    /** The take-back or draw offer waiting for an answer, made by {@link #offerFrom()}. */
+    public Offer offer() {
+        return offer;
+    }
+
+    public Side offerFrom() {
+        return offerFrom;
+    }
+
     /** The move being animated on the client and how far along it is, from 0 to 1. */
     @Nullable
     public Move animatedMove() {
@@ -175,7 +204,7 @@ public class ChessBoardBlockEntity extends BlockEntity {
                         List<Move> legal = game.legalMoves();
                         chosen = legal.get(random.nextInt(legal.size()));
                     }
-                    playMove(chosen);
+                    playMove(chosen, null);
                 }));
     }
 
@@ -185,6 +214,9 @@ public class ChessBoardBlockEntity extends BlockEntity {
             case NEW_GAME -> tryNewGame(player, data);
             case UNDO -> tryUndo(player);
             case RESIGN -> tryResign(player);
+            case SIT -> trySit(player, Side.byName(data, null));
+            case OFFER_DRAW -> tryOfferDraw(player);
+            case ANSWER_OFFER -> tryAnswerOffer(player, "accept".equals(data));
         }
     }
 
@@ -198,9 +230,14 @@ public class ChessBoardBlockEntity extends BlockEntity {
             deny(player, "message.chessmod.computer_turn");
             return;
         }
+        UUID me = player.getUUID();
         UUID seat = playerIds[side.ordinal()];
-        if (seat != null && !seat.equals(player.getUUID())) {
+        if (seat != null && !seat.equals(me)) {
             deny(player, "message.chessmod.seat_taken." + side.serializedName(), playerNames[side.ordinal()]);
+            return;
+        }
+        if (seat == null && mode == GameMode.TWO_PLAYERS && me.equals(playerIds[side.opposite().ordinal()])) {
+            deny(player, "message.chessmod.already_seated." + side.opposite().serializedName());
             return;
         }
         Move move = game.findMove(uci);
@@ -209,10 +246,45 @@ public class ChessBoardBlockEntity extends BlockEntity {
             return;
         }
         if (seat == null) {
-            playerIds[side.ordinal()] = player.getUUID();
-            playerNames[side.ordinal()] = player.getGameProfile().getName();
+            takeSeat(player, side);
         }
-        playMove(move);
+        playMove(move, player);
+    }
+
+    private void trySit(ServerPlayer player, @Nullable Side side) {
+        if (side == null || mode != GameMode.TWO_PLAYERS) {
+            return;
+        }
+        if (game.isOver()) {
+            deny(player, "message.chessmod.game_over");
+            return;
+        }
+        UUID me = player.getUUID();
+        UUID seat = playerIds[side.ordinal()];
+        if (me.equals(seat)) {
+            return;
+        }
+        if (seat != null) {
+            deny(player, "message.chessmod.seat_taken." + side.serializedName(), playerNames[side.ordinal()]);
+            return;
+        }
+        if (me.equals(playerIds[side.opposite().ordinal()])) {
+            deny(player, "message.chessmod.already_seated." + side.opposite().serializedName());
+            return;
+        }
+        takeSeat(player, side);
+        playSound(SoundEvents.ARMOR_EQUIP_LEATHER, 0.8f, 1.0f);
+        sync();
+    }
+
+    private void takeSeat(ServerPlayer player, Side side) {
+        String name = player.getGameProfile().getName();
+        playerIds[side.ordinal()] = player.getUUID();
+        playerNames[side.ordinal()] = name;
+        if (mode == GameMode.TWO_PLAYERS) {
+            notifyPlayer(playerIds[side.opposite().ordinal()], player,
+                    Component.translatable("message.chessmod.joined." + side.serializedName(), name).withStyle(ChatFormatting.GOLD), false);
+        }
     }
 
     private void tryNewGame(ServerPlayer player, String data) {
@@ -227,18 +299,33 @@ public class ChessBoardBlockEntity extends BlockEntity {
         ColorChoice color = ColorChoice.byName(parts.length > 1 ? parts[1] : "", ColorChoice.WHITE);
         ChessAI.Difficulty newDifficulty = ChessAI.Difficulty.byName(parts.length > 2 ? parts[2] : "", ChessAI.Difficulty.MEDIUM);
 
+        // Let the previous opponent know the game they were playing has been replaced.
+        if (mode == GameMode.TWO_PLAYERS && gameInProgress) {
+            for (UUID id : playerIds) {
+                notifyPlayer(id, player, Component.translatable("message.chessmod.new_game_started",
+                        player.getGameProfile().getName()).withStyle(ChatFormatting.GOLD), false);
+            }
+        }
+
         game = new ChessGame();
         gameId++;
         revision++;
         mode = newMode;
         difficulty = newDifficulty;
+        offer = Offer.NONE;
         Arrays.fill(playerIds, null);
         Arrays.fill(playerNames, "");
-        if (mode == GameMode.VS_COMPUTER) {
-            Side human = color.resolve(player.getRandom());
-            computerSide = human.opposite();
-            playerIds[human.ordinal()] = player.getUUID();
-            playerNames[human.ordinal()] = player.getGameProfile().getName();
+        Side starter = color.resolve(player.getRandom());
+        switch (mode) {
+            case VS_COMPUTER -> {
+                computerSide = starter.opposite();
+                takeSeat(player, starter);
+            }
+            case TWO_PLAYERS -> takeSeat(player, starter);
+            case SOLO -> {
+                takeSeat(player, Side.WHITE);
+                takeSeat(player, Side.BLACK);
+            }
         }
         ticksSinceMove = 0;
         playSound(SoundEvents.BOOK_PAGE_TURN, 1.0f, 1.0f);
@@ -246,11 +333,15 @@ public class ChessBoardBlockEntity extends BlockEntity {
     }
 
     private void tryUndo(ServerPlayer player) {
+        if (mode == GameMode.TWO_PLAYERS && hasTwoPlayers()) {
+            requestTakeback(player);
+            return;
+        }
         if (!mayControl(player)) {
             deny(player, "message.chessmod.not_player");
             return;
         }
-        if (humanMovesPlayed() == 0 || game.status() == GameStatus.RESIGNATION) {
+        if (humanMovesPlayed() == 0 || game.status() == GameStatus.RESIGNATION || game.isDrawAgreed()) {
             deny(player, "message.chessmod.cannot_undo");
             return;
         }
@@ -262,8 +353,118 @@ public class ChessBoardBlockEntity extends BlockEntity {
                 game.undo();
             }
         }
+        afterTakeback();
+    }
+
+    /** Against another person a move can only be taken back with their consent. */
+    private void requestTakeback(ServerPlayer player) {
+        Side side = sideOf(player.getUUID());
+        if (side == null) {
+            deny(player, "message.chessmod.not_player");
+            return;
+        }
+        if (game.isOver()) {
+            deny(player, "message.chessmod.game_over");
+            return;
+        }
+        if (game.movesPlayedBy(side) == 0) {
+            deny(player, "message.chessmod.cannot_undo");
+            return;
+        }
+        if (offer != Offer.NONE) {
+            deny(player, "message.chessmod.offer_pending");
+            return;
+        }
+        makeOffer(player, side, Offer.TAKEBACK);
+    }
+
+    private void tryOfferDraw(ServerPlayer player) {
+        if (game.isOver()) {
+            deny(player, "message.chessmod.game_over");
+            return;
+        }
+        Side side = mode == GameMode.VS_COMPUTER
+                ? (isParticipant(player.getUUID()) ? computerSide.opposite() : null)
+                : sideOf(player.getUUID());
+        if (side == null) {
+            deny(player, "message.chessmod.not_player");
+            return;
+        }
+        switch (mode) {
+            case VS_COMPUTER -> {
+                if (ChessAI.acceptsDraw(game.position(), computerSide)) {
+                    game.agreeDraw();
+                    endGame();
+                } else {
+                    player.displayClientMessage(Component.translatable("message.chessmod.computer_declines_draw")
+                            .withStyle(ChatFormatting.YELLOW), true);
+                }
+            }
+            case SOLO -> {
+                game.agreeDraw();
+                endGame();
+            }
+            case TWO_PLAYERS -> {
+                if (!hasTwoPlayers()) {
+                    deny(player, "message.chessmod.no_opponent");
+                } else if (offer == Offer.DRAW && offerFrom == side.opposite()) {
+                    // Both players want a draw: offering back counts as accepting.
+                    tryAnswerOffer(player, true);
+                } else if (offer != Offer.NONE) {
+                    deny(player, "message.chessmod.offer_pending");
+                } else {
+                    makeOffer(player, side, Offer.DRAW);
+                }
+            }
+        }
+    }
+
+    private void makeOffer(ServerPlayer player, Side side, Offer newOffer) {
+        offer = newOffer;
+        offerFrom = side;
+        notifyPlayer(playerIds[side.opposite().ordinal()], player, Component.translatable(
+                "message.chessmod.offer." + newOffer.serializedName(), player.getGameProfile().getName()).withStyle(ChatFormatting.YELLOW), false);
+        player.displayClientMessage(Component.translatable("message.chessmod.offer_sent").withStyle(ChatFormatting.GRAY), true);
+        playSound(SoundEvents.BOOK_PAGE_TURN, 0.6f, 1.4f);
+        sync();
+    }
+
+    private void tryAnswerOffer(ServerPlayer player, boolean accept) {
+        if (offer == Offer.NONE) {
+            return;
+        }
+        Side requester = offerFrom;
+        if (!player.getUUID().equals(playerIds[requester.opposite().ordinal()])) {
+            deny(player, "message.chessmod.not_player");
+            return;
+        }
+        Offer answered = offer;
+        offer = Offer.NONE;
+        String key = "message.chessmod.offer." + (accept ? "accepted." : "declined.") + answered.serializedName();
+        notifyPlayer(playerIds[requester.ordinal()], player, Component.translatable(key, player.getGameProfile().getName())
+                .withStyle(accept ? ChatFormatting.GREEN : ChatFormatting.RED), true);
+        if (!accept) {
+            sync();
+            return;
+        }
+        if (answered == Offer.DRAW) {
+            game.agreeDraw();
+            endGame();
+        } else if (!game.isOver() && game.movesPlayedBy(requester) > 0) {
+            // Go back to the requester's last turn, taking back the opponent's reply if there was one.
+            do {
+                game.undo();
+            } while (game.ply() > 0 && game.sideToMove() != requester);
+            afterTakeback();
+        } else {
+            sync();
+        }
+    }
+
+    private void afterTakeback() {
         revision++;
         ticksSinceMove = 0;
+        offer = Offer.NONE;
         playSound(SoundEvents.WOOD_HIT, 0.6f, 1.4f);
         sync();
     }
@@ -273,34 +474,20 @@ public class ChessBoardBlockEntity extends BlockEntity {
             deny(player, "message.chessmod.game_over");
             return;
         }
-        UUID id = player.getUUID();
-        Side side;
-        if (mode == GameMode.VS_COMPUTER) {
-            side = computerSide.opposite();
-        } else if (id.equals(playerIds[0]) && id.equals(playerIds[1])) {
-            side = game.sideToMove();
-        } else if (id.equals(playerIds[0])) {
-            side = Side.WHITE;
-        } else if (id.equals(playerIds[1])) {
-            side = Side.BLACK;
-        } else {
-            side = null;
-        }
-        if (side == null || !id.equals(playerIds[side.ordinal()])) {
+        Side side = mode == GameMode.VS_COMPUTER
+                ? (isParticipant(player.getUUID()) ? computerSide.opposite() : null)
+                : sideOf(player.getUUID());
+        if (side == null) {
             deny(player, "message.chessmod.not_player");
             return;
         }
         game.resign(side);
-        onGameOver();
-        sync();
+        endGame();
     }
 
     /** Against the computer only the player's own moves can be taken back; otherwise any move. */
     private int humanMovesPlayed() {
-        if (mode != GameMode.VS_COMPUTER) {
-            return game.ply();
-        }
-        return computerSide == Side.BLACK ? (game.ply() + 1) / 2 : game.ply() / 2;
+        return mode == GameMode.VS_COMPUTER ? game.movesPlayedBy(computerSide.opposite()) : game.ply();
     }
 
     /** Players of the current game may control it; so may anyone when nobody has taken a seat yet. */
@@ -309,33 +496,73 @@ public class ChessBoardBlockEntity extends BlockEntity {
         return !seatsTaken || isParticipant(player.getUUID()) || player.hasPermissions(2);
     }
 
-    private void playMove(Move move) {
+    private void playMove(Move move, @Nullable ServerPlayer mover) {
         game.play(move);
         ticksSinceMove = 0;
+        offer = Offer.NONE;
         if (move.isCapture()) {
             playSound(SoundEvents.WOOD_HIT, 0.9f, 0.85f);
         } else {
             playSound(SoundEvents.WOOD_PLACE, 0.8f, 1.25f);
         }
         if (game.isOver()) {
-            onGameOver();
-        } else if (game.position().inCheck()) {
+            endGame();
+            return;
+        }
+        if (game.position().inCheck()) {
             playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 0.7f, 1.6f);
         }
+        if (mode == GameMode.TWO_PLAYERS && mover != null) {
+            // The opponent may have walked away from the board: tell them it is their turn.
+            List<String> san = game.sanMoves();
+            notifyPlayer(playerIds[game.sideToMove().ordinal()], mover, Component.translatable("message.chessmod.opponent_moved",
+                    mover.getGameProfile().getName(), ChessTexts.san(san.get(san.size() - 1))).withStyle(ChatFormatting.GOLD), true);
+        }
+        sync();
+    }
+
+    private void endGame() {
+        offer = Offer.NONE;
+        onGameOver();
         sync();
     }
 
     private void onGameOver() {
         playSound(game.winner() != null ? SoundEvents.PLAYER_LEVELUP : SoundEvents.NOTE_BLOCK_CHIME.value(), 0.8f, 1.0f);
-        if (level instanceof ServerLevel serverLevel && ChessConfig.ANNOUNCE_RESULTS.get()) {
-            Component message = Component.translatable("message.chessmod.prefix").withStyle(ChatFormatting.GOLD)
-                    .append(" ").append(ChessTexts.result(game, this::winnerName).withStyle(ChatFormatting.WHITE));
-            Vec3 centre = Vec3.atCenterOf(worldPosition);
-            for (ServerPlayer player : serverLevel.players()) {
-                if (player.position().distanceToSqr(centre) <= ANNOUNCE_RADIUS * ANNOUNCE_RADIUS) {
-                    player.sendSystemMessage(message);
-                }
+        if (!(level instanceof ServerLevel serverLevel) || !ChessConfig.ANNOUNCE_RESULTS.get()) {
+            return;
+        }
+        Component message = Component.translatable("message.chessmod.prefix").withStyle(ChatFormatting.GOLD)
+                .append(" ").append(ChessTexts.result(game, this::winnerName).withStyle(ChatFormatting.WHITE));
+        Set<ServerPlayer> recipients = new HashSet<>();
+        Vec3 centre = Vec3.atCenterOf(worldPosition);
+        for (ServerPlayer player : serverLevel.players()) {
+            if (player.position().distanceToSqr(centre) <= ANNOUNCE_RADIUS * ANNOUNCE_RADIUS) {
+                recipients.add(player);
             }
+        }
+        // The players themselves hear about it wherever they are.
+        for (UUID id : playerIds) {
+            ServerPlayer player = id == null ? null : serverLevel.getServer().getPlayerList().getPlayer(id);
+            if (player != null) {
+                recipients.add(player);
+            }
+        }
+        recipients.forEach(player -> player.sendSystemMessage(message));
+    }
+
+    /**
+     * Tells a seated player about something their opponent did, even if they are away from the board.
+     * Nothing is sent to the actor themselves (for example when one person plays both sides).
+     */
+    private void notifyPlayer(@Nullable UUID target, ServerPlayer actor, Component message, boolean actionBar) {
+        if (target == null || target.equals(actor.getUUID()) || !(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ServerPlayer player = serverLevel.getServer().getPlayerList().getPlayer(target);
+        if (player != null) {
+            player.displayClientMessage(message, actionBar);
+            player.playNotifySound(SoundEvents.NOTE_BLOCK_PLING.value(), SoundSource.BLOCKS, 0.6f, 1.5f);
         }
     }
 
@@ -385,6 +612,13 @@ public class ChessBoardBlockEntity extends BlockEntity {
         if (game.resignedSide() != null) {
             tag.putString("Resigned", game.resignedSide().serializedName());
         }
+        if (game.isDrawAgreed()) {
+            tag.putBoolean("DrawAgreed", true);
+        }
+        if (offer != Offer.NONE) {
+            tag.putString("Offer", offer.serializedName());
+            tag.putString("OfferFrom", offerFrom.serializedName());
+        }
         tag.putString("Mode", mode.serializedName());
         tag.putString("Computer", computerSide.serializedName());
         tag.putString("Difficulty", difficulty.serializedName());
@@ -404,6 +638,11 @@ public class ChessBoardBlockEntity extends BlockEntity {
         Side resigned = tag.contains("Resigned") ? Side.byName(tag.getString("Resigned"), null) : null;
         String startFen = tag.contains("StartFen") ? tag.getString("StartFen") : Position.START_FEN;
         game = ChessGame.fromHistory(startFen, moves.isEmpty() ? List.of() : List.of(moves.split(" ")), resigned);
+        if (tag.getBoolean("DrawAgreed")) {
+            game.agreeDraw();
+        }
+        offer = Offer.byName(tag.getString("Offer"));
+        offerFrom = Side.byName(tag.getString("OfferFrom"), Side.WHITE);
         mode = GameMode.byName(tag.getString("Mode"), GameMode.TWO_PLAYERS);
         computerSide = Side.byName(tag.getString("Computer"), Side.BLACK);
         difficulty = ChessAI.Difficulty.byName(tag.getString("Difficulty"), ChessAI.Difficulty.MEDIUM);

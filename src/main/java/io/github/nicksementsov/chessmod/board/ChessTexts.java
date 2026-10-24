@@ -42,6 +42,33 @@ public final class ChessTexts {
         return reason(game).append(" ").append(outcome(game, names));
     }
 
+    /**
+     * A move in standard algebraic notation with the piece letters translated on the reader's side,
+     * so a Russian player sees {@code Кf3} where an English one sees {@code Nf3}.
+     */
+    public static MutableComponent san(String san) {
+        MutableComponent result = Component.empty();
+        int index = 0;
+        if (san.startsWith("O-O")) {
+            boolean queenside = san.startsWith("O-O-O");
+            result.append(Component.translatable(queenside ? "chessmod.notation.castle_long" : "chessmod.notation.castle_short"));
+            index = queenside ? 5 : 3;
+        }
+        StringBuilder plain = new StringBuilder();
+        for (; index < san.length(); index++) {
+            char c = san.charAt(index);
+            boolean pieceLetter = "KQRBN".indexOf(c) >= 0 && (index == 0 || san.charAt(index - 1) == '=');
+            if (pieceLetter) {
+                result.append(plain.toString());
+                plain.setLength(0);
+                result.append(Component.translatable("chessmod.notation." + c));
+            } else {
+                plain.append(c);
+            }
+        }
+        return result.append(plain.toString());
+    }
+
     public static MutableComponent difficultyName(ChessAI.Difficulty difficulty) {
         return Component.translatable("gui.chessmod.difficulty." + difficulty.serializedName());
     }

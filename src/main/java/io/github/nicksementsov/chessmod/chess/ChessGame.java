@@ -13,6 +13,7 @@ public final class ChessGame {
     private final List<Move> moves = new ArrayList<>();
     private final List<String> sanMoves = new ArrayList<>();
     private Side resigned;
+    private boolean drawAgreed;
     private GameStatus status;
 
     public ChessGame() {
@@ -142,9 +143,9 @@ public final class ChessGame {
         return true;
     }
 
-    /** Takes back the last half-move. Not possible after a resignation. */
+    /** Takes back the last half-move. Not possible after a resignation or an agreed draw. */
     public boolean undo() {
-        if (moves.isEmpty() || resigned != null) {
+        if (moves.isEmpty() || resigned != null || drawAgreed) {
             return false;
         }
         moves.remove(moves.size() - 1);
@@ -165,6 +166,25 @@ public final class ChessGame {
         return resigned;
     }
 
+    /** Both players agreed to end the game in a draw. */
+    public void agreeDraw() {
+        if (!isOver()) {
+            drawAgreed = true;
+            status = null;
+        }
+    }
+
+    public boolean isDrawAgreed() {
+        return drawAgreed;
+    }
+
+    /** Number of half-moves the given side has played so far. */
+    public int movesPlayedBy(Side side) {
+        boolean whiteStarted = positions.get(0).sideToMove() == Side.WHITE;
+        int first = (side == Side.WHITE) == whiteStarted ? 0 : 1;
+        return Math.max(0, (moves.size() - first + 1) / 2);
+    }
+
     public GameStatus status() {
         if (status == null) {
             status = computeStatus();
@@ -175,6 +195,9 @@ public final class ChessGame {
     private GameStatus computeStatus() {
         if (resigned != null) {
             return GameStatus.RESIGNATION;
+        }
+        if (drawAgreed) {
+            return GameStatus.DRAW_AGREEMENT;
         }
         Position position = position();
         if (position.legalMoves().isEmpty()) {

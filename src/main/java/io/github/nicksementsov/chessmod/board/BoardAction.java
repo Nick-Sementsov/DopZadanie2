@@ -6,6 +6,13 @@ public enum BoardAction {
     MOVE,
     /** Data: {@code mode;color;difficulty}, see {@link ChessBoardBlockEntity#encodeNewGame}. */
     NEW_GAME,
+    /** Takes back a move; against another player this asks the opponent first. */
     UNDO,
-    RESIGN
+    RESIGN,
+    /** Data: {@code white} or {@code black}. Takes a free seat in a two-player game. */
+    SIT,
+    /** Offers a draw; the computer answers at once, another player answers with {@link #ANSWER_OFFER}. */
+    OFFER_DRAW,
+    /** Data: {@code accept} or {@code decline}. Answers the opponent's take-back or draw offer. */
+    ANSWER_OFFER
 }

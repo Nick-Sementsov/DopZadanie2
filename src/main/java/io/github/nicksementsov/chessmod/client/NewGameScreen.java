@@ -18,7 +18,7 @@ import net.minecraft.network.chat.Component;
 /** Lets the player choose how the next game is played. */
 public class NewGameScreen extends Screen {
     private static final int WIDTH = 200;
-    private static final int HEIGHT = 140;
+    private static final int HEIGHT = 168;
 
     // Remembered for the rest of the session, so starting the next game is a single click.
     private static GameMode lastMode = GameMode.VS_COMPUTER;
@@ -65,16 +65,15 @@ public class NewGameScreen extends Screen {
 
         int half = (buttonWidth - 4) / 2;
         addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.start"), button -> start())
-                .bounds(x, top + 108, half, 20).build());
+                .bounds(x, top + 138, half, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.chessmod.button.back"), button -> onClose())
-                .bounds(x + half + 4, top + 108, half, 20).build());
+                .bounds(x + half + 4, top + 138, half, 20).build());
         updateActive();
     }
 
     private void updateActive() {
-        boolean computer = lastMode == GameMode.VS_COMPUTER;
-        colorButton.active = computer;
-        difficultyButton.active = computer;
+        colorButton.active = lastMode != GameMode.SOLO;
+        difficultyButton.active = lastMode == GameMode.VS_COMPUTER;
     }
 
     private void start() {
@@ -88,6 +87,13 @@ public class NewGameScreen extends Screen {
         RenderSystem.enableBlend();
         GuiUtil.frame(graphics, left, top, WIDTH, HEIGHT);
         graphics.drawCenteredString(font, title, left + WIDTH / 2, top + 12, GuiUtil.TEXT_GOLD);
+        // A short explanation of how the chosen mode works, e.g. how the second player joins.
+        Component hint = Component.translatable("gui.chessmod.mode_hint." + lastMode.serializedName());
+        int y = top + 104;
+        for (var line : font.split(hint, WIDTH - 24).stream().limit(3).toList()) {
+            graphics.drawCenteredString(font, line, left + WIDTH / 2, y, GuiUtil.TEXT_DIM);
+            y += 10;
+        }
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 

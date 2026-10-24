@@ -133,6 +133,31 @@ class ChessGameTest {
     }
 
     @Test
+    void drawByAgreement() {
+        ChessGame game = play("e2e4", "e7e5");
+        game.agreeDraw();
+        assertEquals(GameStatus.DRAW_AGREEMENT, game.status());
+        assertTrue(game.status().isDraw());
+        assertNull(game.winner());
+        assertFalse(game.undo(), "an agreed draw is final");
+        assertTrue(game.legalMoves().isEmpty());
+    }
+
+    @Test
+    void countsMovesPerSide() {
+        ChessGame game = new ChessGame();
+        assertEquals(0, game.movesPlayedBy(Side.WHITE));
+        assertEquals(0, game.movesPlayedBy(Side.BLACK));
+        game = play("e2e4", "e7e5", "g1f3");
+        assertEquals(2, game.movesPlayedBy(Side.WHITE));
+        assertEquals(1, game.movesPlayedBy(Side.BLACK));
+        // A game that starts with black to move
+        ChessGame fromBlack = playFrom("4k3/8/8/8/8/8/8/R3K3 b - - 0 1", "e8d7");
+        assertEquals(1, fromBlack.movesPlayedBy(Side.BLACK));
+        assertEquals(0, fromBlack.movesPlayedBy(Side.WHITE));
+    }
+
+    @Test
     void historyIsRestoredAndStopsAtBadMoves() {
         ChessGame original = play("e2e4", "c7c5", "g1f3");
         ChessGame restored = ChessGame.fromHistory(original.startFen(), original.uciMoves(), null);
