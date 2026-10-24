@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "chessmod:block/black_bishop"
+    },
+    "facing=east": {
+      "model": "chessmod:block/black_bishop",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "chessmod:block/black_bishop",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "chessmod:block/black_bishop",
+      "y": 270
+    }
+  }
+}

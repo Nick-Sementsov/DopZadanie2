@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "chessmod:block/black_queen"
+    },
+    "facing=east": {
+      "model": "chessmod:block/black_queen",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "chessmod:block/black_queen",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "chessmod:block/black_queen",
+      "y": 270
+    }
+  }
+}

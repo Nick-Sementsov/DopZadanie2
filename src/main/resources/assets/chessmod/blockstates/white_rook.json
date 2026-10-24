@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "chessmod:block/white_rook"
+    },
+    "facing=east": {
+      "model": "chessmod:block/white_rook",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "chessmod:block/white_rook",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "chessmod:block/white_rook",
+      "y": 270
+    }
+  }
+}

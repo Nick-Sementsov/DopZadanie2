@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "chessmod:block/white_pawn"
+    },
+    "facing=east": {
+      "model": "chessmod:block/white_pawn",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "chessmod:block/white_pawn",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "chessmod:block/white_pawn",
+      "y": 270
+    }
+  }
+}

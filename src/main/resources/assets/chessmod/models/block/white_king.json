@@ -1,0 +1,7 @@
+{
+  "parent": "chessmod:block/template_chess_king",
+  "textures": {
+    "body": "chessmod:block/chess_piece_white",
+    "accent": "chessmod:block/chess_gold"
+  }
+}
