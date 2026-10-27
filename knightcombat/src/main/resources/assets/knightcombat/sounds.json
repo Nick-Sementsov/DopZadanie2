@@ -223,5 +223,26 @@
         "attenuation_distance": 48
       }
     ]
+  },
+  "weapon.hit_heavy": {
+    "subtitle": "subtitles.knightcombat.weapon.hit_heavy",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/hit_heavy1",
+        "volume": 1.0
+      },
+      {
+        "name": "knightcombat:weapon/hit_heavy2",
+        "volume": 1.0
+      },
+      {
+        "name": "knightcombat:weapon/hit_heavy3",
+        "volume": 1.0
+      },
+      {
+        "name": "knightcombat:weapon/hit_heavy4",
+        "volume": 1.0
+      }
+    ]
   }
 }

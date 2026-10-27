@@ -41,12 +41,78 @@ public final class CombatHud {
     private static final int MESSAGE_TICKS = 24;
     private static final int HIT_MARKER_TICKS = 6;
 
+    /** A soft white frame around the screen, tinted for the flashes. */
+    private static final ResourceLocation VIGNETTE = KnightCombat.id("textures/gui/vignette.png");
+
+    /** Flashes of the screen edges. */
+    enum Flash {
+        /** Hit, kicked or the guard broken: red. */
+        HURT(0.85f, 0.05f, 0.03f, 0.55f, 12),
+        /** A parry: a short pale gold glint. */
+        PARRY(1f, 0.93f, 0.7f, 0.4f, 6),
+        /** A killing blow: gold. */
+        KILL(1f, 0.75f, 0.25f, 0.3f, 10);
+
+        final float red;
+        final float green;
+        final float blue;
+        final float alpha;
+        final float ticks;
+
+        Flash(float red, float green, float blue, float alpha, float ticks) {
+            this.red = red;
+            this.green = green;
+            this.blue = blue;
+            this.alpha = alpha;
+            this.ticks = ticks;
+        }
+    }
+
+    private static Flash flash;
+    private static long flashAt = Long.MIN_VALUE / 2;
+
     private static float shownShare = -1;
     private static float spentShare;
     private static long spentAt;
     private static long lastFrame;
 
     private CombatHud() {
+    }
+
+    static void flash(Flash kind) {
+        flash = kind;
+        flashAt = ClientCombat.ticks();
+    }
+
+    /**
+     * Drawn under the hotbar: the edges of the screen flash when the player is hit, parries or kills, and darken
+     * with a slow pulse while stamina is low.
+     */
+    static void renderVignette(ForgeGui gui, GuiGraphics graphics, float partialTick, int width, int height) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.options.hideGui || player.isSpectator() || !CombatConfig.SCREEN_EFFECTS.get()) {
+            return;
+        }
+        float time = ClientCombat.ticks() + partialTick;
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        float stamina = ClientCombat.stamina();
+        float max = ClientCombat.maxStamina();
+        if (Weapons.isWeapon(player.getMainHandItem()) && stamina >= 0 && max > 0 && stamina < max * 0.25f) {
+            float low = 1 - stamina / (max * 0.25f);
+            float pulse = 0.75f + 0.25f * Mth.sin(time * 0.35f);
+            graphics.setColor(0.15f, 0.02f, 0.02f, 0.65f * low * pulse);
+            graphics.blit(VIGNETTE, 0, 0, 0, 0, width, height, width, height);
+        }
+        float age = time - flashAt;
+        if (flash != null && age < flash.ticks) {
+            float fade = 1 - age / flash.ticks;
+            graphics.setColor(flash.red, flash.green, flash.blue, flash.alpha * fade * fade);
+            graphics.blit(VIGNETTE, 0, 0, 0, 0, width, height, width, height);
+        }
+        graphics.setColor(1, 1, 1, 1);
+        RenderSystem.disableBlend();
     }
 
     /** Drawn above the crosshair layer of the HUD. */

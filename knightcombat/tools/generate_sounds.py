@@ -211,6 +211,18 @@ def hit(rng):
     return fade_out(normalize(mix(thump, crunch, rattle, ring)))
 
 
+def hit_heavy(rng):
+    """A heavy blow or a killing one: a deep thud that shakes the chest, the crack of plates giving way and
+    a dull ring of dented steel."""
+    duration = 0.7
+    t = seconds(duration)
+    thud = np.sin(2 * math.pi * np.cumsum(rng.uniform(48, 60) * (1 + 2.2 * np.exp(-t / 0.03))) / RATE) * np.exp(-t / 0.14) * 2.2
+    crack = resonator(noise(rng, duration), rng.uniform(700, 1000), 1600) * np.exp(-t / 0.045) * 4
+    crunch = resonator(noise(rng, duration), 2400, 2200) * envelope(t, 0.004, 0.08) * 1.5
+    ring = partials(t, rng.uniform(420, 560), [1, 2.38, 3.9, 5.6], [0.25, 0.16, 0.1, 0.07], [0.35, 0.25, 0.15, 0.1], rng)
+    return fade_out(normalize(room(mix(thud, crack, crunch, ring * tail_fade(t, duration)), rng, mix=0.18)))
+
+
 def wall(rng):
     """A blade striking stone: a dull knock, grit and a small ping of the steel."""
     duration = 0.5
@@ -388,6 +400,10 @@ def main():
     make("combat.kick", "combat", "kick", lambda: kick(rng), 4, "combat.kick")
     cries = iter(battle_cries(rng))
     make("combat.battle_cry", "combat", "battle_cry", lambda: next(cries), 4, "combat.battle_cry", 1.0, 48)
+
+    # Sounds added later draw from their own generator, so the earlier ones stay the same.
+    later = np.random.default_rng(2207)
+    make("weapon.hit_heavy", "weapon", "hit_heavy", lambda: hit_heavy(later), 4, "weapon.hit_heavy")
 
     path = ASSETS / "sounds.json"
     path.write_text(json.dumps(events, indent=2) + "\n", encoding="utf-8")

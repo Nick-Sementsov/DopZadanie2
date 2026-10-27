@@ -58,11 +58,11 @@ final class FirstPersonPoses {
         return switch (anim.phase) {
             case IDLE -> guard(grip);
             case BLOCK -> block(grip);
-            case WINDUP -> windup(anim.attack, grip, mirrored, smooth(p));
+            case WINDUP -> windup(anim.attack, grip, mirrored, p);
             case RELEASE -> release(anim.attack, grip, mirrored, p);
             case RECOVERY -> {
                 FirstPersonPose from = anim.fpFrom != null ? anim.fpFrom : guard(grip);
-                FirstPersonPose back = FirstPersonPose.lerp(from, guard(grip), smooth(p));
+                FirstPersonPose back = FirstPersonPose.lerp(from, guard(grip), PoseMath.backOut(p));
                 if (!anim.has(CombatState.REBOUND) || anim.attack == AttackType.KICK) {
                     yield back;
                 }
@@ -119,11 +119,14 @@ final class FirstPersonPoses {
         return facing(0.3f, y, -0.8f, -1f, 0.32f, -0.25f, new Vector3f(0, 0.25f, 1), new Vector3f(0, 1, 0));
     }
 
-    /** From the guard to the end of the wind-up along a curve: the hand rises on the way and the blade turns back. */
-    private static FirstPersonPose windup(AttackType attack, Grip grip, boolean mirrored, float t) {
-        FirstPersonPose pose = FirstPersonPose.lerp(guard(grip), windupEnd(attack, grip, mirrored), t);
+    /**
+     * From the guard to the end of the wind-up along a curve: the hand rises on the way and the blade turns back,
+     * carrying a little past the end and settling there.
+     */
+    private static FirstPersonPose windup(AttackType attack, Grip grip, boolean mirrored, float p) {
+        FirstPersonPose pose = FirstPersonPose.lerp(guard(grip), windupEnd(attack, grip, mirrored), PoseMath.backOut(p));
         if (attack == AttackType.SLASH || attack == AttackType.OVERHEAD) {
-            pose.hand.y += 0.06f * (float) Math.sin(Math.PI * t);
+            pose.hand.y += 0.06f * (float) Math.sin(Math.PI * smooth(p));
         }
         return pose;
     }

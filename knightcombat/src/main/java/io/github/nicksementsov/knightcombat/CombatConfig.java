@@ -28,6 +28,10 @@ public final class CombatConfig {
     public static final ForgeConfigSpec.BooleanValue SWING_TRAILS;
     public static final ForgeConfigSpec.BooleanValue FIRST_PERSON_ARMS;
     public static final ForgeConfigSpec.DoubleValue WEAPON_SCALE;
+    public static final ForgeConfigSpec.DoubleValue CAMERA_SHAKE;
+    public static final ForgeConfigSpec.BooleanValue HIT_STOP;
+    public static final ForgeConfigSpec.BooleanValue ATTACK_LUNGE;
+    public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS;
 
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
@@ -81,6 +85,18 @@ public final class CombatConfig {
         WEAPON_SCALE = client
                 .comment("Size of weapons in hand compared to the size the mod picks (two-handed and long weapons are drawn larger)")
                 .defineInRange("weaponScale", 1.0, 0.5, 2.0);
+        CAMERA_SHAKE = client
+                .comment("How hard the camera shakes when blows land, are blocked or parried (0 turns the shaking off)")
+                .defineInRange("cameraShake", 1.0, 0.0, 2.0);
+        HIT_STOP = client
+                .comment("A swing stops for an instant when it hits, as if the blade bit into the target")
+                .define("hitStop", true);
+        ATTACK_LUNGE = client
+                .comment("Attacks carry you a little forward: stabs the most, then overheads and slashes")
+                .define("attackLunge", true);
+        SCREEN_EFFECTS = client
+                .comment("The edges of the screen flash red when you are hit, white on a parry and darken when stamina runs low")
+                .define("screenEffects", true);
         CLIENT_SPEC = client.build();
     }
 

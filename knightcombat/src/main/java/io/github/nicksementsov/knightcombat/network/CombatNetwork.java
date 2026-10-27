@@ -2,6 +2,7 @@ package io.github.nicksementsov.knightcombat.network;
 
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
@@ -9,7 +10,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 /** The network channel of the mod. The mod has to be installed on both the server and the clients. */
 public final class CombatNetwork {
-    private static final String PROTOCOL = "1";
+    private static final String PROTOCOL = "2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             KnightCombat.id("main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -30,6 +31,9 @@ public final class CombatNetwork {
         CHANNEL.messageBuilder(FeedbackPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(FeedbackPacket::encode).decoder(FeedbackPacket::decode)
                 .consumerMainThread(FeedbackPacket::handle).add();
+        CHANNEL.messageBuilder(ImpactPacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(ImpactPacket::encode).decoder(ImpactPacket::decode)
+                .consumerMainThread(ImpactPacket::handle).add();
     }
 
     public static void sendToServer(CombatAction action) {
@@ -42,5 +46,10 @@ public final class CombatNetwork {
 
     public static void sendToTrackingAndSelf(ServerPlayer player, Object packet) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), packet);
+    }
+
+    /** To every player close enough to see {@code entity}, and to the entity itself when it is a player. */
+    public static void sendAround(Entity entity, Object packet) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), packet);
     }
 }

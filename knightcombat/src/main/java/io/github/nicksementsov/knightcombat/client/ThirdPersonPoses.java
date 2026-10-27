@@ -57,14 +57,15 @@ final class ThirdPersonPoses {
         return switch (anim.phase) {
             case IDLE -> guard(grip);
             case BLOCK -> block(grip);
-            case WINDUP -> ThirdPersonPose.lerp(guard(grip), windupEnd(anim.attack, grip, mirrored), smooth(p));
+            // The wind-up carries a little past its end and settles there, like a heavy weapon brought back.
+            case WINDUP -> ThirdPersonPose.lerp(guard(grip), windupEnd(anim.attack, grip, mirrored), PoseMath.backOut(p));
             case RELEASE -> release(anim.attack, grip, mirrored, p);
             case RECOVERY -> {
                 if (anim.attack == AttackType.KICK) {
                     yield guard(grip).leg(-1.35f * (1 - smooth(p * 1.3f)), 1 - smooth(p));
                 }
                 ThirdPersonPose from = anim.tpFrom != null ? anim.tpFrom : guard(grip);
-                ThirdPersonPose back = ThirdPersonPose.lerp(from, guard(grip), smooth(p));
+                ThirdPersonPose back = ThirdPersonPose.lerp(from, guard(grip), PoseMath.backOut(p));
                 if (!anim.has(CombatState.REBOUND)) {
                     yield back;
                 }
@@ -133,19 +134,19 @@ final class ThirdPersonPoses {
 
     private static ThirdPersonPose staggered() {
         return pose(dir(0.55f, -0.3f, -0.55f), dir(0.3f, 0.8f, -0.3f), dir(0, 0.35f, 1),
-                dir(-0.5f, -0.6f, -0.3f), 0.35f).head(-0.2f).lean(-0.12f);
+                dir(-0.5f, -0.6f, -0.3f), 0.35f).head(-0.2f).lean(-0.12f).step(-0.3f);
     }
 
     private static ThirdPersonPose guardBroken() {
         return pose(dir(0.25f, -0.95f, 0.15f), dir(0.05f, -0.35f, 0.95f), dir(0, -1, -0.37f),
-                dir(-0.3f, -1, 0.1f), 0.4f).head(0.3f).lean(0.15f);
+                dir(-0.3f, -1, 0.1f), 0.4f).head(0.3f).lean(0.15f).step(-0.35f);
     }
 
     /** The weapon raised high, the free arm thrown up, the head back; the arms shake with the shout. */
     private static ThirdPersonPose battleCry(float p) {
         float shake = (float) Math.sin(p * 60) * 0.04f * (1 - p);
         return pose(dir(0.3f + shake, 0.95f, 0.1f), dir(shake, 1, 0.15f), dir(0, -0.15f, 1),
-                dir(-0.45f, 0.85f, 0.15f - shake), 0).head(-0.5f).lean(-0.12f);
+                dir(-0.45f, 0.85f, 0.15f - shake), 0).head(-0.5f).lean(-0.12f).step(0.15f);
     }
 
     private static ThirdPersonPose kick(Grip grip, float p) {
@@ -160,10 +161,10 @@ final class ThirdPersonPoses {
     /** The end of the wind-up: the weapon cocked back, the body turned to put weight into the blow. */
     private static ThirdPersonPose windupEnd(AttackType attack, Grip grip, boolean mirrored) {
         return switch (attack) {
-            case SLASH -> mirrored
+            case SLASH -> (mirrored
                     ? slash(grip, -130, 0.7f, 0.6f, -0.55f, 0, true)
-                    : slash(grip, 125, 0.75f, 0.7f, 0.55f, 0, false);
-            case OVERHEAD -> overhead(grip, 170, 110, 0.25f, 0).lean(-0.1f).head(-0.1f);
+                    : slash(grip, 125, 0.75f, 0.7f, 0.55f, 0, false)).step(-0.05f);
+            case OVERHEAD -> overhead(grip, 170, 110, 0.25f, 0).lean(-0.1f).head(-0.1f).step(-0.15f);
             case STAB -> stab(grip, 0);
             case KICK -> guard(grip);
         };
@@ -178,9 +179,9 @@ final class ThirdPersonPoses {
             case SLASH -> (mirrored
                     ? slash(grip, lerp(-100, 80, t), lerp(0.25f, -0.2f, t), lerp(0.15f, -0.25f, t), lerp(-0.45f, 0.5f, t), p, true)
                     : slash(grip, lerp(95, -85, t), lerp(0.25f, -0.2f, t), lerp(0.15f, -0.25f, t), lerp(0.5f, -0.5f, t), p, false))
-                    .lean(0.1f * push).lunge(1.5f * push);
+                    .lean(0.1f * push).lunge(1.5f * push).step(0.2f * push);
             case OVERHEAD -> overhead(grip, lerp(150, -45, t), lerp(100, -30, t), lerp(0.25f, -0.15f, t), p)
-                    .lean(lerp(-0.1f, 0.22f, t)).head(lerp(-0.1f, 0.15f, t)).lunge(2 * push);
+                    .lean(lerp(-0.1f, 0.22f, t)).head(lerp(-0.1f, 0.15f, t)).lunge(2 * push).step(lerp(-0.15f, 0.4f, t));
             case STAB -> stab(grip, PoseMath.easeOut(p));
             case KICK -> guard(grip);
         };
@@ -236,6 +237,7 @@ final class ThirdPersonPoses {
         Vector3f blade = polearm ? dir(-0.1f, 0.3f, 1) : dir(-0.05f, 0.06f, 1);
         Vector3f edge = polearm ? dir(0, -1, 0.3f) : dir(0, -1, 0.06f);
         Vector3f off = dir(-0.3f, -0.7f, lerp(0.5f, -0.2f, t));
-        return pose(arm, blade, edge, off, lerp(0.45f, -0.3f, t)).lunge(lerp(-2f, 4.5f, t)).lean(lerp(-0.05f, 0.14f, t));
+        return pose(arm, blade, edge, off, lerp(0.45f, -0.3f, t)).lunge(lerp(-2f, 4.5f, t)).lean(lerp(-0.05f, 0.14f, t))
+                .step(lerp(-0.12f, 0.45f, t));
     }
 }

@@ -140,17 +140,21 @@ public final class ThirdPersonAnimator {
         // Before this runs the arms hold the walking swing; keep a little of it.
         float walkMain = main.xRot;
         float walkOff = off.xRot;
-        ThirdPersonPose pose = ThirdPersonPoses.current(ClientCombat.anim(player), weapon.grip(), partialTick);
+        FighterAnim anim = ClientCombat.anim(player);
+        ThirdPersonPose pose = ThirdPersonPoses.current(anim, weapon.grip(), partialTick);
+        // Struck: the body twists away from the blow, the head snaps back, the shoulders are driven back.
+        float flinch = anim != null ? anim.flinch(partialTick) : 0;
+        float flinchSide = anim != null ? anim.hurtSide : 0;
 
-        float yaw = left ? -pose.bodyYaw : pose.bodyYaw;
+        float yaw = (left ? -pose.bodyYaw : pose.bodyYaw) + flinchSide * 0.4f * flinch;
         model.body.yRot = yaw;
         model.rightArm.x = -Mth.cos(yaw) * 5;
         model.rightArm.z = Mth.sin(yaw) * 5;
         model.leftArm.x = Mth.cos(yaw) * 5;
         model.leftArm.z = -Mth.sin(yaw) * 5;
         // Minecraft resets the tilt of the body after the arms are posed, so a lean moves the shoulders and the head instead.
-        model.rightArm.z -= pose.lean * 10;
-        model.leftArm.z -= pose.lean * 10;
+        model.rightArm.z -= pose.lean * 10 - 1.5f * flinch;
+        model.leftArm.z -= pose.lean * 10 - 1.5f * flinch;
         main.z -= pose.lunge;
 
         Quaternionf body = PoseMath.yaw(pose.bodyYaw);
@@ -169,11 +173,29 @@ public final class ThirdPersonAnimator {
             off.xRot += walkOff * 0.5f;
         }
 
+        if (flinch != 0) {
+            main.zRot += (left ? -1 : 1) * 0.25f * flinch;
+            off.xRot -= 0.4f * flinch;
+        }
+
+        // A fencing stance while standing: feet apart, the off-hand foot in front. Attacks step into it, staggers
+        // step back. Walking takes over the legs as the fighter starts to move.
+        float stance = player.isPassenger() ? 0 : 1 - Mth.clamp(player.walkAnimation.speed(partialTick) * 2.5f, 0, 1);
+        if (stance > 0) {
+            ModelPart front = left ? model.rightLeg : model.leftLeg;
+            ModelPart back = left ? model.leftLeg : model.rightLeg;
+            float step = pose.step - 0.25f * flinch;
+            front.xRot -= (0.22f + step) * stance;
+            back.xRot += (0.2f + step * 0.4f) * stance;
+            model.leftLeg.zRot -= 0.07f * stance;
+            model.rightLeg.zRot += 0.07f * stance;
+        }
         if (pose.legWeight > 0) {
             ModelPart leg = left ? model.leftLeg : model.rightLeg;
             leg.xRot = Mth.lerp(pose.legWeight, leg.xRot, pose.leg);
         }
-        model.head.xRot += pose.head + pose.lean * 0.5f;
+        model.head.xRot += pose.head + pose.lean * 0.5f - 0.35f * flinch;
+        model.head.yRot += flinchSide * 0.25f * flinch;
     }
 
     /** The blade and edge directions of a pose in model space, turned with the body and mirrored for the left hand. */

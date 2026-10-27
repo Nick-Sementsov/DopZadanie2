@@ -19,6 +19,8 @@ public final class ThirdPersonPose {
     float lean;
     /** How far the weapon shoulder moves forward, in pixels (stabs). */
     float lunge;
+    /** How far the front foot steps forward in radians of the leg (negative shifts the weight back). */
+    float step;
     /** Rotation of the kicking leg and how much it replaces the walking animation. */
     float leg;
     float legWeight;
@@ -43,6 +45,11 @@ public final class ThirdPersonPose {
         return this;
     }
 
+    ThirdPersonPose step(float value) {
+        step = value;
+        return this;
+    }
+
     ThirdPersonPose leg(float angle, float weight) {
         leg = angle;
         legWeight = weight;
@@ -63,6 +70,7 @@ public final class ThirdPersonPose {
                 nlerp(a.off, b.off, t), PoseMath.lerp(a.bodyYaw, b.bodyYaw, t));
         pose.lean = PoseMath.lerp(a.lean, b.lean, t);
         pose.lunge = PoseMath.lerp(a.lunge, b.lunge, t);
+        pose.step = PoseMath.lerp(a.step, b.step, t);
         pose.leg = PoseMath.lerp(a.leg, b.leg, t);
         pose.legWeight = PoseMath.lerp(a.legWeight, b.legWeight, t);
         pose.head = PoseMath.lerp(a.head, b.head, t);

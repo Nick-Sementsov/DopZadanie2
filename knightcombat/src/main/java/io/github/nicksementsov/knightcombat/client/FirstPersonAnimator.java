@@ -3,8 +3,10 @@ package io.github.nicksementsov.knightcombat.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
+import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.client.Minecraft;
@@ -18,6 +20,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.PlayerModelPart;
@@ -86,6 +89,7 @@ public final class FirstPersonAnimator {
         Vector3f edge = new Vector3f(pose.edge);
         hand.y -= 0.6f * event.getEquipProgress();
         impact(hand, blade, ClientCombat.ticks() - ClientCombat.hitAt() + partialTick);
+        weight(hand, blade, player, anim, weapon, partialTick);
         adjust(hand, blade, edge, weapon, left);
         float scale = scale(weapon, axes);
 
@@ -155,6 +159,33 @@ public final class FirstPersonAnimator {
             scale = maxLength / axes.length();
         }
         return scale * CombatConfig.WEAPON_SCALE.get().floatValue();
+    }
+
+    /**
+     * The weight of the weapon in the hands: it lags behind turns of the view, trembles at the end of a heavy
+     * wind-up, and is knocked down and aside by blows that land on the player or on their guard.
+     */
+    private static void weight(Vector3f hand, Vector3f blade, LocalPlayer player, FighterAnim anim, WeaponStats weapon, float partialTick) {
+        float weight = weapon.weight();
+        float yawLag = Mth.wrapDegrees(player.getViewYRot(partialTick) - Mth.lerp(partialTick, player.yBobO, player.yBob));
+        float pitchLag = player.getViewXRot(partialTick) - Mth.lerp(partialTick, player.xBobO, player.xBob);
+        float lag = 0.0025f * (0.6f + weight);
+        hand.x -= Mth.clamp(yawLag * lag, -0.08f, 0.08f);
+        hand.y += Mth.clamp(pitchLag * lag, -0.06f, 0.06f);
+        if (anim == null) {
+            return;
+        }
+        if (anim.phase() == Phase.WINDUP && anim.attack() != AttackType.KICK) {
+            float tension = Mth.clamp((anim.progress(partialTick) - 0.7f) / 0.3f, 0, 1) * weight;
+            float time = ClientCombat.ticks() + partialTick;
+            hand.add(0.005f * tension * Mth.sin(time * 5.1f), 0.005f * tension * Mth.sin(time * 6.7f + 1), 0);
+        }
+        float flinch = anim.flinch(partialTick);
+        if (flinch != 0) {
+            float side = anim.hurtSide;
+            hand.add(-side * 0.05f * flinch, -0.07f * flinch, 0.05f * flinch);
+            blade.add(-side * 0.18f * flinch, -0.12f * flinch, 0).normalize();
+        }
     }
 
     /** A blow that lands jolts the weapon: it stops for a moment and shakes. */

@@ -13,6 +13,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> WHOOSH = register("weapon.whoosh");
     public static final RegistryObject<SoundEvent> WHOOSH_HEAVY = register("weapon.whoosh_heavy");
     public static final RegistryObject<SoundEvent> HIT = register("weapon.hit");
+    public static final RegistryObject<SoundEvent> HIT_HEAVY = register("weapon.hit_heavy");
     public static final RegistryObject<SoundEvent> BLOCK = register("weapon.block");
     public static final RegistryObject<SoundEvent> PARRY = register("weapon.parry");
     public static final RegistryObject<SoundEvent> GUARD_BREAK = register("weapon.guard_break");

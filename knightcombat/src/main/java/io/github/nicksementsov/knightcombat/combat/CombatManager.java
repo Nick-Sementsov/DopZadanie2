@@ -7,6 +7,8 @@ import io.github.nicksementsov.knightcombat.network.CombatNetwork;
 import io.github.nicksementsov.knightcombat.network.CombatStatePacket;
 import io.github.nicksementsov.knightcombat.network.Feedback;
 import io.github.nicksementsov.knightcombat.network.FeedbackPacket;
+import io.github.nicksementsov.knightcombat.network.Impact;
+import io.github.nicksementsov.knightcombat.network.ImpactPacket;
 import io.github.nicksementsov.knightcombat.network.StaminaPacket;
 import io.github.nicksementsov.knightcombat.registry.ModSounds;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -576,13 +578,20 @@ public final class CombatManager {
             d.riposteUntil = now + CombatRules.RIPOSTE_WINDOW;
             rebound(s, attack.recovery() + CombatRules.REBOUND_PARRY);
             clash(attacker, point, ModSounds.PARRY.get(), 1.0f, 12);
+            glint(attacker, point);
+            // A parried blow throws the attacker back a step.
+            push(attacker, defender, 0.3f);
             feedback(defender, Feedback.PARRIED);
             feedback(attacker, Feedback.GOT_PARRIED);
+            impact(attacker, Impact.PARRY, attacker, defender, point, s.weapon.weight());
         } else {
             rebound(s, Math.max(4, attack.recovery() / 2 + CombatRules.REBOUND_BLOCK));
             clash(attacker, point, ModSounds.BLOCK.get(), 0.9f, 6);
+            // Heavy blows drive the blocker back.
+            push(defender, attacker, 0.1f + 0.25f * s.weapon.weight());
             feedback(defender, Feedback.BLOCKED);
             feedback(attacker, Feedback.GOT_BLOCKED);
+            impact(attacker, Impact.BLOCK, attacker, defender, point, s.weapon.weight());
         }
     }
 
@@ -600,8 +609,11 @@ public final class CombatManager {
         d.syncState = true;
         rebound(s, attack.recovery() + CombatRules.REBOUND_PARRY);
         clash(attacker, point, ModSounds.PARRY.get(), 1.1f, 12);
+        glint(attacker, point);
+        push(attacker, defender, 0.3f);
         feedback(defender, Feedback.COUNTERED);
         feedback(attacker, Feedback.GOT_COUNTERED);
+        impact(attacker, Impact.PARRY, attacker, defender, point, s.weapon.weight());
     }
 
     private static void shieldBlocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d,
@@ -615,11 +627,15 @@ public final class CombatManager {
         }
         if (d.stamina <= 0) {
             stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
+            push(defender, attacker, 0.45f);
             feedback(defender, Feedback.GUARD_BROKEN);
             feedback(attacker, Feedback.BROKE_GUARD);
+            impact(attacker, Impact.GUARD_BREAK, attacker, defender, point, s.weapon.weight());
         } else {
+            push(defender, attacker, 0.1f + 0.25f * s.weapon.weight());
             feedback(defender, Feedback.BLOCKED);
             feedback(attacker, Feedback.GOT_BLOCKED);
+            impact(attacker, Impact.BLOCK, attacker, defender, point, s.weapon.weight());
         }
         rebound(s, Math.max(4, attack.recovery() / 2 + CombatRules.REBOUND_BLOCK));
     }
@@ -631,8 +647,12 @@ public final class CombatManager {
         s.flags &= CombatState.MIRRORED;
         s.set(Phase.RECOVERY, Math.max(2, s.weapon.attack(s.attack).recovery() / 2));
         clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f, 16);
+        glint(attacker, point);
+        // The broken guard knocks the defender off balance.
+        push(defender, attacker, 0.45f);
         feedback(defender, Feedback.GUARD_BROKEN);
         feedback(attacker, Feedback.BROKE_GUARD);
+        impact(attacker, Impact.GUARD_BREAK, attacker, defender, point, s.weapon.weight());
     }
 
     private static void hitWall(ServerPlayer player, CombatState s, BlockHitResult hit) {
@@ -644,6 +664,7 @@ public final class CombatManager {
                 point.x, point.y, point.z, 10, 0.05, 0.05, 0.05, 0.1);
         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, point.x, point.y, point.z, 4, 0.05, 0.05, 0.05, 0.3);
         feedback(player, Feedback.WALL);
+        impact(player, Impact.WALL, player, null, point, s.weapon.weight());
     }
 
     private static void dealDamage(ServerPlayer player, CombatState s, Entity target, Vec3 point) {
@@ -679,9 +700,15 @@ public final class CombatManager {
         }
 
         float yaw = player.getYRot() * Mth.DEG_TO_RAD;
-        int knockback = EnchantmentHelper.getKnockbackBonus(player);
-        if (knockback > 0 && living != null) {
-            living.knockback(knockback * 0.5f, Mth.sin(yaw), -Mth.cos(yaw));
+        float weight = s.weapon.weight();
+        // Heavy weapons push harder than the usual knockback of a hit, overheads the most.
+        float push = EnchantmentHelper.getKnockbackBonus(player) * 0.5f + weight * switch (s.attack) {
+            case OVERHEAD -> 0.35f;
+            case SLASH -> 0.2f;
+            default -> 0.08f;
+        };
+        if (push > 0 && living != null) {
+            living.knockback(push, Mth.sin(yaw), -Mth.cos(yaw));
         }
         if (fireAspect > 0) {
             target.setSecondsOnFire(fireAspect * 4);
@@ -709,9 +736,15 @@ public final class CombatManager {
         }
         player.causeFoodExhaustion(0.1f);
         s.hitSomething = true;
-        level.playSound(null, point.x, point.y, point.z, ModSounds.HIT.get(), SoundSource.PLAYERS, 1.0f,
-                (s.weapon.twoHanded() ? 0.85f : 1.0f) + player.getRandom().nextFloat() * 0.15f);
+        boolean killed = living != null && living.isDeadOrDying();
+        boolean heavy = killed || weight >= 0.6f;
+        level.playSound(null, point.x, point.y, point.z, heavy ? ModSounds.HIT_HEAVY.get() : ModSounds.HIT.get(), SoundSource.PLAYERS, 1.0f,
+                0.95f + player.getRandom().nextFloat() * 0.15f);
+        if (killed) {
+            level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, 14, 0.15, 0.15, 0.15, 0.45);
+        }
         feedback(player, Feedback.HIT);
+        impact(player, killed ? Impact.KILL : Impact.HIT, player, target, point, weight);
     }
 
     private static void kick(ServerPlayer player, long now) {
@@ -765,7 +798,10 @@ public final class CombatManager {
         }
         float yaw = player.getYRot() * Mth.DEG_TO_RAD;
         best.knockback(0.6, Mth.sin(yaw), -Mth.cos(yaw));
+        best.hurtMarked = true;
         player.level().playSound(null, best.getX(), best.getY(0.5), best.getZ(), ModSounds.KICK.get(), SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+        player.serverLevel().sendParticles(ParticleTypes.POOF, best.getX(), best.getY(0.4), best.getZ(), 5, 0.2, 0.2, 0.2, 0.02);
+        impact(player, Impact.KICK, player, best, best.position().add(0, best.getBbHeight() * 0.45, 0), 0.6f);
     }
 
     private static void battleCry(ServerPlayer player, CombatState s, float max) {
@@ -773,6 +809,7 @@ public final class CombatManager {
         playSound(player, ModSounds.BATTLE_CRY.get(), 1.4f, 0.9f + player.getRandom().nextFloat() * 0.2f);
         player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getEyeY() + 0.2, player.getZ(), 6, 0.3, 0.1, 0.3, 0.02);
         feedback(player, Feedback.BATTLE_CRY);
+        impact(player, Impact.CRY, player, null, player.getEyePosition(), 0);
     }
 
     // ---------------------------------------------------------------- vanilla damage and attacks
@@ -819,6 +856,7 @@ public final class CombatManager {
             stagger(s, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
             clash(player, point, ModSounds.GUARD_BREAK.get(), 1.0f, 16);
             feedback(player, Feedback.GUARD_BROKEN);
+            impact(player, Impact.GUARD_BREAK, direct, player, point, 0.5f);
             return;
         }
         event.setCanceled(true);
@@ -828,10 +866,13 @@ public final class CombatManager {
                 mob.knockback(0.8, player.getX() - mob.getX(), player.getZ() - mob.getZ());
             }
             clash(player, point, ModSounds.PARRY.get(), 1.0f, 12);
+            glint(player, point);
             feedback(player, Feedback.PARRIED);
+            impact(player, Impact.PARRY, direct, player, point, 0.4f);
         } else {
             clash(player, point, ModSounds.BLOCK.get(), 0.9f, 6);
             feedback(player, Feedback.BLOCKED);
+            impact(player, Impact.BLOCK, direct, player, point, 0.4f);
         }
     }
 
@@ -845,6 +886,12 @@ public final class CombatManager {
         if (s.phase == Phase.WINDUP && !s.has(CombatState.RIPOSTE) || s.phase == Phase.KICK || s.phase == Phase.CRY) {
             stagger(s, CombatRules.FLINCH, CombatState.FLINCHED);
             feedback(player, Feedback.FLINCHED);
+        }
+        if (!applyingHit) {
+            // Blows of mobs and of players fighting the vanilla way shake the one who is hit too.
+            Entity source = event.getSource().getEntity();
+            impact(player, Impact.HIT, source, player, player.position().add(0, player.getBbHeight() * 0.6, 0),
+                    Math.min(1, event.getAmount() / 10f));
         }
     }
 
@@ -927,6 +974,31 @@ public final class CombatManager {
 
     private static void playSound(ServerPlayer player, SoundEvent sound, float volume, float pitch) {
         player.level().playSound(null, player.getX(), player.getEyeY(), player.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
+    }
+
+    /** Tells everyone around that something struck something, for the shaking cameras and the flinching fighters. */
+    private static void impact(Entity around, Impact impact, Entity attacker, Entity victim, Vec3 point, float weight) {
+        CombatNetwork.sendAround(around, new ImpactPacket(impact, attacker == null ? -1 : attacker.getId(),
+                victim == null ? -1 : victim.getId(), (float) point.x, (float) point.y, (float) point.z, weight));
+    }
+
+    /** Pushes {@code entity} away from {@code from}, also when it is a player (whose movement the client controls). */
+    private static void push(LivingEntity entity, Entity from, float strength) {
+        if (strength <= 0) {
+            return;
+        }
+        double dx = from.getX() - entity.getX();
+        double dz = from.getZ() - entity.getZ();
+        if (dx * dx + dz * dz < 1.0E-4) {
+            return;
+        }
+        entity.knockback(strength, dx, dz);
+        entity.hurtMarked = true;
+    }
+
+    /** A bright glint where blades meet on a parry or a broken guard. */
+    private static void glint(ServerPlayer player, Vec3 point) {
+        player.serverLevel().sendParticles(ParticleTypes.END_ROD, point.x, point.y, point.z, 5, 0.04, 0.04, 0.04, 0.06);
     }
 
     /** Sound and sparks where two weapons meet. */

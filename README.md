@@ -21,7 +21,7 @@ Gradle скачивает и декомпилирует Minecraft.
 |---------|-----------|
 | `./gradlew build` | Собирает оба мода и запускает тесты |
 | `./gradlew :chess:build` | Только шахматы → `chess/build/libs/chessmod-1.2.0.jar` |
-| `./gradlew :knightcombat:build` | Только рыцарский бой → `knightcombat/build/libs/knightcombat-2.0.0.jar` |
+| `./gradlew :knightcombat:build` | Только рыцарский бой → `knightcombat/build/libs/knightcombat-2.1.0.jar` |
 | `./gradlew :chess:runClient` | Minecraft с модом шахмат (`:knightcombat:runClient` — с боевым модом) |
 | `./gradlew :chess:runServer` | Выделенный сервер с модом (`:knightcombat:runServer`) |
 

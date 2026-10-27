@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draws the textures of the Knightly Combat mod: the stamina bar of the HUD and the logo of the mod list.
+"""Draws the textures of the Knightly Combat mod: the stamina bar and the screen edges of the HUD, and the logo.
 
 Run from the repository root:  python3 knightcombat/tools/generate_assets.py [preview.png]
 Requires Pillow and NumPy (pip install pillow numpy). Files are written into src/main/resources
@@ -300,6 +300,23 @@ def stamina_bar():
     return image
 
 
+# --------------------------------------------------------------------------- screen edges
+
+def vignette():
+    """A white frame that fades into the middle of the screen; the HUD tints it for the flashes of a fight."""
+    size = 256
+    ys, xs = np.mgrid[0:size, 0:size]
+    # Distance from the centre, stretched to the corners, so the frame follows the edges of any screen.
+    u = np.abs((xs + 0.5) / size * 2 - 1)
+    v = np.abs((ys + 0.5) / size * 2 - 1)
+    edge = np.maximum(u, v) * 0.55 + np.sqrt(u * u + v * v) / np.sqrt(2) * 0.45
+    alpha = np.clip((edge - 0.55) / 0.45, 0, 1) ** 1.8
+    rgba = np.zeros((size, size, 4), dtype=np.uint8)
+    rgba[..., :3] = 255
+    rgba[..., 3] = np.round(alpha * 255).astype(np.uint8)
+    save_png(Image.fromarray(rgba, "RGBA"), "textures/gui/vignette.png")
+
+
 # --------------------------------------------------------------------------- helpers and main
 
 def save_png(image, relative):
@@ -310,6 +327,7 @@ def save_png(image, relative):
 
 def main():
     logo()
+    vignette()
     bar = stamina_bar()
     if len(sys.argv) > 1:
         # The bar at four times its size: empty, half full and with a spent part.

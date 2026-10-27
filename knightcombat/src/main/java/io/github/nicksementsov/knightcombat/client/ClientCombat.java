@@ -60,6 +60,7 @@ public final class ClientCombat {
     private static boolean blocking;
     private static long lastScrollAt = Long.MIN_VALUE / 2;
     private static AttackType lastScrollAttack;
+    private static Phase lastOwnPhase = Phase.IDLE;
 
     private ClientCombat() {
     }
@@ -132,7 +133,6 @@ public final class ClientCombat {
         if (feedback == Feedback.PARRIED || feedback == Feedback.COUNTERED) {
             riposteUntil = ticks + CombatRules.RIPOSTE_WINDOW;
         }
-        CameraEffects.onFeedback(feedback);
     }
 
     // ---------------------------------------------------------------- input
@@ -151,6 +151,13 @@ public final class ClientCombat {
                     anim.advance(other);
                 }
             }
+            // The own swing that just began its release (or a kick going out) carries the player forward.
+            FighterAnim own = ANIMS.get(player.getId());
+            Phase phase = own != null ? own.phase : Phase.IDLE;
+            if ((phase == Phase.RELEASE || phase == Phase.KICK) && phase != lastOwnPhase) {
+                CombatFx.onOwnRelease(player, own.attack, Weapons.of(player.getMainHandItem()));
+            }
+            lastOwnPhase = phase;
             return;
         }
         ticks++;
@@ -340,6 +347,7 @@ public final class ClientCombat {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ANIMS.clear();
+        lastOwnPhase = Phase.IDLE;
         stamina = -1;
         blocking = false;
         attackHeld = false;

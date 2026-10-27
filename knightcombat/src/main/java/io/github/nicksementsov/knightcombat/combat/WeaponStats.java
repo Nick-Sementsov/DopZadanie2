@@ -35,4 +35,23 @@ public record WeaponStats(WeaponKind kind, Grip grip, float reach,
     public boolean twoHanded() {
         return grip.twoHanded();
     }
+
+    /**
+     * How heavy the weapon feels, from 0 (a dagger) to 1 (a greatsword, a poleaxe, a war hammer): its blows shake the
+     * camera harder, stop the swing for longer when they land and push the one who is hit further.
+     */
+    public float weight() {
+        if (kind == WeaponKind.DAGGER) {
+            return 0.1f;
+        }
+        float weight = switch (grip) {
+            case ONE_HANDED -> 0.35f;
+            case TWO_HANDED -> 0.7f;
+            case POLEARM -> 0.6f;
+        };
+        if (kind == WeaponKind.BLUNT || kind == WeaponKind.AXE || kind == WeaponKind.POLEAXE) {
+            weight += 0.2f;
+        }
+        return Math.min(1, weight);
+    }
 }

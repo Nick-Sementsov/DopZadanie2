@@ -13,6 +13,9 @@ import net.minecraft.world.entity.player.Player;
  * change; in between, the client moves on to the next phase by itself so that latency does not freeze a swing.
  */
 public final class FighterAnim {
+    /** How much of the time of a hit-stop the swing stands still. */
+    private static final float STALL_DEPTH = 0.9f;
+
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
     int flags;
@@ -30,6 +33,17 @@ public final class FighterAnim {
     FirstPersonPose fpFrom;
     int fpVersion = -1;
 
+    // Hit-stop: when a blow lands, the swing almost stops for an instant. The animation clock of the phase runs
+    // slower by the time frozen so far, plus the part of the current stop that has passed.
+    private float stalled;
+    private float stallFrom;
+    private float stallTo;
+
+    // The last blow that landed on this fighter: when, from which side (1 the right, -1 the left) and how hard.
+    private float hurtAt = -100;
+    float hurtSide;
+    private float hurtStrength;
+
     public Phase phase() {
         return phase;
     }
@@ -43,7 +57,41 @@ public final class FighterAnim {
     }
 
     public float elapsed(float partialTick) {
-        return ClientCombat.ticks() - start + partialTick;
+        float now = ClientCombat.ticks() + partialTick;
+        return now - start - frozen(now);
+    }
+
+    /** Animation time lost to hit-stops up to {@code now}. */
+    private float frozen(float now) {
+        return stalled + Math.max(0, Math.min(now, stallTo) - stallFrom) * STALL_DEPTH;
+    }
+
+    /** Almost stops the swing for {@code ticks}, as if the blade bit into what it hit. */
+    void hitStop(float ticks) {
+        float now = ClientCombat.ticks();
+        stalled = frozen(now);
+        stallFrom = now;
+        stallTo = now + ticks;
+    }
+
+    /** The fighter was struck from {@code side} (1 the right, -1 the left, 0 the front) with {@code strength} 0..1. */
+    void hurt(float side, float strength) {
+        hurtAt = ClientCombat.ticks();
+        hurtSide = side;
+        hurtStrength = strength;
+    }
+
+    /**
+     * How much the fighter flinches from the last blow now: a snap within a tick, then a springy return with
+     * a small rebound, about one at the strongest.
+     */
+    float flinch(float partialTick) {
+        float x = ClientCombat.ticks() + partialTick - hurtAt;
+        if (x < 0 || x > 12) {
+            return 0;
+        }
+        float envelope = x < 1 ? x : (float) (Math.exp(-(x - 1) / 2.5) * Math.cos((x - 1) * 0.55));
+        return envelope * hurtStrength;
     }
 
     /** Progress through the phase, 0..1. Phases without a length are always complete. */
@@ -62,15 +110,18 @@ public final class FighterAnim {
         flags = newFlags;
         length = newLength;
         start = newStart;
+        stalled = 0;
+        stallFrom = 0;
+        stallTo = 0;
         version++;
     }
 
     /** Moves to the next phase when the current one is over, the way the server will. */
     void advance(Player player) {
-        if (length <= 0 || ClientCombat.ticks() < start + length) {
+        if (length <= 0 || elapsed(0) < length) {
             return;
         }
-        long end = start + length;
+        long end = start + length + Math.round(frozen(ClientCombat.ticks()));
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         switch (phase) {
             case WINDUP -> {

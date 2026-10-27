@@ -49,6 +49,7 @@ public final class ClientSetup {
 
     @SubscribeEvent
     public static void registerOverlays(RegisterGuiOverlaysEvent event) {
+        event.registerBelow(VanillaGuiOverlay.HOTBAR.id(), "combat_vignette", CombatHud::renderVignette);
         event.registerAbove(VanillaGuiOverlay.CROSSHAIR.id(), "combat", CombatHud::render);
     }
 }

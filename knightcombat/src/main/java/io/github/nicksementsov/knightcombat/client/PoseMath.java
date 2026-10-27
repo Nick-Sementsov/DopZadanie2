@@ -93,6 +93,15 @@ public final class PoseMath {
         return t * t;
     }
 
+    /**
+     * Arrives a little past the end (about 7 percent) and settles back: a weapon brought into position with weight.
+     * Outside 0..1 it is clamped.
+     */
+    public static float backOut(float t) {
+        t = clamp01(t) - 1;
+        return 1 + 2.4f * t * t * t + 1.4f * t * t;
+    }
+
     public static float easeOut(float t) {
         t = clamp01(t);
         return 1 - (1 - t) * (1 - t);
