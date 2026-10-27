@@ -79,6 +79,8 @@
 
 ### Боевой клич
 Поднимает оружие над головой с криком, восстанавливает 35 выносливости. Перезарядка — 20 секунд.
+В бою рыцари и без клича кричат: выкрикивают при ударе (чаще при ударах сверху и тяжёлым оружием) и вскрикивают
+от боли, когда их ранит оружие.
 
 ### Динамика боя
 Каждый удар ощущается, причём не только тем, кто бьёт:
@@ -150,6 +152,7 @@
 | `staminaRegenPerSecond` | 25 | Восстановление выносливости в секунду |
 | `damageMultiplier` | 1.0 | Множитель всего урона оружием |
 | `battleCryCooldownSeconds` | 20 | Перезарядка боевого клича |
+| `attackYells` | true | Бойцы иногда выкрикивают при ударе и кричат от боли, когда их ранит оружие |
 
 Клиент — `config/knightcombat-client.toml`:
 
@@ -173,7 +176,7 @@
 
 | Команда | Что делает |
 |---------|-----------|
-| `./gradlew :knightcombat:build` | Собирает мод в `knightcombat/build/libs/knightcombat-2.1.0.jar` и запускает тесты |
+| `./gradlew :knightcombat:build` | Собирает мод в `knightcombat/build/libs/knightcombat-2.2.0.jar` и запускает тесты |
 | `./gradlew :knightcombat:runClient` | Запускает Minecraft с модом |
 | `./gradlew :knightcombat:runClient -PepicKnights` | То же вместе с Epic Knights, его тремя аддонами, Architectury и Cloth Config (скачиваются с Modrinth) |
 | `./gradlew :knightcombat:runServer` | Запускает выделенный сервер с модом |
@@ -192,7 +195,7 @@ src/main/java/io/github/nicksementsov/knightcombat/
 src/main/resources/
   assets/knightcombat/   звуки, текстура шкалы выносливости, переводы (ru_ru, en_us)
 src/test/java/          тесты геометрии ударов, математики поз и измерения моделей оружия
-tools/generate_sounds.py   синтезирует все звуки и sounds.json
+tools/import_sounds.py     собирает звуки из записей открытых библиотек, sounds.json и credits.txt
 tools/generate_assets.py   рисует шкалу выносливости, рамку вспышек экрана и логотип
 ```
 
@@ -216,15 +219,29 @@ tools/generate_assets.py   рисует шкалу выносливости, р�
 сильнее), дрожит в конце тяжёлого замаха, попадание встряхивает его, камера слегка следует за ударом. За клинком остаётся след; он строится по самой траектории удара, поэтому плавный при любом FPS.
 
 ### Звуки и текстуры
-Все звуки свои: их синтезирует скрипт из шума, резонаторов, неровных обертонов металла и формантного голоса —
-свист клинка (отдельно для лёгкого и тяжёлого оружия), звон блока, звонкое парирование, пробитая защита, попадание
-(и отдельно — глухой тяжёлый удар для тяжёлого оружия и добивания), удар о стену, финт, пинок и боевой клич (несколько рыцарей кричат «А-а-а!», «Ура-а!», «Хо-о!»).
-Шкалу выносливости и логотип рисует второй скрипт.
+Все звуки — настоящие записи из открытых библиотек звуков (CC0, то есть общественное достояние, и CC-BY / OGA-BY,
+свободные с указанием автора): удары клинка о клинок, булавы о меч, взмахи, удары по телу и по броне, кирка о камень,
+мужские кличи, выкрики и стоны. Скрипт скачивает исходные наборы, вырезает из длинных записей отдельные удары и фразы,
+убирает гул и тишину, накладывает звон на парирование и тяжёлый удар на попадание булавой и сохраняет всё в моно-OGG.
+
+| Звук | Откуда |
+|------|--------|
+| Блок, парирование, пробитая защита | «Medieval sound effects — Weapon impacts» (Still North Media, CC0), звон — «Fantasy Weapons and Apparel SFX» (Vehicle, CC0), «Impact Sounds» (Kenney, CC0) |
+| Свист клинка, финт | «Swishes Sound Pack» и «RPG Sound Pack» (artisticdude, CC0) |
+| Попадания | «Fleshy Fight Sounds» (will_leamon, OGA-BY 3.0), тяжёлые — вместе с «Impact Sounds» (Kenney, CC0) |
+| Удар о стену | «Impact Sounds» (Kenney, CC0) |
+| Пинок | «Impact Sounds» (Kenney, CC0) и «Fleshy Fight Sounds» (will_leamon, OGA-BY 3.0) |
+| Боевой клич | «Battlecry» (spookymodem, CC-BY 3.0) и «Male Grunt/Yelling sounds» (HaelDB, CC0) |
+| Выкрики при ударе | «Male Grunt/Yelling sounds» (HaelDB, CC0) |
+| Крики боли | «grunts of male death and pain» (thebardofblasphemy, CC0) |
+
+Полный список со ссылками — в `src/main/resources/assets/knightcombat/sounds/credits.txt` (он лежит и внутри мода).
+Звуков из Chivalry 2 и других игр в моде нет: они защищены авторским правом, из Chivalry 2 взяты только идеи механик.
+
+Шкалу выносливости, рамку вспышек экрана и логотип рисует второй скрипт.
 
 ```bash
-pip install pillow numpy                  # и ffmpeg с кодеком libvorbis
-python3 knightcombat/tools/generate_sounds.py
+pip install numpy py7zr pillow            # и ffmpeg с кодеком libvorbis
+python3 knightcombat/tools/import_sounds.py
 python3 knightcombat/tools/generate_assets.py
 ```
-
-Записанных или взятых из других игр звуков в моде нет. Из Chivalry 2 взяты только идеи механик.

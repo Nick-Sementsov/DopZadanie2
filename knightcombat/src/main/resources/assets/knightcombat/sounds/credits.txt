@@ -1,0 +1,18 @@
+Sounds of Knightly Combat
+
+All sounds are recordings from free sound libraries, cut, filtered, mixed, resampled and normalized for the mod.
+
+Sources:
+- "Medieval sound effects - Weapon impacts" by Still North Media (posted by MedicineStorm), CC0 1.0: https://opengameart.org/content/medieval-sound-effects-weapon-impacts
+- "Swishes Sound Pack" by artisticdude, CC0 1.0: https://opengameart.org/content/swishes-sound-pack
+- "RPG Sound Pack" by artisticdude, CC0 1.0: https://opengameart.org/content/rpg-sound-pack
+- "Fleshy Fight Sounds" by will_leamon, OGA-BY 3.0: https://opengameart.org/content/fleshy-fight-sounds
+- "Impact Sounds" by Kenney (www.kenney.nl), CC0 1.0: https://kenney.nl/assets/impact-sounds
+- "Fantasy Weapons and Apparel SFX Library" by Vehicle, CC0 1.0: https://opengameart.org/content/fantasy-weapons-and-apparel-sfx-library
+- "Battlecry" by spookymodem, CC-BY 3.0: https://opengameart.org/content/battlecry
+- "Male Grunt/Yelling sounds" by HaelDB, CC0 1.0: https://opengameart.org/content/male-gruntyelling-sounds
+- "grunts of male death and pain" by thebardofblasphemy, CC0 1.0: https://opengameart.org/content/grunts-male-death-and-pain
+
+CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+CC-BY 3.0: https://creativecommons.org/licenses/by/3.0/
+OGA-BY 3.0: https://static.opengameart.org/OGA-BY-3.0.txt

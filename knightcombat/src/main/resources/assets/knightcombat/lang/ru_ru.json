@@ -57,5 +57,7 @@
   "subtitles.knightcombat.weapon.wall": "Оружие бьёт о стену",
   "subtitles.knightcombat.weapon.feint": "Финт",
   "subtitles.knightcombat.combat.kick": "Пинок",
-  "subtitles.knightcombat.combat.battle_cry": "Боевой клич"
+  "subtitles.knightcombat.combat.battle_cry": "Боевой клич",
+  "subtitles.knightcombat.combat.attack_yell": "Боевой выкрик",
+  "subtitles.knightcombat.combat.pain": "Крик боли"
 }

@@ -20,6 +20,7 @@ public final class CombatConfig {
     private static final ForgeConfigSpec.DoubleValue STAMINA_REGEN;
     private static final ForgeConfigSpec.DoubleValue DAMAGE_MULTIPLIER;
     private static final ForgeConfigSpec.IntValue BATTLE_CRY_COOLDOWN;
+    private static final ForgeConfigSpec.BooleanValue ATTACK_YELLS;
 
     public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
@@ -61,6 +62,9 @@ public final class CombatConfig {
         BATTLE_CRY_COOLDOWN = server
                 .comment("Seconds between two battle cries of a player")
                 .defineInRange("battleCryCooldownSeconds", 20, 0, 600);
+        ATTACK_YELLS = server
+                .comment("Fighters shout now and then as they strike and cry out when a weapon hits them")
+                .define("attackYells", true);
         SERVER_SPEC = server.build();
 
         ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
@@ -151,6 +155,10 @@ public final class CombatConfig {
 
     public static float damageMultiplier() {
         return (float) (double) get(DAMAGE_MULTIPLIER, 1.0);
+    }
+
+    public static boolean attackYells() {
+        return get(ATTACK_YELLS, true);
     }
 
     public static int battleCryCooldownTicks() {

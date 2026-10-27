@@ -44,6 +44,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.entity.PartEntity;
+import net.minecraftforge.event.PlayLevelSoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -392,6 +393,23 @@ public final class CombatManager {
         boolean heavy = s.weapon.grip() != Grip.ONE_HANDED || s.weapon.kind() == WeaponKind.BLUNT || s.weapon.kind() == WeaponKind.AXE;
         float pitch = s.weapon.kind() == WeaponKind.DAGGER ? 1.25f : 1.0f;
         playSound(player, heavy ? ModSounds.WHOOSH_HEAVY.get() : ModSounds.WHOOSH.get(), 0.8f, pitch + player.getRandom().nextFloat() * 0.12f);
+        // Knights shout as they strike: often on overheads and with heavy weapons, now and then on slashes.
+        float chance = switch (s.attack) {
+            case OVERHEAD -> 0.55f;
+            case STAB -> 0.4f;
+            default -> 0.3f;
+        } + 0.2f * s.weapon.weight();
+        yell(player, s, chance);
+    }
+
+    /** An effort shout with the given chance, but never two within a second and a half. */
+    private static void yell(ServerPlayer player, CombatState s, float chance) {
+        long now = player.level().getGameTime();
+        if (!CombatConfig.attackYells() || now < s.yellReadyAt || player.getRandom().nextFloat() >= chance) {
+            return;
+        }
+        s.yellReadyAt = now + CombatRules.YELL_COOLDOWN;
+        playSound(player, ModSounds.ATTACK_YELL.get(), 0.9f, 0.92f + player.getRandom().nextFloat() * 0.16f);
     }
 
     private static void releaseTick(ServerPlayer player, CombatState s, long now) {
@@ -771,6 +789,7 @@ public final class CombatManager {
                 best = entity;
             }
         }
+        yell(player, state(player), 0.5f);
         if (best == null) {
             playSound(player, ModSounds.FEINT.get(), 0.5f, 0.8f);
             return;
@@ -873,6 +892,14 @@ public final class CombatManager {
             clash(player, point, ModSounds.BLOCK.get(), 0.9f, 6);
             feedback(player, Feedback.BLOCKED);
             impact(player, Impact.BLOCK, direct, player, point, 0.4f);
+        }
+    }
+
+    /** A knight struck by a weapon or a kick cries out in pain instead of Minecraft's usual grunt. */
+    @SubscribeEvent
+    public static void onPlaySound(PlayLevelSoundEvent.AtPosition event) {
+        if (applyingHit && CombatConfig.attackYells() && event.getSound() != null && event.getSound().value() == SoundEvents.PLAYER_HURT) {
+            ModSounds.PAIN.getHolder().ifPresent(event::setSound);
         }
     }
 

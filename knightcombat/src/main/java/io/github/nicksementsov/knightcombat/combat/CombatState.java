@@ -37,6 +37,7 @@ public final class CombatState {
     long riposteUntil = Long.MIN_VALUE / 2;
     long blockReadyAt = Long.MIN_VALUE / 2;
     long cryReadyAt = Long.MIN_VALUE / 2;
+    long yellReadyAt = Long.MIN_VALUE / 2;
     long lastStaminaUse = Long.MIN_VALUE / 2;
     /** Whether the current block caught anything; an empty block is followed by a short pause. */
     boolean blockLanded;

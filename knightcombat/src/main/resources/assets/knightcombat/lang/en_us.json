@@ -57,5 +57,7 @@
   "subtitles.knightcombat.weapon.wall": "Weapon hits a wall",
   "subtitles.knightcombat.weapon.feint": "Feint",
   "subtitles.knightcombat.combat.kick": "Kick",
-  "subtitles.knightcombat.combat.battle_cry": "Battle cry"
+  "subtitles.knightcombat.combat.battle_cry": "Battle cry",
+  "subtitles.knightcombat.combat.attack_yell": "Fighter shouts",
+  "subtitles.knightcombat.combat.pain": "Fighter cries out in pain"
 }

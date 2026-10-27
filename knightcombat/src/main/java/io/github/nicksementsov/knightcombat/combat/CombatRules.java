@@ -22,6 +22,8 @@ public final class CombatRules {
     /** Stagger of a blocking fighter who was kicked. */
     public static final int KICK_STAGGER = 14;
     public static final int CRY_LENGTH = 22;
+    /** Shortest time between two effort shouts of a fighter. */
+    public static final int YELL_COOLDOWN = 30;
     public static final int CRY_EFFECT_TICK = 4;
     /** Extra recovery when the attack was blocked, parried or hit a wall. */
     public static final int REBOUND_BLOCK = 3;

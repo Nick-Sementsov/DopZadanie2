@@ -6,7 +6,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
-/** Sounds of the fights. The mod's own sound files, made by tools/generate_sounds.py. */
+/** Sounds of the fights: recordings from free sound libraries, prepared by tools/import_sounds.py. */
 public final class ModSounds {
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(Registries.SOUND_EVENT, KnightCombat.MODID);
 
@@ -21,6 +21,8 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> FEINT = register("weapon.feint");
     public static final RegistryObject<SoundEvent> KICK = register("combat.kick");
     public static final RegistryObject<SoundEvent> BATTLE_CRY = register("combat.battle_cry");
+    public static final RegistryObject<SoundEvent> ATTACK_YELL = register("combat.attack_yell");
+    public static final RegistryObject<SoundEvent> PAIN = register("combat.pain");
 
     private ModSounds() {
     }
