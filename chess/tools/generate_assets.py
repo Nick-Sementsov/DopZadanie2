@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generates the textures, models, blockstates, recipes and loot tables of the chess mod.
 
-Run from the repository root:  python3 tools/generate_assets.py
+Run from the repository root:  python3 chess/tools/generate_assets.py
 Requires Pillow and NumPy (pip install pillow numpy). Files are written into src/main/resources
 and overwrite earlier versions, so edit this script rather than the generated files.
 """

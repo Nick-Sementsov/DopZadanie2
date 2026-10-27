@@ -11,3 +11,9 @@ pluginManagement {
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
 }
+
+rootProject.name = 'minecraft-mods'
+
+// Every mod lives in its own folder with its own build.gradle and gradle.properties
+include 'chess'
+include 'knightcombat'

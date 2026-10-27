@@ -1,0 +1,17 @@
+{
+  "loader": "forge:separate_transforms",
+  "base": {
+    "parent": "knightcombat:item/longsword_held"
+  },
+  "perspectives": {
+    "gui": {
+      "parent": "knightcombat:item/longsword_icon"
+    },
+    "fixed": {
+      "parent": "knightcombat:item/longsword_icon"
+    },
+    "ground": {
+      "parent": "knightcombat:item/longsword_icon"
+    }
+  }
+}
