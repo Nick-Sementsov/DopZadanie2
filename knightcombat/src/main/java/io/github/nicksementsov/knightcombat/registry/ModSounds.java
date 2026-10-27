@@ -6,11 +6,12 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
-/** Sounds of the fights. The sound files are Minecraft's own, mixed and pitched in sounds.json. */
+/** Sounds of the fights. The mod's own sound files, made by tools/generate_sounds.py. */
 public final class ModSounds {
     public static final DeferredRegister<SoundEvent> SOUNDS = DeferredRegister.create(Registries.SOUND_EVENT, KnightCombat.MODID);
 
     public static final RegistryObject<SoundEvent> WHOOSH = register("weapon.whoosh");
+    public static final RegistryObject<SoundEvent> WHOOSH_HEAVY = register("weapon.whoosh_heavy");
     public static final RegistryObject<SoundEvent> HIT = register("weapon.hit");
     public static final RegistryObject<SoundEvent> BLOCK = register("weapon.block");
     public static final RegistryObject<SoundEvent> PARRY = register("weapon.parry");

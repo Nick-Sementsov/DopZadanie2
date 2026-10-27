@@ -19,6 +19,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -27,21 +28,22 @@ import org.joml.Vector3f;
  * arms; this mod's arm pose places both arms, the body, a leg and the head from {@link ThirdPersonPoses}.
  * <p>
  * Minecraft would draw the weapon at a fixed angle to the hand. To let the blade turn freely, the weapon is taken
- * out of the hand while the player is drawn and {@link WeaponLayer} draws it at the angle of the pose.
+ * out of the hand while the player is drawn and {@link WeaponLayer} draws it at the angle of the pose. Weapons with
+ * their own renderer stay in the hand and are drawn by Minecraft.
  */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID, value = Dist.CLIENT)
 public final class ThirdPersonAnimator {
     private static HumanoidModel.ArmPose armPose;
     private static float partialTick;
 
-    // The player being drawn: weapons taken out of their hands and the blade direction of their pose (model space).
-    private static Player hidden;
+    // The player being drawn: weapons taken out of their hands and the blade and edge directions of their pose (model space).
+    private static Player posed;
+    private static WeaponStats posedStats;
     private static int hiddenSlot;
     private static ItemStack hiddenMain = ItemStack.EMPTY;
     private static ItemStack hiddenOff = ItemStack.EMPTY;
-    private static WeaponStats hiddenStats;
     private static final Vector3f BLADE = new Vector3f();
-    private static final Vector3f FLAT = new Vector3f();
+    private static final Vector3f EDGE = new Vector3f();
 
     private ThirdPersonAnimator() {
     }
@@ -68,11 +70,13 @@ public final class ThirdPersonAnimator {
             model.leftArmPose = armPose;
         }
         Inventory inventory = player.getInventory();
-        hidden = player;
+        posed = player;
+        posedStats = weapon;
         hiddenSlot = inventory.selected;
-        hiddenMain = inventory.items.get(hiddenSlot);
-        hiddenStats = weapon;
-        inventory.items.set(hiddenSlot, ItemStack.EMPTY);
+        if (HeldModel.measurable(inventory.items.get(hiddenSlot))) {
+            hiddenMain = inventory.items.get(hiddenSlot);
+            inventory.items.set(hiddenSlot, ItemStack.EMPTY);
+        }
         if (weapon.twoHanded()) {
             // Both hands are on the weapon, so whatever is in the other hand is not drawn.
             hiddenOff = inventory.offhand.get(0);
@@ -92,38 +96,44 @@ public final class ThirdPersonAnimator {
     }
 
     private static void restore() {
-        if (hidden == null) {
+        if (posed == null) {
             return;
         }
-        Inventory inventory = hidden.getInventory();
-        inventory.items.set(hiddenSlot, hiddenMain);
+        Inventory inventory = posed.getInventory();
+        if (!hiddenMain.isEmpty()) {
+            inventory.items.set(hiddenSlot, hiddenMain);
+        }
         if (!hiddenOff.isEmpty()) {
             inventory.offhand.set(0, hiddenOff);
         }
-        hidden = null;
+        posed = null;
+        posedStats = null;
         hiddenMain = ItemStack.EMPTY;
         hiddenOff = ItemStack.EMPTY;
-        hiddenStats = null;
     }
 
     /** The weapon taken out of the hand of {@code player} for drawing, or {@code null}. */
     static ItemStack hiddenWeapon(Player player) {
-        return player == hidden ? hiddenMain : null;
+        return player == posed && !hiddenMain.isEmpty() ? hiddenMain : null;
+    }
+
+    static WeaponStats posedStats() {
+        return posedStats;
     }
 
     static Vector3f blade() {
         return BLADE;
     }
 
-    static Vector3f flat() {
-        return FLAT;
+    static Vector3f edge() {
+        return EDGE;
     }
 
     private static void pose(HumanoidModel<?> model, LivingEntity entity, HumanoidArm arm) {
-        if (!(entity instanceof Player player) || player != hidden || hiddenStats == null) {
+        if (!(entity instanceof Player player) || player != posed || posedStats == null) {
             return;
         }
-        WeaponStats weapon = hiddenStats;
+        WeaponStats weapon = posedStats;
         boolean left = arm == HumanoidArm.LEFT;
         ModelPart main = left ? model.leftArm : model.rightArm;
         ModelPart off = left ? model.rightArm : model.leftArm;
@@ -138,12 +148,14 @@ public final class ThirdPersonAnimator {
         model.rightArm.z = Mth.sin(yaw) * 5;
         model.leftArm.x = Mth.cos(yaw) * 5;
         model.leftArm.z = -Mth.sin(yaw) * 5;
+        // Minecraft resets the tilt of the body after the arms are posed, so a lean moves the shoulders and the head instead.
+        model.rightArm.z -= pose.lean * 10;
+        model.leftArm.z -= pose.lean * 10;
         main.z -= pose.lunge;
 
         Quaternionf body = PoseMath.yaw(pose.bodyYaw);
         Vector3f armDir = mirrored(body.transform(new Vector3f(pose.arm)), left);
-        BLADE.set(mirrored(body.transform(new Vector3f(pose.blade)), left));
-        FLAT.set(mirrored(body.transform(new Vector3f(pose.flat)), left));
+        directions(pose, left, BLADE, EDGE);
         // The fist faces along the blade it holds.
         Quaternionf mainRotation = PoseMath.armFrame(armDir, BLADE);
         set(main, mainRotation);
@@ -161,7 +173,37 @@ public final class ThirdPersonAnimator {
             ModelPart leg = left ? model.leftLeg : model.rightLeg;
             leg.xRot = Mth.lerp(pose.legWeight, leg.xRot, pose.leg);
         }
-        model.head.xRot += pose.head;
+        model.head.xRot += pose.head + pose.lean * 0.5f;
+    }
+
+    /** The blade and edge directions of a pose in model space, turned with the body and mirrored for the left hand. */
+    private static void directions(ThirdPersonPose pose, boolean left, Vector3f blade, Vector3f edge) {
+        Quaternionf body = PoseMath.yaw(pose.bodyYaw);
+        blade.set(mirrored(body.transform(new Vector3f(pose.blade)), left)).normalize();
+        edge.set(mirrored(body.transform(new Vector3f(pose.edge)), left));
+        edge.fma(-edge.dot(blade), blade);
+        if (edge.lengthSquared() < 1.0E-6f) {
+            edge.set(PoseMath.perpendicular(blade));
+        }
+        edge.normalize();
+    }
+
+    /**
+     * Where a weapon held in a pose is: the transform from the space its model is drawn in (as {@link WeaponLayer}
+     * draws it) to model space. The same as the arm pose above, without the small sway of walking; used to draw the
+     * trail of a swing from poses the fighter went through.
+     */
+    static Matrix4f weaponTransform(ThirdPersonPose pose, boolean left, HeldModel.Axes axes, float scale) {
+        float yaw = left ? -pose.bodyYaw : pose.bodyYaw;
+        float side = left ? 1 : -1;
+        Vector3f shoulder = new Vector3f(side * Mth.cos(yaw) * 5, 2, -side * Mth.sin(yaw) * 5 - pose.lean * 10 - pose.lunge);
+        Vector3f armDir = mirrored(PoseMath.yaw(pose.bodyYaw).transform(new Vector3f(pose.arm)), left);
+        Vector3f blade = new Vector3f();
+        Vector3f edge = new Vector3f();
+        directions(pose, left, blade, edge);
+        Vector3f hand = PoseMath.armFrame(armDir, blade).transform(new Vector3f(left ? PoseMath.LEFT_GRIP : PoseMath.RIGHT_GRIP))
+                .add(shoulder).div(16);
+        return new Matrix4f().translation(hand).rotate(PoseMath.frame(axes.blade(), axes.edge(), blade, edge)).scale(scale);
     }
 
     /** Points the free arm at the weapon: below the main hand on a long hilt, or further up the shaft of a polearm. */

@@ -7,7 +7,9 @@ import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.network.Feedback;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -16,6 +18,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
@@ -29,9 +32,19 @@ import java.util.Locale;
 /** Stamina bar, hit marker and short messages around the crosshair, and the combat lines of weapon tooltips. */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID, value = Dist.CLIENT)
 public final class CombatHud {
-    private static final int BAR_WIDTH = 40;
+    /** The stamina bar texture: the sword, then the gold, red and white fills of its blade, each 76x11. */
+    private static final ResourceLocation STAMINA_BAR = KnightCombat.id("textures/gui/stamina_bar.png");
+    private static final int BAR_WIDTH = 76;
+    private static final int BAR_HEIGHT = 11;
+    /** First column of the blade; left of it are the pommel, the grip and the guard. */
+    private static final int BLADE_START = 13;
     private static final int MESSAGE_TICKS = 24;
     private static final int HIT_MARKER_TICKS = 6;
+
+    private static float shownShare = -1;
+    private static float spentShare;
+    private static long spentAt;
+    private static long lastFrame;
 
     private CombatHud() {
     }
@@ -62,7 +75,7 @@ public final class CombatHud {
         }
 
         if (weapon != null && CombatConfig.STAMINA_BAR.get()) {
-            drawStamina(graphics, cx, cy + 10, ticks, partialTick);
+            drawStamina(graphics, cx, cy + 12, ticks, partialTick);
         }
 
         if (!CombatConfig.HIT_MESSAGES.get()) {
@@ -83,6 +96,10 @@ public final class CombatHud {
         }
     }
 
+    /**
+     * The stamina bar: a sword whose blade fills with gold. Stamina just spent stays white for a moment and then
+     * drains away, low stamina turns the blade red and pulses, and an empty bar flashes. A full bar fades out.
+     */
     private static void drawStamina(GuiGraphics graphics, int cx, int y, long ticks, float partialTick) {
         float stamina = ClientCombat.stamina();
         float max = ClientCombat.maxStamina();
@@ -90,28 +107,63 @@ public final class CombatHud {
             return;
         }
         float share = Mth.clamp(stamina / max, 0, 1);
-        // A full bar fades out a second after it filled up.
+        long now = Util.getMillis();
+        float seconds = lastFrame == 0 ? 0 : Math.min(0.1f, (now - lastFrame) / 1000f);
+        lastFrame = now;
+        // The gold follows the stamina quickly; the white part of spent stamina waits, then drains slowly.
+        shownShare = shownShare < 0 ? share : shownShare + (share - shownShare) * Math.min(1, seconds * 14);
+        if (share >= spentShare) {
+            spentShare = share;
+            spentAt = now;
+        } else if (now - spentAt > 350) {
+            spentShare = Math.max(share, spentShare - seconds * 0.9f);
+        }
         float sinceChange = ticks - ClientCombat.staminaChangedAt() + partialTick;
-        float visibility = share < 0.999f ? 1 : 1 - Mth.clamp((sinceChange - 20) / 10f, 0, 1);
+        float visibility = share < 0.999f || spentShare > share + 0.001f ? 1 : 1 - Mth.clamp((sinceChange - 20) / 10f, 0, 1);
         if (visibility <= 0) {
             return;
         }
-        int alpha = (int) (visibility * 255);
+        float time = ticks + partialTick;
         int left = cx - BAR_WIDTH / 2;
-        graphics.fill(left - 1, y - 1, left + BAR_WIDTH + 1, y + 3, (int) (alpha * 0.6f) << 24);
-        int fill = Math.round(BAR_WIDTH * share);
-        int color = share < 0.3f ? 0xD9443A : 0xE8B84A;
-        if (fill > 0) {
-            graphics.fill(left, y, left + fill, y + 2, alpha << 24 | color);
-            graphics.fill(left, y, left + fill, y + 1, alpha << 24 | brighter(color));
+        RenderSystem.enableBlend();
+        if (share < 0.02f) {
+            // Out of stamina: the whole sword flashes red.
+            float flash = 0.5f + 0.5f * Mth.sin(time * 0.8f);
+            graphics.setColor(1, 1 - 0.6f * flash, 1 - 0.6f * flash, visibility);
+        } else {
+            graphics.setColor(1, 1, 1, visibility);
         }
+        graphics.blit(STAMINA_BAR, left, y, 0, 0, BAR_WIDTH, BAR_HEIGHT, 128, 64);
+        graphics.setColor(1, 1, 1, visibility);
+        int spentWidth = bladeWidth(spentShare);
+        if (spentWidth > bladeWidth(shownShare)) {
+            graphics.blit(STAMINA_BAR, left, y, 0, 48, spentWidth, BAR_HEIGHT, 128, 64);
+        }
+        int width = bladeWidth(shownShare);
+        if (width > BLADE_START) {
+            boolean low = share < 0.3f;
+            if (low) {
+                graphics.setColor(1, 1, 1, visibility * (0.75f + 0.25f * Mth.sin(time * 0.5f)));
+            }
+            graphics.blit(STAMINA_BAR, left, y, 0, low ? 32 : 16, width, BAR_HEIGHT, 128, 64);
+            graphics.setColor(1, 1, 1, visibility);
+            if (sinceChange < 12 && share > 0.05f && !low) {
+                // A glint runs along the blade while stamina comes back.
+                int glint = left + BLADE_START + (int) ((time * 3.5f) % (width - BLADE_START + 6)) - 3;
+                int from = Math.max(left + BLADE_START, glint);
+                int to = Math.min(left + width, glint + 2);
+                if (to > from) {
+                    graphics.fill(from, y + 4, to, y + 7, (int) (visibility * 150) << 24 | 0xFFFFFF);
+                }
+            }
+        }
+        graphics.setColor(1, 1, 1, 1);
+        RenderSystem.disableBlend();
     }
 
-    private static int brighter(int color) {
-        int r = Math.min(255, (color >> 16 & 0xFF) + 40);
-        int g = Math.min(255, (color >> 8 & 0xFF) + 40);
-        int b = Math.min(255, (color & 0xFF) + 40);
-        return r << 16 | g << 8 | b;
+    /** Width of the bar texture to draw so that the blade is filled up to {@code share}. */
+    private static int bladeWidth(float share) {
+        return BLADE_START + Math.round((BAR_WIDTH - 1 - BLADE_START) * Mth.clamp(share, 0, 1));
     }
 
     private static int color(Feedback feedback) {
@@ -132,7 +184,9 @@ public final class CombatHud {
             return;
         }
         List<Component> lines = event.getToolTip();
-        lines.add(Component.translatable("tooltip.knightcombat.grip." + weapon.grip().name().toLowerCase(Locale.ROOT))
+        lines.add(Component.translatable("tooltip.knightcombat.weapon",
+                Component.translatable("tooltip.knightcombat.kind." + weapon.kind().name().toLowerCase(Locale.ROOT)),
+                Component.translatable("tooltip.knightcombat.grip." + weapon.grip().name().toLowerCase(Locale.ROOT)))
                 .withStyle(ChatFormatting.GOLD));
         for (AttackType type : new AttackType[]{AttackType.SLASH, AttackType.OVERHEAD, AttackType.STAB}) {
             AttackStats attack = weapon.attack(type);

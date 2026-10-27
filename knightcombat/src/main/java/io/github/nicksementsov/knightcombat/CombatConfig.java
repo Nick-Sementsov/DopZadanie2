@@ -1,6 +1,11 @@
 package io.github.nicksementsov.knightcombat;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.ForgeConfigSpec;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /** Settings of the combat rules (serverconfig/knightcombat-server.toml) and of the client (config/knightcombat-client.toml). */
 public final class CombatConfig {
@@ -8,6 +13,8 @@ public final class CombatConfig {
     public static final ForgeConfigSpec CLIENT_SPEC;
 
     private static final ForgeConfigSpec.BooleanValue VANILLA_WEAPONS;
+    private static final ForgeConfigSpec.BooleanValue MODDED_WEAPONS;
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> EXCLUDED_WEAPONS;
     private static final ForgeConfigSpec.BooleanValue WALLS_STOP_ATTACKS;
     private static final ForgeConfigSpec.IntValue MAX_STAMINA;
     private static final ForgeConfigSpec.DoubleValue STAMINA_REGEN;
@@ -18,12 +25,23 @@ public final class CombatConfig {
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
     public static final ForgeConfigSpec.BooleanValue STAMINA_BAR;
     public static final ForgeConfigSpec.BooleanValue HIT_MESSAGES;
+    public static final ForgeConfigSpec.BooleanValue SWING_TRAILS;
+    public static final ForgeConfigSpec.BooleanValue FIRST_PERSON_ARMS;
+    public static final ForgeConfigSpec.DoubleValue WEAPON_SCALE;
 
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
         VANILLA_WEAPONS = server
-                .comment("Swords and axes from Minecraft (and from other mods) fight with slashes, overheads, stabs and blocks too")
+                .comment("Swords and axes from Minecraft fight with slashes, overheads, stabs and blocks")
                 .define("vanillaWeapons", true);
+        MODDED_WEAPONS = server
+                .comment("Weapons of other mods fight with the combat rules too: Epic Knights and its addons, and swords, axes,",
+                        "maces, spears and the like of any mod")
+                .define("moddedWeapons", true);
+        EXCLUDED_WEAPONS = server
+                .comment("Items that keep their own way of fighting. Item ids, * matches any text: \"magistuarmory:*\" leaves out",
+                        "all of Epic Knights, \"*:wooden_sword\" every wooden sword. Lances of Epic Knights are always left out")
+                .defineListAllowEmpty(List.of("excludedWeapons"), () -> List.of("*lance*", "minecraft:trident"), o -> o instanceof String);
         WALLS_STOP_ATTACKS = server
                 .comment("Walls stop slashes and stabs that hit them, like in narrow corridors")
                 .define("wallsStopAttacks", true);
@@ -54,6 +72,15 @@ public final class CombatConfig {
         HIT_MESSAGES = client
                 .comment("Show short messages near the crosshair: parry, blocked, guard broken and so on")
                 .define("hitMessages", true);
+        SWING_TRAILS = client
+                .comment("Swings leave a short trail behind the blade")
+                .define("swingTrails", true);
+        FIRST_PERSON_ARMS = client
+                .comment("Show the arms holding the weapon in the first person view")
+                .define("firstPersonArms", true);
+        WEAPON_SCALE = client
+                .comment("Size of weapons in hand compared to the size the mod picks (two-handed and long weapons are drawn larger)")
+                .defineInRange("weaponScale", 1.0, 0.5, 2.0);
         CLIENT_SPEC = client.build();
     }
 
@@ -65,6 +92,33 @@ public final class CombatConfig {
 
     public static boolean vanillaWeapons() {
         return get(VANILLA_WEAPONS, true);
+    }
+
+    public static boolean moddedWeapons() {
+        return get(MODDED_WEAPONS, true);
+    }
+
+    /** Whether the item with this id is left out of the combat rules by the server settings. */
+    public static boolean isExcluded(ResourceLocation id) {
+        String text = id.toString();
+        for (String pattern : get(EXCLUDED_WEAPONS, List.<String>of())) {
+            if (matches(pattern.toLowerCase(Locale.ROOT).trim(), text)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Glob match where * stands for any text. */
+    static boolean matches(String pattern, String text) {
+        StringBuilder regex = new StringBuilder();
+        for (String part : pattern.split("\\*", -1)) {
+            if (!regex.isEmpty()) {
+                regex.append(".*");
+            }
+            regex.append(Pattern.quote(part));
+        }
+        return text.matches(regex.toString());
     }
 
     public static boolean wallsStopAttacks() {

@@ -4,7 +4,9 @@ import io.github.nicksementsov.knightcombat.KnightCombat;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
@@ -37,6 +39,12 @@ public final class ClientSetup {
                 renderer.addLayer(new WeaponLayer(renderer));
             }
         }
+    }
+
+    /** Item models change with resource packs, so the measured weapon models are measured again. */
+    @SubscribeEvent
+    public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> HeldModel.clear());
     }
 
     @SubscribeEvent

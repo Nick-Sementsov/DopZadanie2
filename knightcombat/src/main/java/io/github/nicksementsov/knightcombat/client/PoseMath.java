@@ -9,9 +9,6 @@ import org.joml.Vector3f;
  * are converted to the model space of Minecraft's humanoid models, where right is -X, up is -Y and forward is -Z.
  */
 public final class PoseMath {
-    /** In the space of a model arm the arm points along +Y and a held item's blade along this direction (vanilla grip). */
-    public static final Vector3f ARM_AXIS = new Vector3f(0, 1, 0);
-    public static final Vector3f GRIP_AXIS = new Vector3f(0, 0.17365f, -0.98481f);
     /** The point of the right hand that holds items, in pixels, in the space of the right arm. */
     public static final Vector3f RIGHT_GRIP = new Vector3f(-1, 10, -2);
     public static final Vector3f LEFT_GRIP = new Vector3f(1, 10, -2);
@@ -56,21 +53,6 @@ public final class PoseMath {
                 b.x, b.y, b.z,
                 c.x, c.y, c.z);
         return new Quaternionf().setFromNormalized(m);
-    }
-
-    /** In item textures the blade goes from the bottom left to the top right corner and the flat side faces +Z. */
-    private static final Vector3f SPRITE_BLADE = new Vector3f(1, 1, 0).normalize();
-    private static final Vector3f SPRITE_FLAT = new Vector3f(0, 0, 1);
-
-    /** Rotation that turns an item texture so its blade points along {@code blade} and its flat side faces {@code flat}. */
-    public static Quaternionf spriteRotation(Vector3f blade, Vector3f flat) {
-        Vector3f b = new Vector3f(blade).normalize();
-        Vector3f f = new Vector3f(flat).fma(-flat.dot(b), b);
-        if (f.lengthSquared() < 1.0E-6f) {
-            f = perpendicular(b);
-        }
-        f.normalize();
-        return frame(new Vector3f(SPRITE_BLADE), new Vector3f(SPRITE_FLAT), b, f);
     }
 
     /** Some unit vector perpendicular to {@code v}. */

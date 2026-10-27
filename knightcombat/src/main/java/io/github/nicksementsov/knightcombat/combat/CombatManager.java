@@ -387,11 +387,9 @@ public final class CombatManager {
     private static void startRelease(ServerPlayer player, CombatState s) {
         AttackStats attack = s.weapon.attack(s.attack);
         s.set(Phase.RELEASE, Math.max(1, attack.release()));
-        float pitch = s.weapon.twoHanded() ? 0.75f : 1.0f;
-        if (s.weapon == Weapons.DAGGER) {
-            pitch = 1.3f;
-        }
-        playSound(player, ModSounds.WHOOSH.get(), 0.8f, pitch + player.getRandom().nextFloat() * 0.15f);
+        boolean heavy = s.weapon.grip() != Grip.ONE_HANDED || s.weapon.kind() == WeaponKind.BLUNT || s.weapon.kind() == WeaponKind.AXE;
+        float pitch = s.weapon.kind() == WeaponKind.DAGGER ? 1.25f : 1.0f;
+        playSound(player, heavy ? ModSounds.WHOOSH_HEAVY.get() : ModSounds.WHOOSH.get(), 0.8f, pitch + player.getRandom().nextFloat() * 0.12f);
     }
 
     private static void releaseTick(ServerPlayer player, CombatState s, long now) {

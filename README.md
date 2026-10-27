@@ -6,11 +6,11 @@
 | Мод | Папка | Что это |
 |-----|-------|---------|
 | [Шахматы](chess/README.md) | `chess/` | Шахматная доска с объёмными фигурами, полные правила, компьютерный соперник, партии двух игроков, шесть стилей |
-| [Рыцарский бой](knightcombat/README.md) | `knightcombat/` | Ближний бой в духе Chivalry 2: удары сбоку, сверху и уколы с замахом, блок и парирование, рипост, финты, пинок, выносливость, девять видов оружия |
+| [Рыцарский бой](knightcombat/README.md) | `knightcombat/` | Ближний бой в духе Chivalry 2: удары сбоку, сверху и уколы с замахом, блок и парирование, рипост, финты, пинок, выносливость; оружие Minecraft, Epic Knights и его аддонов |
 
 | Шахматы | Рыцарский бой |
 |---------|---------------|
-| ![Шахматная доска](chess/docs/screenshots/board.png) | ![Противник замахивается длинным мечом](knightcombat/docs/screenshots/enemy_windup.png) |
+| ![Шахматная доска](chess/docs/screenshots/board.png) | ![Противник замахивается цвайхендером Epic Knights](knightcombat/docs/screenshots/enemy_windup.png) |
 
 ## Сборка
 
@@ -21,7 +21,7 @@ Gradle скачивает и декомпилирует Minecraft.
 |---------|-----------|
 | `./gradlew build` | Собирает оба мода и запускает тесты |
 | `./gradlew :chess:build` | Только шахматы → `chess/build/libs/chessmod-1.2.0.jar` |
-| `./gradlew :knightcombat:build` | Только рыцарский бой → `knightcombat/build/libs/knightcombat-1.0.0.jar` |
+| `./gradlew :knightcombat:build` | Только рыцарский бой → `knightcombat/build/libs/knightcombat-2.0.0.jar` |
 | `./gradlew :chess:runClient` | Minecraft с модом шахмат (`:knightcombat:runClient` — с боевым модом) |
 | `./gradlew :chess:runServer` | Выделенный сервер с модом (`:knightcombat:runServer`) |
 
