@@ -68,7 +68,7 @@ final class FirstPersonPoses {
         Combo combo = anim.combo;
         return switch (anim.phase) {
             case IDLE -> guard(grip);
-            case BLOCK -> block(grip);
+            case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
             case WINDUP -> {
                 if (anim.has(CombatState.HEAVY)) {
                     // The charge: drawn back further (the weight of the weapon makes it tremble, see the animator).

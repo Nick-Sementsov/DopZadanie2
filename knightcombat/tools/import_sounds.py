@@ -203,6 +203,16 @@ EVENTS = [
           [clip("kenney", f"Audio/impactSoft_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
                 clip("kenney", f"Audio/impactPlate_light_00{(i + 1) % 5}.ogg", gain=0.35, delay=0.05)) for i in range(5)],
           lead=0.25),
+    # Blows on a shield: the dull thud of the boards with the ring of the iron rim and boss.
+    Event("weapon.shield_block", "weapon", "weapon.shield_block", 0.9,
+          [clip("kenney", f"Audio/impactWood_heavy_00{i}.ogg", 0.0, None, 0.9, 1.0, 0.0,
+                clip("kenney", f"Audio/impactPlate_medium_00{i}.ogg", gain=0.3)) for i in range(5)]
+          + [clip("kenney", f"Audio/impactPlank_medium_00{i}.ogg", 0.0, None, 0.85, 1.0, 0.0,
+                  clip("kenney", f"Audio/impactPlate_light_00{(i + 2) % 5}.ogg", gain=0.35)) for i in range(3)]),
+    # A shield driven into someone: a heavy shove and the boards knocking.
+    Event("combat.shield_bash", "combat", "combat.shield_bash", 0.95,
+          [clip("kenney", f"Audio/impactPunch_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                clip("kenney", f"Audio/impactWood_heavy_00{(i + 1) % 5}.ogg", gain=0.7)) for i in range(5)]),
 ]
 
 

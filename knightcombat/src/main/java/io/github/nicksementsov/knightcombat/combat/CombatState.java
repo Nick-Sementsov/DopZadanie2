@@ -29,6 +29,10 @@ public final class CombatState {
     public static final int DODGE_FORWARD = 2048;
     /** Recovery after throwing the weapon. */
     public static final int THROWN = 4096;
+    /** The block is a raised shield. */
+    public static final int SHIELD = 8192;
+    /** The kick is a blow with the shield. */
+    public static final int SHIELD_BASH = 16384;
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;

@@ -69,7 +69,8 @@ final class ThirdPersonPoses {
         Combo combo = anim.combo;
         return switch (anim.phase) {
             case IDLE -> guard(grip);
-            case BLOCK -> block(grip);
+            // Behind a raised shield the weapon stays ready to strike back.
+            case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
             case WINDUP -> {
                 if (anim.has(CombatState.HEAVY)) {
                     // The charge: drawn back further, the arms trembling with the strain.
@@ -85,6 +86,9 @@ final class ThirdPersonPoses {
             }
             case RELEASE -> release(anim.attack, grip, mirrored, combo, p);
             case RECOVERY -> {
+                if (anim.attack == AttackType.KICK && anim.has(CombatState.SHIELD_BASH)) {
+                    yield ThirdPersonPose.lerp(shieldBash(grip, 1), guard(grip), smooth(p));
+                }
                 if (anim.attack == AttackType.KICK) {
                     yield guard(grip).leg(-1.35f * (1 - smooth(p * 1.3f)), 1 - smooth(p));
                 }
@@ -105,7 +109,7 @@ final class ThirdPersonPoses {
                         : staggered();
                 yield p < 0.55f ? hit : ThirdPersonPose.lerp(hit, guard(grip), smooth((p - 0.55f) / 0.45f));
             }
-            case KICK -> kick(grip, p);
+            case KICK -> anim.has(CombatState.SHIELD_BASH) ? shieldBash(grip, p) : kick(grip, p);
             case CRY -> {
                 ThirdPersonPose cry = battleCry(p);
                 yield p < 0.75f ? cry : ThirdPersonPose.lerp(cry, guard(grip), smooth((p - 0.75f) / 0.25f));
@@ -113,6 +117,34 @@ final class ThirdPersonPoses {
             case THROW -> throwing(grip, p);
             case DODGE -> dodge(grip, anim.flags, p);
         };
+    }
+
+    /**
+     * How far a shield is thrust out in a bash, for the arm that holds it: pulled in a little at first, then out
+     * (1 at full reach), and back in during the recovery. 0 when the fighter is not bashing.
+     */
+    static float bash(FighterAnim anim, float partialTick) {
+        if (anim == null || anim.attack != AttackType.KICK || !anim.has(CombatState.SHIELD_BASH)) {
+            return 0;
+        }
+        float p = anim.progress(partialTick);
+        return switch (anim.phase) {
+            case KICK -> thrust(p);
+            case RECOVERY -> 1 - smooth(p);
+            default -> 0;
+        };
+    }
+
+    private static float thrust(float p) {
+        return p < 0.4f ? -0.25f * smooth(p / 0.4f) : lerp(-0.25f, 1, PoseMath.easeOut((p - 0.4f) / 0.6f));
+    }
+
+    /** A bash: the shield shoulder drives forward with a step, the weapon held back. */
+    private static ThirdPersonPose shieldBash(Grip grip, float p) {
+        float t = thrust(p);
+        ThirdPersonPose pose = guard(grip);
+        pose.bodyYaw += 0.45f * t;
+        return pose.lean(0.15f * Math.max(0, t)).step(0.4f * t);
     }
 
     /** The arms shake a little with the strain of a heavy wind-up, more as it grows. */

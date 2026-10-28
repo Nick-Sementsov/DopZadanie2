@@ -5,6 +5,7 @@ import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
 import io.github.nicksementsov.knightcombat.combat.Phase;
+import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.client.model.HumanoidModel;
@@ -35,6 +36,9 @@ import org.joml.Vector3f;
  * their own renderer stay in the hand and are drawn by Minecraft.
  * <p>
  * The whole model turns too: it spins with a whirlwind and leans into a dodge.
+ * <p>
+ * A shield in the other hand is held before the body and thrust out in a bash; while it is raised, Minecraft poses
+ * that arm and the weapon stays ready behind it.
  */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID, value = Dist.CLIENT)
 public final class ThirdPersonAnimator {
@@ -67,7 +71,7 @@ public final class ThirdPersonAnimator {
         restore();
         Player player = event.getEntity();
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
-        if (armPose == null || weapon == null || player.isUsingItem() || player.isSleeping() || player.isFallFlying()
+        if (armPose == null || weapon == null || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSleeping() || player.isFallFlying()
                 || player.isVisuallySwimming() || player.isSpectator()) {
             return;
         }
@@ -227,8 +231,18 @@ public final class ThirdPersonAnimator {
         set(main, mainRotation);
         main.xRot += walkMain * 0.15f;
 
+        // A raised shield: Minecraft has already posed that arm (it poses the arm of the item in use first).
+        boolean shieldUp = Shields.raisedInOffHand(player);
         if (weapon.grip().twoHanded() && (anim == null || anim.phase != Phase.THROW)) {
             reachForGrip(main, off, weapon.grip(), left);
+        } else if (Shields.isShield(player.getOffhandItem())) {
+            if (!shieldUp) {
+                // Held before the body, its face to the front, lower than Minecraft's raised shield; a bash thrusts it out.
+                float bash = ThirdPersonPoses.bash(anim, partialTick);
+                off.xRot = Mth.lerp(bash, -0.8f, -1.3f) + walkOff * 0.15f;
+                off.yRot = (left ? -1 : 1) * Mth.lerp(bash, 0.8f, 0.9f);
+                off.zRot = (left ? -1 : 1) * Mth.lerp(bash, 0.3f, 0);
+            }
         } else {
             Vector3f offDir = mirrored(body.transform(new Vector3f(pose.off)), left);
             set(off, PoseMath.armFrame(offDir, new Vector3f(0, 0, -1)));
@@ -237,7 +251,9 @@ public final class ThirdPersonAnimator {
 
         if (flinch != 0) {
             main.zRot += (left ? -1 : 1) * 0.25f * flinch;
-            off.xRot -= 0.4f * flinch;
+            if (!shieldUp) {
+                off.xRot -= 0.4f * flinch;
+            }
         }
 
         // A fencing stance while standing: feet apart, the off-hand foot in front. Attacks step into it, staggers

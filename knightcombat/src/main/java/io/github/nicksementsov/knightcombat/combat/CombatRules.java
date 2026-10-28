@@ -56,6 +56,18 @@ public final class CombatRules {
     /** Pause after a dodge before the next one. */
     public static final int DODGE_COOLDOWN = 8;
     public static final int THROW_RECOVERY = 8;
+    /** A shield bash comes out faster than a kick, reaches a little less and pushes harder. */
+    public static final int SHIELD_BASH_WINDUP = 4;
+    public static final float SHIELD_BASH_RANGE = 2.2f;
+    public static final float SHIELD_BASH_DAMAGE = 2;
+    /** Axes, maces and polearms that break shields drain this much more stamina from a shield that stops them. */
+    public static final float SHIELD_BREAKER = 1.5f;
+    /** Projectiles cost a shield bearer only this share of what they cost a weapon block. */
+    public static final float SHIELD_PROJECTILE = 0.5f;
+    /** Stagger of a fighter whose shield was knocked aside by a heavy blow. */
+    public static final int SHIELD_KNOCKED = 12;
+    /** Ticks a knocked-aside shield cannot be raised (Minecraft's own axe disables it for 5 seconds). */
+    public static final int SHIELD_KICKED_COOLDOWN = 60;
 
     public static final float FEINT_COST = 10;
     public static final float MORPH_COST = 6;

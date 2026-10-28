@@ -690,5 +690,67 @@
         "volume": 0.9
       }
     ]
+  },
+  "weapon.shield_block": {
+    "subtitle": "subtitles.knightcombat.weapon.shield_block",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/shield_block1",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block2",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block3",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block4",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block5",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block6",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block7",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/shield_block8",
+        "volume": 0.9
+      }
+    ]
+  },
+  "combat.shield_bash": {
+    "subtitle": "subtitles.knightcombat.combat.shield_bash",
+    "sounds": [
+      {
+        "name": "knightcombat:combat/shield_bash1",
+        "volume": 0.95
+      },
+      {
+        "name": "knightcombat:combat/shield_bash2",
+        "volume": 0.95
+      },
+      {
+        "name": "knightcombat:combat/shield_bash3",
+        "volume": 0.95
+      },
+      {
+        "name": "knightcombat:combat/shield_bash4",
+        "volume": 0.95
+      },
+      {
+        "name": "knightcombat:combat/shield_bash5",
+        "volume": 0.95
+      }
+    ]
   }
 }

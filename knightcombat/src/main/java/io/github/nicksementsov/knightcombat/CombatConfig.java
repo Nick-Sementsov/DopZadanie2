@@ -25,6 +25,7 @@ public final class CombatConfig {
     private static final ForgeConfigSpec.BooleanValue FINISHERS;
     private static final ForgeConfigSpec.BooleanValue WEAPON_THROWING;
     private static final ForgeConfigSpec.BooleanValue DODGES;
+    private static final ForgeConfigSpec.BooleanValue SHIELDS;
 
     public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
@@ -82,6 +83,10 @@ public final class CombatConfig {
         DODGES = server
                 .comment("Fighters can dodge: a quick step aside, back or forward that costs stamina")
                 .define("dodges", true);
+        SHIELDS = server
+                .comment("Shields (Minecraft's, Epic Knights' and other mods') follow the combat rules: a raised shield parries at first,",
+                        "every blow on it costs stamina, heavy axe and mace blows knock it aside, and the kick key bashes with it")
+                .define("shields", true);
         SERVER_SPEC = server.build();
 
         ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
@@ -195,6 +200,10 @@ public final class CombatConfig {
 
     public static boolean dodges() {
         return get(DODGES, true);
+    }
+
+    public static boolean shields() {
+        return get(SHIELDS, true);
     }
 
     public static int battleCryCooldownTicks() {

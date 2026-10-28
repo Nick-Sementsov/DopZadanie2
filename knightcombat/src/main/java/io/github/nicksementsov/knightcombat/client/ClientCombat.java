@@ -7,6 +7,7 @@ import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
+import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.network.CombatAction;
@@ -26,13 +27,13 @@ import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -196,7 +197,16 @@ public final class ClientCombat {
         }
         ticks++;
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
-        boolean canFight = weapon != null && mc.screen == null && player.isAlive() && !player.isSpectator();
+        boolean ready = mc.screen == null && player.isAlive() && !player.isSpectator();
+        boolean canFight = weapon != null && ready;
+        // A shield alone is enough to kick (bash) and dodge.
+        boolean canAct = ready && (weapon != null || !Shields.carried(player).isEmpty());
+
+        // An attack from behind a raised shield lowers it and strikes (Minecraft would swallow the click).
+        if (canFight && Shields.raised(player) && consume(mc.options.keyAttack)) {
+            slashHeld = true;
+            attack(player, weapon, AttackType.SLASH, mc.options.keyAttack);
+        }
 
         // Blocking: the use key starts a block unless it was pressed while looking at a block (doors, chests...).
         boolean useDown = mc.options.keyUse.isDown();
@@ -236,14 +246,17 @@ public final class ClientCombat {
                 anim.apply(Phase.RECOVERY, anim.attack, CombatState.FEINT, CombatRules.FEINT_RECOVERY, ticks);
             }
         }
-        if (consume(KeyBindings.KICK) && canFight) {
+        if (consume(KeyBindings.KICK) && canAct) {
+            lowerShield(player);
             send(CombatAction.KICK);
             FighterAnim anim = animOf(player.getId());
-            // A wind-up can be cancelled into a kick for the price of a feint.
+            // A wind-up can be cancelled into a kick for the price of a feint. With a shield in hand it is a shield bash.
             boolean cancel = anim.phase == Phase.WINDUP;
+            boolean bash = CombatConfig.shields() && !Shields.carried(player).isEmpty();
             float cost = CombatRules.KICK_COST + (cancel ? CombatRules.FEINT_COST : 0);
             if ((anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK || cancel) && stamina >= cost) {
-                anim.apply(Phase.KICK, AttackType.KICK, 0, Combo.NONE, CombatRules.KICK_WINDUP, ticks);
+                anim.apply(Phase.KICK, AttackType.KICK, bash ? CombatState.SHIELD_BASH : 0, Combo.NONE,
+                        bash ? CombatRules.SHIELD_BASH_WINDUP : CombatRules.KICK_WINDUP, ticks);
             }
         }
         if (consume(KeyBindings.BATTLE_CRY) && canFight) {
@@ -252,10 +265,10 @@ public final class ClientCombat {
         if (consume(KeyBindings.THROW) && canFight) {
             throwWeapon(player, weapon);
         }
-        if (consume(KeyBindings.DODGE) && canFight) {
+        if (consume(KeyBindings.DODGE) && canAct) {
             dodge(player, inputDirection(player));
         }
-        doubleTaps(mc, player, canFight);
+        doubleTaps(mc, player, canAct);
         if (!mc.options.keyAttack.isDown()) {
             slashHeld = false;
         }
@@ -300,6 +313,7 @@ public final class ClientCombat {
                 || player.isPassenger()) {
             return;
         }
+        lowerShield(player);
         send(CombatAction.dodge(direction));
         dodgeReadyAt = ticks + CombatRules.DODGE_LENGTH + CombatRules.DODGE_COOLDOWN;
         int flags = switch (direction) {
@@ -314,6 +328,7 @@ public final class ClientCombat {
 
     /** Draws the weapon back to throw it; a wind-up is cancelled into the throw for the price of a feint. */
     private static void throwWeapon(LocalPlayer player, WeaponStats weapon) {
+        lowerShield(player);
         send(CombatAction.THROW);
         FighterAnim anim = animOf(player.getId());
         boolean cancel = anim.phase == Phase.WINDUP;
@@ -344,6 +359,12 @@ public final class ClientCombat {
         if (player == null || event.getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
+        if (event.isUseItem() && CombatConfig.shields() && !Shields.carried(player).isEmpty() && busy(player)) {
+            // No raising the shield in the middle of an attack, a kick, a throw or a dodge.
+            event.setCanceled(true);
+            event.setSwingHand(false);
+            return;
+        }
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         if (weapon == null) {
             return;
@@ -364,6 +385,20 @@ public final class ClientCombat {
         } else if (event.isUseItem() && blocking) {
             event.setCanceled(true);
             event.setSwingHand(false);
+        }
+    }
+
+    /**
+     * Minecraft slows a player holding a shield up to a fifth of the walking speed; a knight can still advance behind
+     * a shield at about half speed (a large shield slower).
+     */
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        Player player = event.getEntity();
+        if (CombatConfig.shields() && Shields.raised(player) && !player.isPassenger()) {
+            float boost = Shields.size(player.getUseItem()) == Shields.Size.LARGE ? 1.5f : 2.25f;
+            event.getInput().leftImpulse *= boost;
+            event.getInput().forwardImpulse *= boost;
         }
     }
 
@@ -393,6 +428,7 @@ public final class ClientCombat {
 
     /** An attack; {@code key} is the key that made it, which makes it heavy if it is held through the wind-up. */
     private static void attack(LocalPlayer player, WeaponStats weapon, AttackType type, KeyMapping key) {
+        lowerShield(player);
         send(CombatAction.of(type));
         holdKey = key;
         if (key == null) {
@@ -429,7 +465,29 @@ public final class ClientCombat {
     }
 
     private static boolean canWeaponBlock(Player player, WeaponStats weapon) {
-        return weapon.twoHanded() || !(player.getOffhandItem().getItem() instanceof ShieldItem);
+        return weapon.twoHanded() || !Shields.isShield(player.getOffhandItem());
+    }
+
+    /** Lowers a raised shield at once (the server would lower it a moment later anyway). */
+    private static void lowerShield(LocalPlayer player) {
+        Minecraft mc = Minecraft.getInstance();
+        if (Shields.raised(player) && mc.gameMode != null) {
+            mc.gameMode.releaseUsingItem(player);
+        }
+    }
+
+    /** Whether the player is busy with something the shield cannot be raised during: attacks, kicks, throws, dodges, reeling. */
+    private static boolean busy(Player player) {
+        FighterAnim anim = ANIMS.get(player.getId());
+        if (anim == null) {
+            return false;
+        }
+        return switch (anim.phase) {
+            case WINDUP, RELEASE, KICK, THROW, DODGE, CRY -> true;
+            case STAGGER -> !anim.has(CombatState.FLINCHED);
+            case RECOVERY -> !anim.has(CombatState.REBOUND) && !anim.has(CombatState.FEINT) && anim.progress(0) < 0.5f;
+            default -> false;
+        };
     }
 
     private static boolean enemyInReach(LocalPlayer player, WeaponStats weapon) {

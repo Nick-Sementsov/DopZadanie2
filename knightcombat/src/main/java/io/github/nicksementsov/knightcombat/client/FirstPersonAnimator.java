@@ -1,12 +1,14 @@
 package io.github.nicksementsov.knightcombat.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
 import io.github.nicksementsov.knightcombat.combat.Phase;
+import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.client.Minecraft;
@@ -60,7 +62,12 @@ public final class FirstPersonAnimator {
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || player.isUsingItem() || player.isSpectator()) {
+        // A raised shield is drawn by Minecraft; the weapon stays ready beside it.
+        if (player == null || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSpectator()) {
+            return;
+        }
+        if (event.getHand() == InteractionHand.OFF_HAND && !player.isUsingItem() && Shields.isShield(event.getItemStack())
+                && renderShieldBash(event, player)) {
             return;
         }
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
@@ -130,6 +137,31 @@ public final class FirstPersonAnimator {
             }
             SwingTrail.draw(poseStack, buffers, bases, tips, SwingTrail.color(anim), Math.min(1, TRAIL_OPACITY * SwingTrail.strength(anim) * range[2]));
         }
+    }
+
+    /**
+     * Draws the shield in the off hand thrust forward and across the view during a bash, where Minecraft would
+     * draw it at its usual place. Returns false (and draws nothing) when the player is not bashing.
+     */
+    private static boolean renderShieldBash(RenderHandEvent event, LocalPlayer player) {
+        float bash = ThirdPersonPoses.bash(ClientCombat.anim(player), event.getPartialTick());
+        if (bash == 0) {
+            return false;
+        }
+        event.setCanceled(true);
+        HumanoidArm arm = player.getMainArm().getOpposite();
+        boolean right = arm == HumanoidArm.RIGHT;
+        int side = right ? 1 : -1;
+        PoseStack poseStack = event.getPoseStack();
+        poseStack.pushPose();
+        // Where Minecraft holds an item in this hand, moved in towards the middle, up and forward.
+        poseStack.translate(side * (0.56f - 0.3f * bash), -0.52f - 0.6f * event.getEquipProgress() + 0.12f * bash, -0.72f - 0.3f * bash);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-side * 20 * bash));
+        Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer().renderItem(player, event.getItemStack(),
+                right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, !right,
+                poseStack, event.getMultiBufferSource(), event.getPackedLight());
+        poseStack.popPose();
+        return true;
     }
 
     /** Places a pose for the weapon: long weapons a little further away, and everything mirrored for left-handed players. */

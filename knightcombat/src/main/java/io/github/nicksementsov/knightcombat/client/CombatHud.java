@@ -7,6 +7,7 @@ import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
+import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.network.Feedback;
@@ -23,6 +24,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
@@ -104,7 +106,8 @@ public final class CombatHud {
         RenderSystem.defaultBlendFunc();
         float stamina = ClientCombat.stamina();
         float max = ClientCombat.maxStamina();
-        if (Weapons.isWeapon(player.getMainHandItem()) && stamina >= 0 && max > 0 && stamina < max * 0.25f) {
+        boolean armed = Weapons.isWeapon(player.getMainHandItem()) || !Shields.carried(player).isEmpty();
+        if (armed && stamina >= 0 && max > 0 && stamina < max * 0.25f) {
             float low = 1 - stamina / (max * 0.25f);
             float pulse = 0.75f + 0.25f * Mth.sin(time * 0.35f);
             graphics.setColor(0.15f, 0.02f, 0.02f, 0.65f * low * pulse);
@@ -150,7 +153,7 @@ public final class CombatHud {
             drawCharge(graphics, cx, cy, own.progress(partialTick));
         }
 
-        if (weapon != null && CombatConfig.STAMINA_BAR.get()) {
+        if ((weapon != null || CombatConfig.shields() && !Shields.carried(player).isEmpty()) && CombatConfig.STAMINA_BAR.get()) {
             drawStamina(graphics, cx, cy + 12, ticks, partialTick);
         }
 
@@ -290,6 +293,10 @@ public final class CombatHud {
 
     @SubscribeEvent
     public static void onTooltip(ItemTooltipEvent event) {
+        if (CombatConfig.shields() && Shields.isShield(event.getItemStack())) {
+            shieldTooltip(event.getItemStack(), event.getToolTip());
+            return;
+        }
         WeaponStats weapon = Weapons.of(event.getItemStack());
         if (weapon == null) {
             return;
@@ -328,6 +335,24 @@ public final class CombatHud {
             lines.add(controls("cancel", KeyBindings.FEINT.getTranslatedKeyMessage(), options.keyUse.getTranslatedKeyMessage()));
             lines.add(controls("combos"));
             lines.add(controls("mine", options.keyAttack.getTranslatedKeyMessage()));
+        } else {
+            lines.add(Component.translatable("tooltip.knightcombat.controls_hint").withStyle(ChatFormatting.DARK_GRAY));
+        }
+    }
+
+    /** How a shield blocks: its size, how much of the front it covers, how long it parries and what a blow costs. */
+    private static void shieldTooltip(ItemStack stack, List<Component> lines) {
+        Shields.Size size = Shields.size(stack);
+        lines.add(Component.translatable("tooltip.knightcombat.shield",
+                Component.translatable("tooltip.knightcombat.shield." + size.name().toLowerCase(Locale.ROOT))).withStyle(ChatFormatting.GOLD));
+        lines.add(Component.translatable("tooltip.knightcombat.shield.cover", Math.round(2 * size.halfAngle), number(size.parryWindow / 20f, 2))
+                .withStyle(ChatFormatting.DARK_GREEN));
+        lines.add(Component.translatable("tooltip.knightcombat.shield.cost", Math.round(100 * size.blockCost)).withStyle(ChatFormatting.DARK_GREEN));
+        if (Screen.hasShiftDown()) {
+            Options options = Minecraft.getInstance().options;
+            lines.add(controls("shield", options.keyUse.getTranslatedKeyMessage(), options.keyAttack.getTranslatedKeyMessage(),
+                    KeyBindings.KICK.getTranslatedKeyMessage()));
+            lines.add(Component.translatable("tooltip.knightcombat.shield.breakers").withStyle(ChatFormatting.GRAY));
         } else {
             lines.add(Component.translatable("tooltip.knightcombat.controls_hint").withStyle(ChatFormatting.DARK_GRAY));
         }

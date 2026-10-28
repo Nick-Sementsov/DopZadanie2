@@ -189,7 +189,7 @@ public final class FighterAnim {
                             weapon.attack(attack).recovery() + CombatRules.extraRecovery(flags), end);
                 }
             }
-            case KICK -> apply(Phase.RECOVERY, AttackType.KICK, 0, Combo.NONE, CombatRules.KICK_RECOVERY, end);
+            case KICK -> apply(Phase.RECOVERY, AttackType.KICK, flags & CombatState.SHIELD_BASH, Combo.NONE, CombatRules.KICK_RECOVERY, end);
             case THROW -> apply(Phase.RECOVERY, attack, CombatState.THROWN, Combo.NONE, CombatRules.THROW_RECOVERY, end);
             case RECOVERY, STAGGER, CRY, DODGE -> apply(Phase.IDLE, attack, 0, Combo.NONE, 0, end);
             default -> {

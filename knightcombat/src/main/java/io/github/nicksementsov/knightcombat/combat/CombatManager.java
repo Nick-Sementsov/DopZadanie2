@@ -41,7 +41,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -172,6 +171,7 @@ public final class CombatManager {
             s.set(Phase.IDLE, 0);
             return;
         }
+        lowerShield(player);
         s.chain(type, combo);
         Combo finisher = Combo.NONE;
         if (CombatConfig.finishers() && !riposte) {
@@ -250,12 +250,15 @@ public final class CombatManager {
         if (s.phase == Phase.BLOCK) {
             leaveBlock(s, now);
         }
+        lowerShield(player);
         s.spend(cost, now);
         s.attack = AttackType.KICK;
         s.breakChain();
-        s.flags = 0;
+        // With a shield in hand the kick is a bash with the shield.
+        boolean bash = CombatConfig.shields() && !Shields.carried(player).isEmpty();
+        s.flags = bash ? CombatState.SHIELD_BASH : 0;
         s.queued = null;
-        s.set(Phase.KICK, CombatRules.KICK_WINDUP);
+        s.set(Phase.KICK, bash ? CombatRules.SHIELD_BASH_WINDUP : CombatRules.KICK_WINDUP);
     }
 
     private static void throwInput(ServerPlayer player, CombatState s, long now) {
@@ -273,6 +276,7 @@ public final class CombatManager {
         if (s.phase == Phase.BLOCK) {
             leaveBlock(s, now);
         }
+        lowerShield(player);
         s.spend(cost, now);
         s.weapon = weapon;
         s.weaponItem = player.getMainHandItem().getItem();
@@ -284,7 +288,8 @@ public final class CombatManager {
 
     /** A quick step: {@code direction} is one of the dodge flags of {@link CombatState}, or 0 for a step back. */
     private static void dodgeInput(ServerPlayer player, CombatState s, int direction, long now) {
-        if (!CombatConfig.dodges() || Weapons.of(player.getMainHandItem()) == null || now < s.dodgeReadyAt || player.isPassenger()
+        boolean armed = Weapons.of(player.getMainHandItem()) != null || !Shields.carried(player).isEmpty();
+        if (!CombatConfig.dodges() || !armed || now < s.dodgeReadyAt || player.isPassenger()
                 || player.isFallFlying() || player.isInWater()) {
             return;
         }
@@ -298,6 +303,7 @@ public final class CombatManager {
         if (s.phase == Phase.BLOCK) {
             leaveBlock(s, now);
         }
+        lowerShield(player);
         s.spend(cost, now);
         s.breakChain();
         s.queued = null;
@@ -343,7 +349,7 @@ public final class CombatManager {
     /** Blocking with the weapon needs the weapon in the main hand; a one-handed weapon with a shield blocks with the shield. */
     private static boolean canWeaponBlock(ServerPlayer player) {
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
-        return weapon != null && (weapon.twoHanded() || !(player.getOffhandItem().getItem() instanceof ShieldItem));
+        return weapon != null && (weapon.twoHanded() || !Shields.isShield(player.getOffhandItem()));
     }
 
     private static boolean canBlockFromRecovery(CombatState s) {
@@ -363,10 +369,57 @@ public final class CombatManager {
     }
 
     private static void leaveBlock(CombatState s, long now) {
-        if (!s.blockLanded) {
+        if (!s.blockLanded && !s.has(CombatState.SHIELD)) {
             s.blockReadyAt = now + CombatRules.BLOCK_RECOVERY;
         }
+        s.flags = 0;
         s.set(Phase.IDLE, 0);
+    }
+
+    /**
+     * A shield is raised the way Minecraft raises it (holding the use key). The combat rules take it as a block from
+     * the moment it goes up, so it parries at first; it cannot stay up while the fighter attacks, kicks, throws,
+     * dodges or reels.
+     */
+    private static void updateShield(ServerPlayer player, CombatState s, long now) {
+        boolean raised = CombatConfig.shields() && Shields.raised(player);
+        if (!raised) {
+            if (s.phase == Phase.BLOCK && s.has(CombatState.SHIELD)) {
+                leaveBlock(s, now);
+            }
+            return;
+        }
+        if (s.phase == Phase.BLOCK) {
+            return;
+        }
+        boolean free = s.phase == Phase.IDLE || s.phase == Phase.RECOVERY && canBlockFromRecovery(s)
+                || s.phase == Phase.STAGGER && s.has(CombatState.FLINCHED);
+        if (free) {
+            startShieldBlock(player, s, now);
+        } else {
+            player.stopUsingItem();
+        }
+    }
+
+    private static void startShieldBlock(ServerPlayer player, CombatState s, long now) {
+        s.weapon = Weapons.of(player.getMainHandItem());
+        s.weaponItem = player.getMainHandItem().getItem();
+        s.flags = CombatState.SHIELD;
+        s.queued = null;
+        s.breakChain();
+        // Raised just now: the first ticks are a parry, longer with a small shield. A shield that was already up when
+        // the fighter became free again does not parry.
+        int window = Shields.size(player.getUseItem()).parryWindow - player.getTicksUsingItem();
+        s.parryUntil = window > 0 ? now + window : Long.MIN_VALUE / 2;
+        s.blockLanded = false;
+        s.set(Phase.BLOCK, 0);
+    }
+
+    /** Lowers a raised shield: the fighter is about to do something else. */
+    private static void lowerShield(ServerPlayer player) {
+        if (Shields.raised(player)) {
+            player.stopUsingItem();
+        }
     }
 
     private static void cryInput(ServerPlayer player, CombatState s, long now) {
@@ -376,6 +429,7 @@ public final class CombatManager {
         if (s.phase == Phase.BLOCK) {
             leaveBlock(s, now);
         }
+        lowerShield(player);
         s.flags = 0;
         s.queued = null;
         s.breakChain();
@@ -419,7 +473,8 @@ public final class CombatManager {
         }
         s.lastHeld = heldItem;
         s.heldKnown = true;
-        boolean weaponPhase = s.phase == Phase.WINDUP || s.phase == Phase.RELEASE || s.phase == Phase.BLOCK || s.phase == Phase.THROW;
+        boolean weaponPhase = s.phase == Phase.WINDUP || s.phase == Phase.RELEASE || s.phase == Phase.THROW
+                || s.phase == Phase.BLOCK && !s.has(CombatState.SHIELD);
         if (weaponPhase && (held == null || heldItem != s.weaponItem)) {
             // The weapon was put away or swapped: the attack or block is lost.
             s.queued = null;
@@ -456,8 +511,9 @@ public final class CombatManager {
             }
             case KICK -> {
                 if (++s.phaseTicks >= s.phaseLength) {
-                    kick(player, now);
-                    s.flags = 0;
+                    boolean bash = s.has(CombatState.SHIELD_BASH);
+                    kick(player, now, bash);
+                    s.flags = bash ? CombatState.SHIELD_BASH : 0;
                     s.set(Phase.RECOVERY, CombatRules.KICK_RECOVERY);
                 }
             }
@@ -473,6 +529,7 @@ public final class CombatManager {
             }
         }
 
+        updateShield(player, s, now);
         // A block key that is still held raises the guard as soon as the fighter is free again.
         if (s.blockHeld && held != null && canWeaponBlock(player)
                 && (s.phase == Phase.IDLE && now >= s.blockReadyAt || s.phase == Phase.RECOVERY && canBlockFromRecovery(s))) {
@@ -677,6 +734,16 @@ public final class CombatManager {
 
     /** Whether {@code defender} faces the point {@code from} closely enough to block something coming from there. */
     private static boolean facing(LivingEntity defender, Vec3 from) {
+        return facing(defender, from, CombatRules.BLOCK_HALF_ANGLE);
+    }
+
+    /** The cone a guard covers: a raised shield covers more or less than a weapon by its size. */
+    private static float guardAngle(LivingEntity defender, CombatState d) {
+        return d.phase == Phase.BLOCK && d.has(CombatState.SHIELD) && Shields.raised(defender)
+                ? Shields.size(defender.getUseItem()).halfAngle : CombatRules.BLOCK_HALF_ANGLE;
+    }
+
+    private static boolean facing(LivingEntity defender, Vec3 from, float halfAngle) {
         Vec3 look = defender.getViewVector(1);
         Vec3 to = from.subtract(defender.getEyePosition());
         double lookLength = Math.sqrt(look.x * look.x + look.z * look.z);
@@ -685,7 +752,7 @@ public final class CombatManager {
             return true;
         }
         double cos = (look.x * to.x + look.z * to.z) / (lookLength * toLength);
-        return cos >= Math.cos(Math.toRadians(CombatRules.BLOCK_HALF_ANGLE));
+        return cos >= Math.cos(Math.toRadians(halfAngle));
     }
 
     // ---------------------------------------------------------------- resolving hits
@@ -695,8 +762,10 @@ public final class CombatManager {
         AttackStats attack = s.weapon.attack(s.attack);
         if (target instanceof ServerPlayer defender) {
             CombatState d = state(defender);
+            // A shield raised this very tick already counts.
+            updateShield(defender, d, now);
             boolean facing = facing(defender, player.getEyePosition());
-            if (facing && d.guarding()) {
+            if (facing(defender, player.getEyePosition(), guardAngle(defender, d)) && d.guarding()) {
                 blocked(player, s, defender, d, attack, point, now);
                 return true;
             }
@@ -705,7 +774,7 @@ public final class CombatManager {
                 countered(player, s, defender, d, attack, point, now);
                 return true;
             }
-            if (facing && defender.isBlocking()) {
+            if (facing && !CombatConfig.shields() && defender.isBlocking()) {
                 shieldBlocked(player, s, defender, d, attack, point, now);
                 return true;
             }
@@ -717,18 +786,38 @@ public final class CombatManager {
     private static void blocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d,
                                 AttackStats attack, Vec3 point, long now) {
         boolean parry = d.phase == Phase.BLOCK && now <= d.parryUntil;
-        WeaponStats guard = d.weapon != null ? d.weapon : s.weapon;
-        d.spend(attack.staminaDamage() * drain(s) * (parry ? CombatRules.PARRY_FACTOR : 1) * guard.blockCost(), now);
+        boolean shield = d.phase == Phase.BLOCK && d.has(CombatState.SHIELD) && Shields.raised(defender);
+        float cost = attack.staminaDamage() * drain(s) * (parry ? CombatRules.PARRY_FACTOR : 1);
+        if (shield) {
+            // A shield takes blows cheaply, but axes and maces hack at it.
+            ItemStack stack = defender.getUseItem();
+            cost *= Shields.size(stack).blockCost * (s.weapon.breaksShields() ? CombatRules.SHIELD_BREAKER : 1);
+            stack.hurtAndBreak(1 + Mth.floor(attack.damage() / 3), defender, p -> p.broadcastBreakEvent(defender.getUsedItemHand()));
+        } else {
+            WeaponStats guard = d.weapon != null ? d.weapon : s.weapon;
+            cost *= guard.blockCost();
+        }
+        d.spend(cost, now);
         d.blockLanded = true;
         d.syncState = true;
         if (d.stamina <= 0) {
+            if (shield && Shields.raised(defender)) {
+                defender.disableShield(true);
+            }
             guardBroken(attacker, s, defender, d, point);
             return;
+        }
+        if (shield && !parry && s.has(CombatState.HEAVY) && s.weapon.breaksShields()) {
+            shieldKnocked(attacker, s, defender, d, attack, point);
+            return;
+        }
+        if (shield) {
+            clash(attacker, point, ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f, 2);
         }
         if (parry) {
             d.riposteUntil = now + CombatRules.RIPOSTE_WINDOW;
             rebound(s, attack.recovery() + CombatRules.REBOUND_PARRY);
-            clash(attacker, point, ModSounds.PARRY.get(), 1.0f, 12);
+            clash(attacker, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f, shield ? 6 : 12);
             glint(attacker, point);
             // A parried blow throws the attacker back a step.
             push(attacker, defender, 0.3f);
@@ -738,7 +827,9 @@ public final class CombatManager {
         } else {
             float weight = force(s);
             rebound(s, Math.max(4, attack.recovery() / 2 + CombatRules.REBOUND_BLOCK));
-            clash(attacker, point, ModSounds.BLOCK.get(), 0.9f, 6);
+            if (!shield) {
+                clash(attacker, point, ModSounds.BLOCK.get(), 0.9f, 6);
+            }
             // Heavy blows drive the blocker back.
             push(defender, attacker, 0.1f + 0.25f * weight);
             feedback(defender, Feedback.BLOCKED);
@@ -790,6 +881,18 @@ public final class CombatManager {
             impact(attacker, Impact.BLOCK, attacker, defender, point, s.weapon.weight());
         }
         rebound(s, Math.max(4, attack.recovery() / 2 + CombatRules.REBOUND_BLOCK));
+    }
+
+    /** A heavy blow of an axe, a mace or a polearm knocks the shield aside: it cannot be raised for a while and the bearer reels. */
+    private static void shieldKnocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d, AttackStats attack, Vec3 point) {
+        defender.disableShield(true);
+        stagger(d, CombatRules.SHIELD_KNOCKED, 0);
+        rebound(s, Math.max(3, attack.recovery() / 2));
+        clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f, 10);
+        push(defender, attacker, 0.4f);
+        feedback(defender, Feedback.GUARD_BROKEN);
+        feedback(attacker, Feedback.BROKE_GUARD);
+        impact(attacker, Impact.GUARD_BREAK, attacker, defender, point, force(s));
     }
 
     /** The defender ran out of stamina: no damage, but they cannot act for a while and the attacker may follow up. */
@@ -932,7 +1035,9 @@ public final class CombatManager {
         impact(player, killed ? Impact.KILL : Impact.HIT, player, target, point, weight);
     }
 
-    private static void kick(ServerPlayer player, long now) {
+    /** The kick (or a bash with the shield) lands on the nearest creature in front, if any is close enough. */
+    private static void kick(ServerPlayer player, long now, boolean bash) {
+        float range = bash ? CombatRules.SHIELD_BASH_RANGE : CombatRules.KICK_RANGE;
         Vec3 pos = player.position();
         Vec3 look = player.getViewVector(1);
         double lookLength = Math.max(1.0E-4, Math.sqrt(look.x * look.x + look.z * look.z));
@@ -940,12 +1045,12 @@ public final class CombatManager {
         LivingEntity best = null;
         double bestDistance = Double.MAX_VALUE;
         for (LivingEntity entity : player.level().getEntitiesOfClass(LivingEntity.class,
-                player.getBoundingBox().inflate(CombatRules.KICK_RANGE + 1), e -> e != player && canTarget(player, e))) {
+                player.getBoundingBox().inflate(range + 1), e -> e != player && canTarget(player, e))) {
             double dx = entity.getX() - pos.x;
             double dz = entity.getZ() - pos.z;
             double horizontal = Math.sqrt(dx * dx + dz * dz);
             double distance = horizontal - entity.getBbWidth() / 2;
-            if (distance > CombatRules.KICK_RANGE || entity.getY() > pos.y + 1.2 || entity.getY() + entity.getBbHeight() < pos.y + 0.2) {
+            if (distance > range || entity.getY() > pos.y + 1.2 || entity.getY() + entity.getBbHeight() < pos.y + 0.2) {
                 continue;
             }
             if (horizontal > 0.4 && (look.x * dx + look.z * dz) / (lookLength * horizontal) < minCos) {
@@ -965,10 +1070,10 @@ public final class CombatManager {
         state(player).kickFollowUntil = now + CombatRules.KICK_FOLLOW_WINDOW;
         if (best instanceof ServerPlayer defender) {
             CombatState d = state(defender);
-            if (d.guarding() || defender.isBlocking()) {
+            if (d.guarding() || Shields.raised(defender)) {
                 d.spend(CombatRules.KICK_DRAIN, now);
-                if (defender.isBlocking()) {
-                    defender.getCooldowns().addCooldown(defender.getUseItem().getItem(), 60);
+                if (Shields.raised(defender)) {
+                    defender.getCooldowns().addCooldown(defender.getUseItem().getItem(), CombatRules.SHIELD_KICKED_COOLDOWN);
                     defender.stopUsingItem();
                     defender.level().broadcastEntityEvent(defender, (byte) 30);
                 }
@@ -980,14 +1085,15 @@ public final class CombatManager {
         best.invulnerableTime = 0;
         applyingHit = true;
         try {
-            best.hurt(player.damageSources().playerAttack(player), WeaponStats.KICK.damage());
+            best.hurt(player.damageSources().playerAttack(player), bash ? CombatRules.SHIELD_BASH_DAMAGE : WeaponStats.KICK.damage());
         } finally {
             applyingHit = false;
         }
         float yaw = player.getYRot() * Mth.DEG_TO_RAD;
-        best.knockback(0.6, Mth.sin(yaw), -Mth.cos(yaw));
+        best.knockback(bash ? 0.9 : 0.6, Mth.sin(yaw), -Mth.cos(yaw));
         best.hurtMarked = true;
-        player.level().playSound(null, best.getX(), best.getY(0.5), best.getZ(), ModSounds.KICK.get(), SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+        player.level().playSound(null, best.getX(), best.getY(0.5), best.getZ(), bash ? ModSounds.SHIELD_BASH.get() : ModSounds.KICK.get(),
+                SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.2f);
         player.serverLevel().sendParticles(ParticleTypes.POOF, best.getX(), best.getY(0.4), best.getZ(), 5, 0.2, 0.2, 0.2, 0.02);
         impact(player, Impact.KICK, player, best, best.position().add(0, best.getBbHeight() * 0.45, 0), 0.6f);
     }
@@ -1087,16 +1193,20 @@ public final class CombatManager {
         CombatState s = state(player);
         DamageSource source = event.getSource();
         Entity direct = source.getDirectEntity();
+        long now = player.level().getGameTime();
+        updateShield(player, s, now);
         if (!s.guarding() || direct == null || source.is(DamageTypeTags.BYPASSES_SHIELD) || source.is(DamageTypeTags.IS_EXPLOSION)) {
             return;
         }
         boolean projectile = direct instanceof Projectile;
-        if (!projectile && !(direct instanceof LivingEntity) || !facing(player, direct.position().add(0, direct.getBbHeight() / 2, 0))) {
+        if (!projectile && !(direct instanceof LivingEntity) || !facing(player, direct.position().add(0, direct.getBbHeight() / 2, 0), guardAngle(player, s))) {
             return;
         }
-        long now = player.level().getGameTime();
         boolean parry = s.phase == Phase.BLOCK && now <= s.parryUntil;
-        float blockCost = s.weapon != null ? s.weapon.blockCost() : 1;
+        boolean shield = s.phase == Phase.BLOCK && s.has(CombatState.SHIELD) && Shields.raised(player);
+        ItemStack shieldStack = shield ? player.getUseItem() : ItemStack.EMPTY;
+        float blockCost = shield ? Shields.size(shieldStack).blockCost * (projectile ? CombatRules.SHIELD_PROJECTILE : 1)
+                : s.weapon != null ? s.weapon.blockCost() : 1;
         s.spend(event.getAmount() * (projectile ? CombatRules.PROJECTILE_BLOCK_COST : CombatRules.MOB_BLOCK_COST)
                 * blockCost * (parry ? CombatRules.PARRY_FACTOR : 1), now);
         s.blockLanded = true;
@@ -1104,6 +1214,9 @@ public final class CombatManager {
         Vec3 point = direct.position().add(0, direct.getBbHeight() / 2, 0).lerp(player.getEyePosition(), 0.6);
         if (s.stamina <= 0) {
             // Out of stamina: the guard breaks and the damage goes through.
+            if (shield) {
+                player.disableShield(true);
+            }
             stagger(s, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
             clash(player, point, ModSounds.GUARD_BREAK.get(), 1.0f, 16);
             feedback(player, Feedback.GUARD_BROKEN);
@@ -1111,17 +1224,26 @@ public final class CombatManager {
             return;
         }
         event.setCanceled(true);
+        if (shield) {
+            shieldStack.hurtAndBreak(1 + Mth.floor(event.getAmount() / 3), player, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
+            clash(player, point, ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f, 2);
+        }
         if (parry) {
             s.riposteUntil = now + CombatRules.RIPOSTE_WINDOW;
             if (direct instanceof LivingEntity mob) {
                 mob.knockback(0.8, player.getX() - mob.getX(), player.getZ() - mob.getZ());
             }
-            clash(player, point, ModSounds.PARRY.get(), 1.0f, 12);
+            clash(player, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f, shield ? 6 : 12);
             glint(player, point);
             feedback(player, Feedback.PARRIED);
             impact(player, Impact.PARRY, direct, player, point, 0.4f);
         } else {
-            clash(player, point, ModSounds.BLOCK.get(), 0.9f, 6);
+            if (!shield) {
+                clash(player, point, ModSounds.BLOCK.get(), 0.9f, 6);
+            } else if (direct instanceof LivingEntity mob) {
+                // The shield shoves back what struck it.
+                mob.knockback(0.4, player.getX() - mob.getX(), player.getZ() - mob.getZ());
+            }
             feedback(player, Feedback.BLOCKED);
             impact(player, Impact.BLOCK, direct, player, point, 0.4f);
         }
@@ -1189,7 +1311,8 @@ public final class CombatManager {
     // ---------------------------------------------------------------- effects and syncing
 
     private static void updateSlowness(ServerPlayer player, CombatState s) {
-        boolean slow = s.phase == Phase.BLOCK || s.phase == Phase.STAGGER && s.has(CombatState.GUARD_BROKEN);
+        // Minecraft slows a fighter holding a shield up by itself.
+        boolean slow = s.phase == Phase.BLOCK && !s.has(CombatState.SHIELD) || s.phase == Phase.STAGGER && s.has(CombatState.GUARD_BROKEN);
         if (slow == s.slowed) {
             return;
         }
