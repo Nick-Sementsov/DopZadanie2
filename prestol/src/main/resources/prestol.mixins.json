@@ -24,7 +24,9 @@
     "hyw.FlagSourcesMixin",
     "hyw.ColonyFlagsMixin",
     "hyw.CaptainOrdersMixin",
-    "hyw.CaptainExtMixin"
+    "hyw.CaptainExtMixin",
+    "hyw.SharedPathAccess",
+    "hyw.GroupPathSkipMixin"
   ],
   "client": [
     "GuiMapMixin",
