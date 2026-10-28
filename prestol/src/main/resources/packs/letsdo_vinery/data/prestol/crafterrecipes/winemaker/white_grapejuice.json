@@ -1,0 +1,15 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:white_grape",
+      "count": 4
+    },
+    {
+      "item": "minecraft:glass_bottle"
+    }
+  ],
+  "result": "vinery:white_grapejuice",
+  "show-tooltip": true
+}

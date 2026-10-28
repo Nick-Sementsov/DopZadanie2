@@ -70,3 +70,17 @@ displayTest="MATCH_VERSION"
     versionRange="[24.0,)"
     ordering="AFTER"
     side="CLIENT"
+
+[[dependencies.prestol]]
+    modId="brewery"
+    mandatory=false
+    versionRange="[1.1,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="vinery"
+    mandatory=false
+    versionRange="[1.4,)"
+    ordering="AFTER"
+    side="BOTH"

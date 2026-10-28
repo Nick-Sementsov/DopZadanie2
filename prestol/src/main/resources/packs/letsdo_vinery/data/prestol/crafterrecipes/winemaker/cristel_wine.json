@@ -1,0 +1,25 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_grapejuice",
+      "count": 5
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "minecraft:feather"
+    },
+    {
+      "item": "minecraft:blaze_rod"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:cristel_wine",
+  "show-tooltip": true,
+  "min-building-level": 3
+}

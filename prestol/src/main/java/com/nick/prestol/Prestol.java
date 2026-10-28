@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.book.PrestolCommand;
 import com.nick.prestol.client.PrestolClient;
+import com.nick.prestol.colony.PrestolHuts;
 import com.nick.prestol.compat.HywRules;
 import com.nick.prestol.decree.Decrees;
 import com.nick.prestol.decree.EffectBoost;
@@ -57,6 +58,7 @@ public class Prestol {
       OfflineWork.registerChunkCallback();
       IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
       modBus.addListener(this::onSetup);
+      PrestolHuts.register(modBus);
       MinecraftForge.EVENT_BUS.register(this);
       MinecraftForge.EVENT_BUS.register(new RealmTicker());
       MinecraftForge.EVENT_BUS.register(new MapSync.Events());

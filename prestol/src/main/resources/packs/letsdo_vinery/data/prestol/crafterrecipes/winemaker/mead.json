@@ -1,0 +1,20 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:apple_juice"
+    },
+    {
+      "item": "minecraft:honey_bottle"
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:mead",
+  "show-tooltip": true
+}

@@ -1,0 +1,11 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "minecraft:wheat"
+    }
+  ],
+  "result": "brewery:dried_wheat",
+  "show-tooltip": true
+}

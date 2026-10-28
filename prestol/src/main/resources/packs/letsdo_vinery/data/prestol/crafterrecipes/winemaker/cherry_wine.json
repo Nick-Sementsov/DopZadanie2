@@ -1,0 +1,19 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_grapejuice",
+      "count": 3
+    },
+    {
+      "item": "vinery:cherry"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:cherry_wine",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

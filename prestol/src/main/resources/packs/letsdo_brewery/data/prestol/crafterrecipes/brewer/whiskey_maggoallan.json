@@ -1,0 +1,25 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "brewery:dried_wheat",
+      "count": 2
+    },
+    {
+      "item": "minecraft:brown_mushroom"
+    },
+    {
+      "item": "minecraft:water_bucket"
+    }
+  ],
+  "result": "brewery:whiskey_maggoallan",
+  "show-tooltip": true,
+  "count": 2,
+  "min-building-level": 2,
+  "additional-output": [
+    {
+      "item": "minecraft:bucket"
+    }
+  ]
+}

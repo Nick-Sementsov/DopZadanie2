@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "prestol:blockhutbrewer",
+      "required": false
+    },
+    {
+      "id": "prestol:blockhutwinemaker",
+      "required": false
+    }
+  ]
+}

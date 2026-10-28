@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "prestol:block/blockhutbrewer",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "prestol:block/blockhutbrewer",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "prestol:block/blockhutbrewer",
+      "y": 270
+    },
+    "facing=north": {
+      "model": "prestol:block/blockhutbrewer"
+    }
+  }
+}

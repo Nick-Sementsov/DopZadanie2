@@ -1,0 +1,19 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_jungle_grapejuice",
+      "count": 3
+    },
+    {
+      "item": "minecraft:spider_eye"
+    },
+    {
+      "item": "minecraft:honey_bottle"
+    }
+  ],
+  "result": "vinery:chenet_wine",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

@@ -1,0 +1,11 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "brewery:barley"
+    }
+  ],
+  "result": "brewery:dried_barley",
+  "show-tooltip": true
+}

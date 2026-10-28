@@ -1,0 +1,18 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_taiga_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:honey_bottle"
+    },
+    {
+      "item": "vinery:cherry"
+    }
+  ],
+  "result": "vinery:bolvar_wine",
+  "show-tooltip": true
+}

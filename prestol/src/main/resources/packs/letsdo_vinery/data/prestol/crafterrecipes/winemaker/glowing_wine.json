@@ -1,0 +1,19 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:white_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:glow_berries"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:glowing_wine",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

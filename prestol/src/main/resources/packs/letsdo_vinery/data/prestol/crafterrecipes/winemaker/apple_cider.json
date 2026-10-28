@@ -1,0 +1,19 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:apple_juice",
+      "count": 4
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:apple_cider",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

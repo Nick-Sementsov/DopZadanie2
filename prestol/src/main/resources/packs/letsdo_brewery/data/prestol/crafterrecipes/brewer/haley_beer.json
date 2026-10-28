@@ -1,0 +1,24 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "brewery:hops"
+    },
+    {
+      "item": "minecraft:popped_chorus_fruit",
+      "count": 2
+    },
+    {
+      "item": "minecraft:water_bucket"
+    }
+  ],
+  "result": "brewery:beer_haley",
+  "show-tooltip": true,
+  "count": 2,
+  "additional-output": [
+    {
+      "item": "minecraft:bucket"
+    }
+  ]
+}

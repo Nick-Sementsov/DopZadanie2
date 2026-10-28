@@ -1,0 +1,19 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_taiga_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:chorus_fruit"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:chorus_wine",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

@@ -1,0 +1,16 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_jungle_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    }
+  ],
+  "result": "vinery:magnetic_wine",
+  "show-tooltip": true,
+  "min-building-level": 2
+}

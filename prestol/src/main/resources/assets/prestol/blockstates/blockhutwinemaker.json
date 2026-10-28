@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "prestol:block/blockhutwinemaker",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "prestol:block/blockhutwinemaker",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "prestol:block/blockhutwinemaker",
+      "y": 270
+    },
+    "facing=north": {
+      "model": "prestol:block/blockhutwinemaker"
+    }
+  }
+}
