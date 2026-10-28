@@ -22,7 +22,9 @@
     "hyw.ElephantPathMixin",
     "hyw.ElephantTrampleMixin",
     "hyw.FlagSourcesMixin",
-    "hyw.ColonyFlagsMixin"
+    "hyw.ColonyFlagsMixin",
+    "hyw.CaptainOrdersMixin",
+    "hyw.CaptainExtMixin"
   ],
   "client": [
     "GuiMapMixin",

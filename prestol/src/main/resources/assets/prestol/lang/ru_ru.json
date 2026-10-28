@@ -29,6 +29,7 @@
   "prestol.army.no_hyw_workers": "Рабочих здесь нет: их работу делают жители MineColonies.",
   "prestol.army.no_post": "Такого гарнизона нет.",
   "prestol.army.no_recall": "Солдата гарнизона и ополченца нельзя убрать в свиток.",
+  "prestol.army.order_too_far": "Слишком далеко: приказывать можно в пределах 512 блоков и загруженной земли.",
   "prestol.army.provisions": "провиант %s%%",
   "prestol.army.rank": "ур. %s",
   "prestol.army.school.academy": "боевая академия",

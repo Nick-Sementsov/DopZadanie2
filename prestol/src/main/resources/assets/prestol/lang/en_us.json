@@ -29,6 +29,7 @@
   "prestol.army.no_hyw_workers": "No workers here: MineColonies citizens do that work.",
   "prestol.army.no_post": "There is no such garrison.",
   "prestol.army.no_recall": "Garrison soldiers and militiamen cannot be put into a scroll.",
+  "prestol.army.order_too_far": "Too far: orders reach 512 blocks and loaded land only.",
   "prestol.army.provisions": "provisions %s%%",
   "prestol.army.rank": "lvl %s",
   "prestol.army.school.academy": "combat academy",
