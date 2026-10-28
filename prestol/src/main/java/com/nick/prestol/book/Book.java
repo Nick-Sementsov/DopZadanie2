@@ -193,6 +193,7 @@ public final class Book {
       tag.putBoolean("betsy", Flags.betsy());
       tag.putBoolean("paintings", Flags.paintings());
       tag.putInt("standardWool", (Integer)PrestolConfig.STANDARD_WOOL.get());
+      tag.put("rules", Guide.rules());
       if (answer != null) {
          tag.putString("answer", Serializer.toJson(answer.message()));
          tag.putBoolean("answerOk", answer.ok());

@@ -1,9 +1,11 @@
 package com.nick.prestol;
 
 import com.minecolonies.api.IMinecoloniesAPI;
+import com.minecolonies.api.eventbus.events.colony.ColonyCreatedModEvent;
 import com.minecolonies.api.eventbus.events.colony.ColonyDeletedModEvent;
 import com.mojang.logging.LogUtils;
 import com.nick.prestol.army.Army;
+import com.nick.prestol.book.Guide;
 import com.nick.prestol.book.PrestolCommand;
 import com.nick.prestol.client.PrestolClient;
 import com.nick.prestol.colony.PrestolHuts;
@@ -64,6 +66,7 @@ public class Prestol {
       MinecraftForge.EVENT_BUS.register(new MapSync.Events());
       MinecraftForge.EVENT_BUS.register(Conquest.class);
       MinecraftForge.EVENT_BUS.register(Army.class);
+      MinecraftForge.EVENT_BUS.register(Guide.class);
       if (ModList.get().isLoaded("hundred_years_war")) {
          MinecraftForge.EVENT_BUS.register(HywRules.class);
          modBus.addListener(HywRules::onTabs);
@@ -84,8 +87,14 @@ public class Prestol {
                   });
                }
             });
+            IMinecoloniesAPI.getInstance().getEventBus().subscribe(ColonyCreatedModEvent.class, e -> {
+               MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+               if (server != null && e.getColony() != null) {
+                  server.execute(() -> Guide.onColonyFounded(server, e.getColony()));
+               }
+            });
          } catch (LinkageError | RuntimeException var1x) {
-            LOGGER.warn("Prestol: could not listen to deleted colonies", var1x);
+            LOGGER.warn("Prestol: could not listen to colony events", var1x);
          }
       });
    }

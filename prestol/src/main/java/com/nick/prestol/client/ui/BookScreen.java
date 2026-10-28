@@ -38,6 +38,8 @@ public class BookScreen extends Screen {
    private static CompoundTag state = new CompoundTag();
    private static String pendingHint = "";
    private static BookScreen.Page lastPage = BookScreen.Page.REALM;
+   private static String guideChapter = "start";
+   private static boolean guideOffered;
    private static long answerAt;
    private static Component lastAnswer;
    private static boolean lastAnswerOk;
@@ -87,6 +89,12 @@ public class BookScreen extends Screen {
          if (open) {
             BookScreen book = new BookScreen();
             book.applyHint(pendingHint);
+            // a newcomer without a settlement or a realm first sees the guide
+            if (pendingHint.isEmpty() && !guideOffered && !hasRealm() && list(state, "settlements").isEmpty()) {
+               book.page = BookScreen.Page.GUIDE;
+            }
+
+            guideOffered = true;
             pendingHint = "";
             mc.setScreen(book);
             book.afterState();
@@ -233,6 +241,9 @@ public class BookScreen extends Screen {
          case ADMIN:
             this.adminPage(g);
             break;
+         case GUIDE:
+            this.guidePage(g);
+            break;
          case ARMY:
             this.armyPage(g);
       }
@@ -263,10 +274,11 @@ public class BookScreen extends Screen {
 
    private void ribbons(GuiGraphics g, boolean cloth) {
       List<BookScreen.Page> list = this.pages();
+      int step = list.size() > 9 ? 22 : 24;
 
       for (int i = 0; i < list.size(); i++) {
          BookScreen.Page p = list.get(i);
-         int y = 28 + i * 24;
+         int y = 28 + i * step;
          boolean on = p == this.page;
          boolean hover = this.mx >= 396 && this.mx < 436 && this.my >= y && this.my < y + 20;
          int length = on ? 40 : (hover ? 34 : 30);
@@ -1196,6 +1208,61 @@ public class BookScreen extends Screen {
       }
    }
 
+   private void guidePage(GuiGraphics g) {
+      int y = this.heading(g, BookScreen.Page.GUIDE.title(), 28, 24, 158);
+      CompoundTag rules = state.getCompound("rules");
+      List<GuideChapters.Chapter> chapters = GuideChapters.shown(rules);
+      GuideChapters.Chapter current = chapters.get(0);
+
+      for (GuideChapters.Chapter c : chapters) {
+         if (c.id().equals(guideChapter)) {
+            current = c;
+         }
+      }
+
+      int off = this.beginScroll(g, "guide_list", 28, y, 158, 224 - y);
+      int yy = y - off;
+
+      for (int i = 0; i < chapters.size(); i++) {
+         GuideChapters.Chapter c = chapters.get(i);
+         this.row(g, 28, yy, 158, 14, c == current, () -> this.openChapter(c));
+         PoseStack pose = g.pose();
+         pose.pushPose();
+         pose.translate(28.0F, (float)yy, 0.0F);
+         pose.scale(0.75F, 0.75F, 1.0F);
+         g.renderItem(c.icon(), 0, 0);
+         pose.popPose();
+         Component title = Component.literal((i + 1) + ". ").append(c.title());
+         Ink.text(g, Ink.clip(title, Ink.F_BODY, 140), Ink.F_BODY, 44, yy + 2, c == current ? -7464176 : -13951730);
+         yy += 15;
+      }
+
+      this.endScroll(g, "guide_list", yy + off - y);
+      int ty = this.heading(g, current.title(), 214, 24, 158);
+      int top = ty;
+      int scrolled = this.beginScroll(g, "guide", 214, top, 158, 224 - top);
+      ty -= scrolled;
+
+      for (Component para : current.text(rules)) {
+         ty += Ink.para(g, para, Ink.F_SMALL, 214, ty, 156, -13951730) + 5;
+      }
+
+      int index = chapters.indexOf(current);
+      if (index + 1 < chapters.size()) {
+         GuideChapters.Chapter next = chapters.get(index + 1);
+         ty += 2;
+         this.button(g, Ink.tr("guide_next", next.title()), 214, ty, 156, true, () -> this.openChapter(next));
+         ty += 17;
+      }
+
+      this.endScroll(g, "guide", ty + scrolled - top);
+   }
+
+   private void openChapter(GuideChapters.Chapter c) {
+      guideChapter = c.id();
+      this.scroll.put("guide", 0);
+   }
+
    private static List<Object> list(CompoundTag e) {
       List<Object> out = new ArrayList<>();
       ListTag a = e.getList("args", 8);
@@ -1431,6 +1498,7 @@ public class BookScreen extends Screen {
       DECREES(Items.WRITABLE_BOOK, 5975928),
       CHRONICLE(Items.BOOK, 7227938),
       BANNER(Items.RED_BANNER, 11569706),
+      GUIDE(Items.KNOWLEDGE_BOOK, 3043214),
       ADMIN(Items.COMPASS, 5592405);
 
       final ItemStack icon;

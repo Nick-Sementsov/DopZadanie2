@@ -24,11 +24,11 @@ import net.minecraft.world.entity.Entity;
  * Garrison soldiers are the settlement's own people: a recruit leaves the colony when he takes up arms
  * and comes back, with his name and skills, when he is discharged.
  */
-final class Conscripts {
+public final class Conscripts {
    private Conscripts() {
    }
 
-   static boolean on() {
+   public static boolean on() {
       try {
          return PrestolConfig.CONSCRIPTION.get();
       } catch (IllegalStateException var1) {
