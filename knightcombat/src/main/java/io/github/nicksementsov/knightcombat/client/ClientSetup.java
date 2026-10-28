@@ -1,6 +1,7 @@
 package io.github.nicksementsov.knightcombat.client;
 
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.registry.ModEntities;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -29,6 +30,11 @@ public final class ClientSetup {
         for (KeyMapping key : KeyBindings.all()) {
             event.register(key);
         }
+    }
+
+    @SubscribeEvent
+    public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModEntities.THROWN_WEAPON.get(), ThrownWeaponRenderer::new);
     }
 
     /** Every player renderer (wide and slim arms) draws held weapons with {@link WeaponLayer}. */

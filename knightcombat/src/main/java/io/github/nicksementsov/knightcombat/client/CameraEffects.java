@@ -3,6 +3,7 @@ package io.github.nicksementsov.knightcombat.client;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
@@ -89,6 +90,10 @@ public final class CameraEffects {
         }
     }
 
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
     /** Smooth random-looking motion between -1 and 1: a few sines that never line up. */
     private static float noise(float time, float seed) {
         return 0.5f * Mth.sin(time * 31 + seed) + 0.3f * Mth.sin(time * 47.3f + seed * 2.1f) + 0.2f * Mth.sin(time * 71.9f + seed * 3.7f);
@@ -130,8 +135,12 @@ public final class CameraEffects {
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         if (anim != null && weapon != null && anim.phase() == Phase.WINDUP && anim.attack() != AttackType.KICK
                 && mc.options.getCameraType() == CameraType.FIRST_PERSON) {
-            // Focusing on the blow: the heavier the weapon, the more the view narrows while it is wound up.
-            factor -= 0.035f * PoseMath.smooth(anim.progress((float) event.getPartialTick())) * (0.5f + weapon.weight());
+            // Focusing on the blow: the heavier the weapon, the more the view narrows while it is wound up,
+            // and the charge of a heavy attack narrows it further.
+            float p = PoseMath.smooth(anim.progress((float) event.getPartialTick()));
+            factor -= anim.has(CombatState.HEAVY)
+                    ? 0.035f * (0.5f + weapon.weight()) + 0.03f * p
+                    : 0.035f * p * (0.5f + weapon.weight());
         }
         event.setFOV(event.getFOV() * factor);
     }
@@ -144,7 +153,7 @@ public final class CameraEffects {
             float side = anim.has(CombatState.MIRRORED) ? -1 : 1;
             switch (anim.phase()) {
                 case WINDUP -> {
-                    float t = PoseMath.smooth(p);
+                    float t = anim.has(CombatState.HEAVY) ? 1 + 0.5f * PoseMath.smooth(p) : PoseMath.smooth(p);
                     if (anim.attack() == AttackType.SLASH) {
                         roll += side * 2.0f * t;
                         yaw += side * 1.5f * t;
@@ -157,18 +166,48 @@ public final class CameraEffects {
                 case RELEASE -> {
                     float arc = Mth.sin(p * Mth.PI);
                     float sweep = PoseMath.smooth(p) * 2 - 1;
-                    if (anim.attack() == AttackType.SLASH) {
-                        roll += side * (2.0f - 6.0f * PoseMath.smooth(p));
-                        yaw -= side * 3.5f * sweep;
+                    // Heavy blows and finishers pull the view along harder.
+                    float strength = anim.has(CombatState.HEAVY) || anim.finisher() ? 1.6f : 1;
+                    if (anim.combo() == Combo.WHIRLWIND) {
+                        roll += side * (4.0f - 12.0f * PoseMath.smooth(p));
+                        yaw -= side * 7f * sweep;
+                    } else if (anim.attack() == AttackType.SLASH) {
+                        roll += side * (2.0f - 6.0f * PoseMath.smooth(p)) * strength;
+                        yaw -= side * 3.5f * sweep * strength;
+                        if (anim.combo() == Combo.HAMSTRING) {
+                            pitch += 3f * arc;
+                        }
                     } else if (anim.attack() == AttackType.OVERHEAD) {
-                        pitch += 5.0f * arc - 2.5f * (1 - p);
+                        pitch += (5.0f * arc - 2.5f * (1 - p)) * strength;
                     } else if (anim.attack() == AttackType.STAB) {
-                        pitch += 1.2f * arc;
+                        pitch += 1.2f * arc * strength;
+                    }
+                }
+                case THROW -> {
+                    // The view leans back with the arm, then follows the throw.
+                    if (p < 0.72f) {
+                        float t = PoseMath.smooth(p / 0.72f);
+                        pitch -= 2f * t;
+                        roll += 1.5f * t;
+                    } else {
+                        float t = PoseMath.smooth((p - 0.72f) / 0.28f);
+                        pitch += lerp(-2f, 2.5f, t);
+                        roll += lerp(1.5f, -1f, t);
+                    }
+                }
+                case DODGE -> {
+                    float k = Mth.sin(Mth.PI * Math.min(1, p * 1.15f));
+                    float dodgeSide = anim.has(CombatState.DODGE_LEFT) ? -1 : anim.has(CombatState.DODGE_RIGHT) ? 1 : 0;
+                    roll += dodgeSide * 5f * k;
+                    if (dodgeSide == 0) {
+                        pitch += (anim.has(CombatState.DODGE_FORWARD) ? 2f : -2.5f) * k;
                     }
                 }
                 case RECOVERY -> {
                     float rest = 1 - PoseMath.smooth(p);
-                    if (anim.attack() == AttackType.SLASH && !anim.has(CombatState.REBOUND) && !anim.has(CombatState.FEINT)) {
+                    if (anim.has(CombatState.THROWN)) {
+                        pitch += 2.5f * rest;
+                    } else if (anim.attack() == AttackType.SLASH && !anim.has(CombatState.REBOUND) && !anim.has(CombatState.FEINT)) {
                         roll -= side * 4.0f * rest;
                         yaw -= side * 3.5f * rest;
                     } else if (anim.attack() == AttackType.OVERHEAD && !anim.has(CombatState.REBOUND)) {

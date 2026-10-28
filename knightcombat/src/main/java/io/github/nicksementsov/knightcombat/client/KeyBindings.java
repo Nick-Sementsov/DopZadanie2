@@ -14,6 +14,9 @@ public final class KeyBindings {
     public static final KeyMapping FEINT = key("feint", GLFW.GLFW_KEY_G);
     public static final KeyMapping KICK = key("kick", GLFW.GLFW_KEY_V);
     public static final KeyMapping BATTLE_CRY = key("battle_cry", GLFW.GLFW_KEY_B);
+    public static final KeyMapping THROW = key("throw", GLFW.GLFW_KEY_H);
+    /** Dodges the way the player is moving (back when standing still). */
+    public static final KeyMapping DODGE = key("dodge", GLFW.GLFW_KEY_LEFT_ALT);
 
     private KeyBindings() {
     }
@@ -23,6 +26,6 @@ public final class KeyBindings {
     }
 
     static KeyMapping[] all() {
-        return new KeyMapping[]{OVERHEAD, STAB, FEINT, KICK, BATTLE_CRY};
+        return new KeyMapping[]{OVERHEAD, STAB, FEINT, KICK, BATTLE_CRY, THROW, DODGE};
     }
 }

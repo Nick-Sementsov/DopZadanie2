@@ -4,6 +4,9 @@ import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackStats;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
+import io.github.nicksementsov.knightcombat.combat.CombatState;
+import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.network.Feedback;
@@ -40,6 +43,8 @@ public final class CombatHud {
     private static final int BLADE_START = 13;
     private static final int MESSAGE_TICKS = 24;
     private static final int HIT_MARKER_TICKS = 6;
+    /** How long the name of a finisher stays on the screen. */
+    private static final int COMBO_TICKS = 26;
 
     /** A soft white frame around the screen, tinted for the flashes. */
     private static final ResourceLocation VIGNETTE = KnightCombat.id("textures/gui/vignette.png");
@@ -140,6 +145,11 @@ public final class CombatHud {
             }
         }
 
+        FighterAnim own = ClientCombat.anim(player);
+        if (weapon != null && firstPerson && own != null && own.phase() == Phase.WINDUP && own.has(CombatState.HEAVY)) {
+            drawCharge(graphics, cx, cy, own.progress(partialTick));
+        }
+
         if (weapon != null && CombatConfig.STAMINA_BAR.get()) {
             drawStamina(graphics, cx, cy + 12, ticks, partialTick);
         }
@@ -151,6 +161,10 @@ public final class CombatHud {
         if (weapon != null && ClientCombat.riposteReady()) {
             Component text = Component.translatable("hud.knightcombat.riposte_ready");
             graphics.drawString(font, text, cx - font.width(text) / 2, cy - 20, 0xFFE9C46A, true);
+        }
+        float comboAge = ticks - ClientCombat.comboAt() + partialTick;
+        if (weapon != null && ClientCombat.comboShown() != Combo.NONE && comboAge < COMBO_TICKS) {
+            drawCombo(graphics, font, ClientCombat.comboShown(), cx, cy, comboAge);
         }
         Feedback feedback = ClientCombat.lastFeedback();
         float age = ticks - ClientCombat.feedbackAt() + partialTick;
@@ -227,6 +241,37 @@ public final class CombatHud {
         RenderSystem.disableBlend();
     }
 
+    /**
+     * The charge of a heavy attack: four short marks close in on the crosshair from its corners as the charge
+     * grows, and turn gold when it is full.
+     */
+    private static void drawCharge(GuiGraphics graphics, int cx, int cy, float progress) {
+        float t = PoseMath.smooth(progress);
+        int distance = Math.round(Mth.lerp(t, 12, 5));
+        int alpha = (int) (110 + 145 * t);
+        int color = alpha << 24 | (progress >= 0.98f ? 0xE9C46A : 0xFFFFFF);
+        for (int sx = -1; sx <= 1; sx += 2) {
+            for (int sy = -1; sy <= 1; sy += 2) {
+                int x = cx + sx * distance;
+                int y = cy + sy * distance;
+                graphics.fill(Math.min(x, x + sx * 3), y, Math.max(x, x + sx * 3) + 1, y + 1, color);
+                graphics.fill(x, Math.min(y, y + sy * 3), x + 1, Math.max(y, y + sy * 3) + 1, color);
+            }
+        }
+    }
+
+    /** The name of a finisher, in gold: it pops up large above the crosshair, settles and fades. */
+    private static void drawCombo(GuiGraphics graphics, Font font, Combo combo, int cx, int cy, float age) {
+        Component text = Component.translatable("hud.knightcombat.combo." + combo.name().toLowerCase(Locale.ROOT));
+        float scale = 1.25f + 0.6f * (float) Math.exp(-age / 2.5f);
+        int alpha = Mth.clamp((int) (255 * Math.min(1, (COMBO_TICKS - age) / 8f)), 8, 255);
+        graphics.pose().pushPose();
+        graphics.pose().translate(cx, cy - 46 - Math.min(age, 6) * 0.5f, 0);
+        graphics.pose().scale(scale, scale, 1);
+        graphics.drawString(font, text, -font.width(text) / 2, -4, alpha << 24 | 0xF2C14E, true);
+        graphics.pose().popPose();
+    }
+
     /** Width of the bar texture to draw so that the blade is filled up to {@code share}. */
     private static int bladeWidth(float share) {
         return BLADE_START + Math.round((BAR_WIDTH - 1 - BLADE_START) * Mth.clamp(share, 0, 1));
@@ -276,8 +321,12 @@ public final class CombatHud {
             lines.add(controls("overhead", KeyBindings.OVERHEAD.getTranslatedKeyMessage()));
             lines.add(controls("stab", KeyBindings.STAB.getTranslatedKeyMessage()));
             lines.add(controls("block", options.keyUse.getTranslatedKeyMessage()));
+            lines.add(controls("heavy"));
             lines.add(controls("other", KeyBindings.FEINT.getTranslatedKeyMessage(), KeyBindings.KICK.getTranslatedKeyMessage(),
                     KeyBindings.BATTLE_CRY.getTranslatedKeyMessage()));
+            lines.add(controls("throw", KeyBindings.THROW.getTranslatedKeyMessage(), KeyBindings.DODGE.getTranslatedKeyMessage()));
+            lines.add(controls("cancel", KeyBindings.FEINT.getTranslatedKeyMessage(), options.keyUse.getTranslatedKeyMessage()));
+            lines.add(controls("combos"));
             lines.add(controls("mine", options.keyAttack.getTranslatedKeyMessage()));
         } else {
             lines.add(Component.translatable("tooltip.knightcombat.controls_hint").withStyle(ChatFormatting.DARK_GRAY));

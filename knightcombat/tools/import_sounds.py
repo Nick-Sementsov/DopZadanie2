@@ -92,6 +92,8 @@ class Event:
     voice: bool = False
     impact: bool = False
     attenuation: int = None
+    # Silence before the sound, for sounds that come a moment after what plays them (a body falling after the blow).
+    lead: float = 0.0
 
 
 def strikes(path, times, length):
@@ -157,6 +159,50 @@ EVENTS = [
           [clip("pain", "death pain grunts.wav", start, end) for start, end in
            ((6.9, 7.4), (8.3, 9.15), (27.5, 28.5), (29.8, 30.35), (31.45, 32.55), (40.35, 41.1), (0.45, 1.9), (35.9, 37.35))],
           voice=True),
+    # A strained grunt as a heavy attack is wound up.
+    Event("combat.effort", "combat", "combat.effort", 0.75,
+          [clip("yells", f"yelling sounds/{name}.wav") for name in ("3grunt3", "3grunt4", "3grunt6")], voice=True, attenuation=16),
+    # Plate and mail ringing under a blow, on top of the hit itself.
+    Event("weapon.hit_armor", "weapon", "weapon.hit_armor", 0.8,
+          [clip("kenney", f"Audio/impactPlate_light_00{i}.ogg") for i in range(5)]
+          + [clip("kenney", f"Audio/impactPlate_medium_00{i}.ogg") for i in range(5)]),
+    # A blade slid out of its scabbard when a weapon is taken in hand.
+    Event("weapon.draw", "weapon", "weapon.draw", 0.6,
+          [clip("rpg", f"RPG Sound Pack/battle/{name}.wav")
+           for name in ("sword-unsheathe", "sword-unsheathe2", "sword-unsheathe3", "sword-unsheathe4", "sword-unsheathe5")]
+          + [clip("clashes", f"{name}.wav") for name in ("knife-unsheathe-02", "knife-unsheathe-04", "seax-unsheathe-01", "seax-unsheathe-03")]),
+    # A dodge: boots pushing off and landing, leather creaking, the body swishing through the air.
+    Event("combat.dodge", "combat", "combat.dodge", 0.7,
+          [clip("clashes", f"boots-leather-jump-0{i}.wav", 0.0, None, 1.0, 1.0, 0.0,
+                clip("clashes", f"quiver-leather-squeeze-0{j}.wav", gain=0.45),
+                clip("swishes", f"swishes/swish-{k}.wav", speed=0.9, gain=0.35))
+           for i, j, k in ((1, 1, 10), (2, 5, 11), (3, 7, 12))]
+          + [clip("clashes", f"boots-leather-step-0{i}.wav", 0.0, None, 1.0, 1.0, 0.0,
+                  clip("swishes", f"swishes/swish-{k}.wav", speed=0.9, gain=0.35))
+             for i, k in ((1, 13), (3, 2))]),
+    # Throws: the arm swung hard; and a spinning weapon cutting the air in short whirrs.
+    Event("weapon.throw", "weapon", "weapon.throw", 0.8,
+          [clip("swishes", f"swishes/swish-{a}.wav", 0.0, None, 0.75, 1.0, 0.0,
+                clip("swishes", f"swishes/swish-{b}.wav", speed=0.9, gain=0.7, delay=0.06)) for a, b in ((5, 9), (7, 6), (9, 8))]
+          + [clip("rpg", "RPG Sound Pack/battle/swing3.wav", 0.0, None, 0.8, 1.0, 0.0,
+                  clip("rpg", "RPG Sound Pack/battle/swing2.wav", speed=0.95, gain=0.6, delay=0.07))]),
+    Event("weapon.spin", "weapon", "weapon.spin", 0.45,
+          [clip("swishes", f"swishes/swish-{n}.wav", speed=1.3) for n in (1, 3, 4, 6)]),
+    # A thrown weapon biting into wood or earth, the steel ringing a little after it.
+    Event("weapon.stick", "weapon", "weapon.stick", 0.9,
+          [clip("kenney", f"Audio/impactWood_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                clip("kenney", f"Audio/impactMetal_light_00{i}.ogg", gain=0.3)) for i in range(5)]
+          + [clip("kenney", f"Audio/impactPlank_medium_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                  clip("kenney", f"Audio/impactMetal_light_00{(i + 2) % 5}.ogg", gain=0.3)) for i in range(3)]),
+    # A weapon dropping on the ground or ringing off a wall.
+    Event("weapon.clatter", "weapon", "weapon.clatter", 0.75,
+          [clip("kenney", f"Audio/impactMetal_medium_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                clip("kenney", f"Audio/impactSoft_medium_00{i % 3}.ogg", gain=0.4)) for i in range(5)]),
+    # A body in armour hitting the ground a moment after the killing blow: a heavy thud and the rattle of plates.
+    Event("combat.body_fall", "combat", "combat.body_fall", 0.9,
+          [clip("kenney", f"Audio/impactSoft_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                clip("kenney", f"Audio/impactPlate_light_00{(i + 1) % 5}.ogg", gain=0.35, delay=0.05)) for i in range(5)],
+          lead=0.25),
 ]
 
 
@@ -349,7 +395,8 @@ def main():
         name = event.name.split(".")[1]
         for i, c in enumerate(event.clips, start=1):
             relative = f"{event.folder}/{name}{i}"
-            write_ogg(sounds_dir / (relative + ".ogg"), clean(render(c, cache), event))
+            sound = clean(render(c, cache), event)
+            write_ogg(sounds_dir / (relative + ".ogg"), np.concatenate([np.zeros(int(event.lead * RATE)), sound]))
             entry = {"name": f"{MODID}:{relative}", "volume": event.volume}
             if event.attenuation:
                 entry["attenuation_distance"] = event.attenuation

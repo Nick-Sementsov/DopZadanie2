@@ -8,8 +8,13 @@ package io.github.nicksementsov.knightcombat.combat;
 public final class SwingGeometry {
     /** Slashes sweep from this angle on one side to the same angle on the other side. */
     public static final float SLASH_ARC = 80;
+    /** The slash of a whirlwind sweeps wider. */
+    public static final float WIDE_ARC = 115;
     /** Slashes go slightly downwards: from this angle above the view to the same angle below it. */
     public static final float SLASH_TILT = 12;
+    /** The slash of a hamstring goes low, from the hips down to the shins of an enemy in front. */
+    public static final float LOW_FROM = 10;
+    public static final float LOW_TO = 34;
     public static final float OVERHEAD_START = -75;
     public static final float OVERHEAD_END = 40;
     public static final float OVERHEAD_DRIFT = 6;
@@ -24,8 +29,14 @@ public final class SwingGeometry {
 
     /** Horizontal angle of the weapon at release progress {@code p} (0..1). */
     public static float yaw(AttackType type, boolean mirrored, float p) {
+        return yaw(type, mirrored, p, Combo.NONE);
+    }
+
+    /** Horizontal angle of the weapon at release progress {@code p} (0..1) of an attack that may be a finisher. */
+    public static float yaw(AttackType type, boolean mirrored, float p, Combo combo) {
+        float arc = combo == Combo.WHIRLWIND ? WIDE_ARC : SLASH_ARC;
         float yaw = switch (type) {
-            case SLASH -> lerp(SLASH_ARC, -SLASH_ARC, p);
+            case SLASH -> lerp(arc, -arc, p);
             case OVERHEAD -> lerp(OVERHEAD_DRIFT, -OVERHEAD_DRIFT, p);
             default -> 0;
         };
@@ -34,8 +45,13 @@ public final class SwingGeometry {
 
     /** Vertical angle of the weapon at release progress {@code p} (0..1). */
     public static float pitch(AttackType type, float p) {
+        return pitch(type, p, Combo.NONE);
+    }
+
+    /** Vertical angle of the weapon at release progress {@code p} (0..1) of an attack that may be a finisher. */
+    public static float pitch(AttackType type, float p, Combo combo) {
         return switch (type) {
-            case SLASH -> lerp(-SLASH_TILT, SLASH_TILT, p);
+            case SLASH -> combo == Combo.HAMSTRING ? lerp(LOW_FROM, LOW_TO, p) : lerp(-SLASH_TILT, SLASH_TILT, p);
             case OVERHEAD -> lerp(OVERHEAD_START, OVERHEAD_END, p);
             default -> 0;
         };
@@ -52,8 +68,12 @@ public final class SwingGeometry {
 
     /** How many rays to trace between release progress p0 and p1 so that rays are at most a few degrees apart. */
     public static int samples(AttackType type, float p0, float p1) {
+        return samples(type, p0, p1, Combo.NONE);
+    }
+
+    public static int samples(AttackType type, float p0, float p1, Combo combo) {
         float degrees = switch (type) {
-            case SLASH -> 2 * SLASH_ARC;
+            case SLASH -> 2 * (combo == Combo.WHIRLWIND ? WIDE_ARC : SLASH_ARC);
             case OVERHEAD -> OVERHEAD_END - OVERHEAD_START;
             default -> 3 * SAMPLE_STEP;
         };
@@ -62,7 +82,11 @@ public final class SwingGeometry {
 
     /** Whether a wall met at this point of the arc stops the attack (walls at the far ends of a slash do not). */
     public static boolean wallStops(AttackType type, boolean mirrored, float p) {
-        return type != AttackType.SLASH || Math.abs(yaw(type, mirrored, p)) <= CombatRules.WALL_ARC;
+        return wallStops(type, mirrored, p, Combo.NONE);
+    }
+
+    public static boolean wallStops(AttackType type, boolean mirrored, float p, Combo combo) {
+        return type != AttackType.SLASH || Math.abs(yaw(type, mirrored, p, combo)) <= CombatRules.WALL_ARC;
     }
 
     /**

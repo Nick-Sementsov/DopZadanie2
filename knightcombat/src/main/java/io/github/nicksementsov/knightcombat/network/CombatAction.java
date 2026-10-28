@@ -11,7 +11,14 @@ public enum CombatAction {
     KICK,
     BLOCK_START,
     BLOCK_STOP,
-    BATTLE_CRY;
+    BATTLE_CRY,
+    /** The key of the attack was let go: an attack whose key is held through the wind-up becomes a heavy attack. */
+    ATTACK_RELEASE,
+    THROW,
+    DODGE_BACK,
+    DODGE_LEFT,
+    DODGE_RIGHT,
+    DODGE_FORWARD;
 
     private static final CombatAction[] VALUES = values();
 
@@ -25,6 +32,16 @@ public enum CombatAction {
             case OVERHEAD -> OVERHEAD;
             case STAB -> STAB;
             case KICK -> KICK;
+        };
+    }
+
+    /** The dodge in the given direction: -1 left, 1 right, 0 back, 2 forward. */
+    public static CombatAction dodge(int direction) {
+        return switch (direction) {
+            case -1 -> DODGE_LEFT;
+            case 1 -> DODGE_RIGHT;
+            case 2 -> DODGE_FORWARD;
+            default -> DODGE_BACK;
         };
     }
 

@@ -430,5 +430,265 @@
         "volume": 0.9
       }
     ]
+  },
+  "combat.effort": {
+    "subtitle": "subtitles.knightcombat.combat.effort",
+    "sounds": [
+      {
+        "name": "knightcombat:combat/effort1",
+        "volume": 0.75,
+        "attenuation_distance": 16
+      },
+      {
+        "name": "knightcombat:combat/effort2",
+        "volume": 0.75,
+        "attenuation_distance": 16
+      },
+      {
+        "name": "knightcombat:combat/effort3",
+        "volume": 0.75,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "weapon.hit_armor": {
+    "subtitle": "subtitles.knightcombat.weapon.hit_armor",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/hit_armor1",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor2",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor3",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor4",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor5",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor6",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor7",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor8",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor9",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/hit_armor10",
+        "volume": 0.8
+      }
+    ]
+  },
+  "weapon.draw": {
+    "subtitle": "subtitles.knightcombat.weapon.draw",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/draw1",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw2",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw3",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw4",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw5",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw6",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw7",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw8",
+        "volume": 0.6
+      },
+      {
+        "name": "knightcombat:weapon/draw9",
+        "volume": 0.6
+      }
+    ]
+  },
+  "combat.dodge": {
+    "subtitle": "subtitles.knightcombat.combat.dodge",
+    "sounds": [
+      {
+        "name": "knightcombat:combat/dodge1",
+        "volume": 0.7
+      },
+      {
+        "name": "knightcombat:combat/dodge2",
+        "volume": 0.7
+      },
+      {
+        "name": "knightcombat:combat/dodge3",
+        "volume": 0.7
+      },
+      {
+        "name": "knightcombat:combat/dodge4",
+        "volume": 0.7
+      },
+      {
+        "name": "knightcombat:combat/dodge5",
+        "volume": 0.7
+      }
+    ]
+  },
+  "weapon.throw": {
+    "subtitle": "subtitles.knightcombat.weapon.throw",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/throw1",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/throw2",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/throw3",
+        "volume": 0.8
+      },
+      {
+        "name": "knightcombat:weapon/throw4",
+        "volume": 0.8
+      }
+    ]
+  },
+  "weapon.spin": {
+    "subtitle": "subtitles.knightcombat.weapon.spin",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/spin1",
+        "volume": 0.45
+      },
+      {
+        "name": "knightcombat:weapon/spin2",
+        "volume": 0.45
+      },
+      {
+        "name": "knightcombat:weapon/spin3",
+        "volume": 0.45
+      },
+      {
+        "name": "knightcombat:weapon/spin4",
+        "volume": 0.45
+      }
+    ]
+  },
+  "weapon.stick": {
+    "subtitle": "subtitles.knightcombat.weapon.stick",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/stick1",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick2",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick3",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick4",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick5",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick6",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick7",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:weapon/stick8",
+        "volume": 0.9
+      }
+    ]
+  },
+  "weapon.clatter": {
+    "subtitle": "subtitles.knightcombat.weapon.clatter",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/clatter1",
+        "volume": 0.75
+      },
+      {
+        "name": "knightcombat:weapon/clatter2",
+        "volume": 0.75
+      },
+      {
+        "name": "knightcombat:weapon/clatter3",
+        "volume": 0.75
+      },
+      {
+        "name": "knightcombat:weapon/clatter4",
+        "volume": 0.75
+      },
+      {
+        "name": "knightcombat:weapon/clatter5",
+        "volume": 0.75
+      }
+    ]
+  },
+  "combat.body_fall": {
+    "subtitle": "subtitles.knightcombat.combat.body_fall",
+    "sounds": [
+      {
+        "name": "knightcombat:combat/body_fall1",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:combat/body_fall2",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:combat/body_fall3",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:combat/body_fall4",
+        "volume": 0.9
+      },
+      {
+        "name": "knightcombat:combat/body_fall5",
+        "volume": 0.9
+      }
+    ]
   }
 }

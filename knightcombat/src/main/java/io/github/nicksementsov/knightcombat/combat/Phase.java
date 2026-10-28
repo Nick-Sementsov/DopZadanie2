@@ -16,7 +16,11 @@ public enum Phase {
     /** Wind-up of a kick. */
     KICK,
     /** Battle cry. */
-    CRY;
+    CRY,
+    /** Drawing the weapon back to throw it; it leaves the hand at the end. */
+    THROW,
+    /** A quick step aside, back or forward, out of the way of a blow. */
+    DODGE;
 
     private static final Phase[] VALUES = values();
 

@@ -1,12 +1,15 @@
 package io.github.nicksementsov.knightcombat.client;
 
+import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 
 /**
  * What the client knows about the combat state of one player, for the animations. The server sends every
@@ -15,10 +18,15 @@ import net.minecraft.world.entity.player.Player;
 public final class FighterAnim {
     /** How much of the time of a hit-stop the swing stands still. */
     private static final float STALL_DEPTH = 0.9f;
+    /** Ticks a remote fighter's wind-up may run over before the client moves on without the server (heavy attacks wind up longer). */
+    private static final int REMOTE_GRACE = 3;
+    /** Length of the flourish of drawing a weapon, in ticks. */
+    static final float DRAW_TICKS = 9;
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
     int flags;
+    Combo combo = Combo.NONE;
     int length;
     /** Client tick at which the phase started. */
     long start;
@@ -32,6 +40,10 @@ public final class FighterAnim {
     FirstPersonPose fpShown;
     FirstPersonPose fpFrom;
     int fpVersion = -1;
+    // The turn of the whole body (whirlwinds), shown last and when the phase started.
+    float spinShown;
+    float spinFrom;
+    int spinVersion = -1;
 
     // Hit-stop: when a blow lands, the swing almost stops for an instant. The animation clock of the phase runs
     // slower by the time frozen so far, plus the part of the current stop that has passed.
@@ -44,6 +56,10 @@ public final class FighterAnim {
     float hurtSide;
     private float hurtStrength;
 
+    // The weapon in hand and when it was drawn.
+    private Item heldItem;
+    private float drawnAt = -100;
+
     public Phase phase() {
         return phase;
     }
@@ -54,6 +70,29 @@ public final class FighterAnim {
 
     public boolean has(int flag) {
         return (flags & flag) != 0;
+    }
+
+    public Combo combo() {
+        return combo;
+    }
+
+    /** A finisher with its own look (the follow-up of a kick only comes out faster). */
+    boolean finisher() {
+        return combo != Combo.NONE && combo != Combo.KICK_FOLLOW;
+    }
+
+    /** Notices the fighter taking another weapon in hand, for the flourish of drawing it. */
+    void watchHeld(Player player) {
+        Item item = player.getMainHandItem().getItem();
+        if (heldItem != null && item != heldItem && Weapons.isWeapon(player.getMainHandItem())) {
+            drawnAt = ClientCombat.ticks();
+        }
+        heldItem = item;
+    }
+
+    /** How far the drawing of the weapon is, 0 just drawn to 1 done. */
+    float drawProgress(float partialTick) {
+        return PoseMath.clamp01((ClientCombat.ticks() + partialTick - drawnAt) / DRAW_TICKS);
     }
 
     public float elapsed(float partialTick) {
@@ -100,7 +139,11 @@ public final class FighterAnim {
     }
 
     void apply(Phase newPhase, AttackType newAttack, int newFlags, int newLength, long newStart) {
-        boolean same = phase == newPhase && attack == newAttack && flags == newFlags && length == newLength;
+        apply(newPhase, newAttack, newFlags, combo, newLength, newStart);
+    }
+
+    void apply(Phase newPhase, AttackType newAttack, int newFlags, Combo newCombo, int newLength, long newStart) {
+        boolean same = phase == newPhase && attack == newAttack && flags == newFlags && combo == newCombo && length == newLength;
         if (same && Math.abs(start - newStart) <= 2) {
             // The server confirms what is already shown; keep the timing the client had, it is smoother.
             return;
@@ -108,6 +151,7 @@ public final class FighterAnim {
         phase = newPhase;
         attack = newAttack;
         flags = newFlags;
+        combo = newCombo;
         length = newLength;
         start = newStart;
         stalled = 0;
@@ -116,8 +160,12 @@ public final class FighterAnim {
         version++;
     }
 
-    /** Moves to the next phase when the current one is over, the way the server will. */
-    void advance(Player player) {
+    /**
+     * Moves to the next phase when the current one is over, the way the server will. The local player's own wind-up
+     * goes on into the charge of a heavy attack while the attack key is held; other fighters' wind-ups wait a moment
+     * for the server, which knows whether their key is held.
+     */
+    void advance(Player player, boolean local) {
         if (length <= 0 || elapsed(0) < length) {
             return;
         }
@@ -125,17 +173,25 @@ public final class FighterAnim {
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         switch (phase) {
             case WINDUP -> {
-                if (weapon != null) {
-                    apply(Phase.RELEASE, attack, flags, Math.max(1, weapon.attack(attack).release()), end);
+                if (weapon == null || !local && elapsed(0) < length + REMOTE_GRACE) {
+                    return;
+                }
+                if (local && ClientCombat.attackHeld() && CombatConfig.heavyAttacks() && !has(CombatState.HEAVY)
+                        && !has(CombatState.RIPOSTE) && ClientCombat.stamina() >= CombatRules.HEAVY_COST) {
+                    apply(Phase.WINDUP, attack, flags | CombatState.HEAVY, combo, CombatRules.heavyWindup(weapon, attack), end);
+                } else {
+                    apply(Phase.RELEASE, attack, flags, combo, Math.max(1, weapon.attack(attack).release()), end);
                 }
             }
             case RELEASE -> {
                 if (weapon != null) {
-                    apply(Phase.RECOVERY, attack, flags & CombatState.MIRRORED, weapon.attack(attack).recovery(), end);
+                    apply(Phase.RECOVERY, attack, flags & CombatState.MIRRORED, combo,
+                            weapon.attack(attack).recovery() + CombatRules.extraRecovery(flags), end);
                 }
             }
-            case KICK -> apply(Phase.RECOVERY, AttackType.KICK, 0, CombatRules.KICK_RECOVERY, end);
-            case RECOVERY, STAGGER, CRY -> apply(Phase.IDLE, attack, 0, 0, end);
+            case KICK -> apply(Phase.RECOVERY, AttackType.KICK, 0, Combo.NONE, CombatRules.KICK_RECOVERY, end);
+            case THROW -> apply(Phase.RECOVERY, attack, CombatState.THROWN, Combo.NONE, CombatRules.THROW_RECOVERY, end);
+            case RECOVERY, STAGGER, CRY, DODGE -> apply(Phase.IDLE, attack, 0, Combo.NONE, 0, end);
             default -> {
             }
         }

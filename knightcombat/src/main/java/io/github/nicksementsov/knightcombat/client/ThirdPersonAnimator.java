@@ -1,7 +1,10 @@
 package io.github.nicksementsov.knightcombat.client;
 
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.combat.Combo;
+import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
+import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.client.model.HumanoidModel;
@@ -30,6 +33,8 @@ import org.joml.Vector3f;
  * Minecraft would draw the weapon at a fixed angle to the hand. To let the blade turn freely, the weapon is taken
  * out of the hand while the player is drawn and {@link WeaponLayer} draws it at the angle of the pose. Weapons with
  * their own renderer stay in the hand and are drawn by Minecraft.
+ * <p>
+ * The whole model turns too: it spins with a whirlwind and leans into a dodge.
  */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID, value = Dist.CLIENT)
 public final class ThirdPersonAnimator {
@@ -44,6 +49,10 @@ public final class ThirdPersonAnimator {
     private static ItemStack hiddenOff = ItemStack.EMPTY;
     private static final Vector3f BLADE = new Vector3f();
     private static final Vector3f EDGE = new Vector3f();
+    /** Share of a turn a whirlwind spins during its release; the rest comes in the recovery. */
+    private static final float SPIN_IN_RELEASE = 0.7f;
+    /** Whether the pose stack of the player being drawn was turned, to be put back afterwards. */
+    private static boolean turned;
 
     private ThirdPersonAnimator() {
     }
@@ -82,11 +91,64 @@ public final class ThirdPersonAnimator {
             hiddenOff = inventory.offhand.get(0);
             inventory.offhand.set(0, ItemStack.EMPTY);
         }
+        Quaternionf turn = bodyTurn(player, ClientCombat.anim(player), partialTick);
+        if (turn != null) {
+            event.getPoseStack().pushPose();
+            event.getPoseStack().mulPose(turn);
+            turned = true;
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
+        if (turned) {
+            event.getPoseStack().popPose();
+            turned = false;
+        }
         restore();
+    }
+
+    /**
+     * How the whole model is turned, about the feet, or {@code null}. A whirlwind spins the fighter round once
+     * (most of the turn in the release, the rest in the recovery); a turn cut short (a blocked whirlwind) unwinds
+     * to the nearest whole turn. A dodge leans the body into the step.
+     */
+    private static Quaternionf bodyTurn(Player player, FighterAnim anim, float partialTick) {
+        if (anim == null) {
+            return null;
+        }
+        float p = anim.progress(partialTick);
+        if (anim.spinVersion != anim.version) {
+            anim.spinVersion = anim.version;
+            anim.spinFrom = anim.spinShown;
+        }
+        float full = Mth.TWO_PI;
+        float spin;
+        if (anim.phase == Phase.RELEASE && anim.combo == Combo.WHIRLWIND) {
+            spin = SPIN_IN_RELEASE * full * PoseMath.smooth(p);
+        } else {
+            float whole = Math.round(anim.spinFrom / full) * full;
+            float t = anim.phase == Phase.RECOVERY ? PoseMath.easeOut(Math.min(1, p * 2)) : PoseMath.smooth(anim.elapsed(partialTick) / 4);
+            spin = Mth.lerp(t, anim.spinFrom, whole);
+        }
+        anim.spinShown = spin;
+        Quaternionf turn = null;
+        if (Math.abs(spin % full) > 1.0E-3f) {
+            turn = new Quaternionf().rotationY(spin);
+        }
+        if (anim.phase == Phase.DODGE) {
+            float k = Mth.sin(Mth.PI * Math.min(1, p * 1.15f));
+            float yaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot) * Mth.DEG_TO_RAD;
+            // The body's forward is (-sin yaw, cos yaw) and its right (-cos yaw, -sin yaw); turning about the forward
+            // axis leans it to the right, about the right axis leans it back.
+            float roll = anim.has(CombatState.DODGE_LEFT) ? -0.32f : anim.has(CombatState.DODGE_RIGHT) ? 0.32f : 0;
+            float pitch = anim.has(CombatState.DODGE_FORWARD) ? -0.16f : roll == 0 ? 0.18f : 0;
+            Quaternionf lean = new Quaternionf()
+                    .rotateAxis(roll * k, -Mth.sin(yaw), 0, Mth.cos(yaw))
+                    .rotateAxis(pitch * k, -Mth.cos(yaw), 0, -Mth.sin(yaw));
+            turn = turn == null ? lean : turn.mul(lean);
+        }
+        return turn;
     }
 
     /** In case something went wrong while drawing, the weapons are put back before the game uses them. */
@@ -165,7 +227,7 @@ public final class ThirdPersonAnimator {
         set(main, mainRotation);
         main.xRot += walkMain * 0.15f;
 
-        if (weapon.grip().twoHanded()) {
+        if (weapon.grip().twoHanded() && (anim == null || anim.phase != Phase.THROW)) {
             reachForGrip(main, off, weapon.grip(), left);
         } else {
             Vector3f offDir = mirrored(body.transform(new Vector3f(pose.off)), left);

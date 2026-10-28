@@ -29,7 +29,6 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
     private static final float MAX_LENGTH_ONE = 1.3f;
     private static final float MAX_LENGTH_TWO = 2.1f;
     private static final float MAX_LENGTH_POLEARM = 3.2f;
-    private static final int TRAIL_COLOR = 0xFFF4E0;
     private static final float TRAIL_OPACITY = 0.5f;
 
     public WeaponLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
@@ -72,12 +71,12 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
             Vector3f[] tips = new Vector3f[SwingTrail.STEPS + 1];
             boolean mirrored = anim.has(CombatState.MIRRORED);
             for (int k = 0; k <= SwingTrail.STEPS; k++) {
-                ThirdPersonPose pose = ThirdPersonPoses.release(anim.attack, weapon.grip(), mirrored, SwingTrail.progress(range, k));
+                ThirdPersonPose pose = ThirdPersonPoses.release(anim.attack, weapon.grip(), mirrored, anim.combo, SwingTrail.progress(range, k));
                 Matrix4f transform = ThirdPersonAnimator.weaponTransform(pose, left, axes, scale);
                 bases[k] = transform.transformPosition(axes.point(0.45f));
                 tips[k] = transform.transformPosition(axes.point(1));
             }
-            SwingTrail.draw(poseStack, buffers, bases, tips, TRAIL_COLOR, TRAIL_OPACITY * range[2]);
+            SwingTrail.draw(poseStack, buffers, bases, tips, SwingTrail.color(anim), Math.min(1, TRAIL_OPACITY * SwingTrail.strength(anim) * range[2]));
         }
     }
 

@@ -35,6 +35,28 @@ public final class CombatRules {
     /** A morph (switching to another attack during the wind-up) is allowed in this share of the wind-up. */
     public static final float MORPH_LIMIT = 0.7f;
 
+    /** A heavy attack (the key held through the wind-up) winds up this much longer, as a share of its wind-up. */
+    public static final float HEAVY_WINDUP = 0.6f;
+    public static final float HEAVY_DAMAGE = 1.45f;
+    /** Multiplier of the stamina a blocker loses to a heavy attack. */
+    public static final float HEAVY_STAMINA_DAMAGE = 1.6f;
+    public static final float HEAVY_KNOCKBACK = 1.5f;
+    public static final int HEAVY_RECOVERY = 3;
+    /** An attack started while sprinting: stronger, a little faster, with a longer recovery. */
+    public static final float SPRINT_DAMAGE = 1.25f;
+    public static final float SPRINT_WINDUP = 0.9f;
+    public static final int SPRINT_RECOVERY = 3;
+    /** The strongest an attack can get from being heavy, a finisher or a running attack together. */
+    public static final float MAX_DAMAGE_BONUS = 2.0f;
+    /** Ticks after a kick that landed during which an attack is a fast follow-up. */
+    public static final int KICK_FOLLOW_WINDOW = 16;
+    /** Ticks a hamstring slows the one it cuts. */
+    public static final int HAMSTRING_SLOW = 40;
+    public static final int DODGE_LENGTH = 7;
+    /** Pause after a dodge before the next one. */
+    public static final int DODGE_COOLDOWN = 8;
+    public static final int THROW_RECOVERY = 8;
+
     public static final float FEINT_COST = 10;
     public static final float MORPH_COST = 6;
     public static final float MISS_COST = 6;
@@ -48,6 +70,9 @@ public final class CombatRules {
     public static final float MOB_BLOCK_COST = 4;
     public static final float PROJECTILE_BLOCK_COST = 2.5f;
     public static final float CRY_STAMINA = 35;
+    public static final float HEAVY_COST = 8;
+    public static final float DODGE_COST = 14;
+    public static final float THROW_COST = 12;
     /** Ticks without spending stamina before it starts to come back. */
     public static final int REGEN_DELAY = 20;
 
@@ -59,5 +84,35 @@ public final class CombatRules {
     public static final float WALL_ARC = 40;
 
     private CombatRules() {
+    }
+
+    /** Ticks a fighter draws the weapon back before throwing it: heavy weapons take longer. */
+    public static int throwWindup(WeaponStats weapon) {
+        return 7 + Math.round(5 * weapon.weight());
+    }
+
+    /** Wind-up ticks of an attack: ripostes, combos, finishers and running attacks come out faster. */
+    public static int windup(WeaponStats weapon, AttackType type, boolean riposte, boolean combo, Combo finisher, boolean sprint) {
+        float length = weapon.attack(type).windup();
+        if (riposte) {
+            length *= RIPOSTE_WINDUP;
+        } else if (combo) {
+            length *= COMBO_WINDUP;
+        }
+        length *= finisher.windup;
+        if (sprint) {
+            length *= SPRINT_WINDUP;
+        }
+        return Math.max(3, Math.round(length));
+    }
+
+    /** Heavy and running attacks take longer to recover from. */
+    public static int extraRecovery(int flags) {
+        return ((flags & CombatState.HEAVY) != 0 ? HEAVY_RECOVERY : 0) + ((flags & CombatState.SPRINT) != 0 ? SPRINT_RECOVERY : 0);
+    }
+
+    /** Extra wind-up of a heavy attack. */
+    public static int heavyWindup(WeaponStats weapon, AttackType attack) {
+        return Math.max(4, Math.round(weapon.attack(attack).windup() * HEAVY_WINDUP));
     }
 }

@@ -37,7 +37,7 @@ final class SwingTrail {
             float p = anim.progress(partialTick);
             return p <= 0.02f ? null : new float[]{Math.max(0, p - WINDOW), p, 1};
         }
-        if (anim.phase == Phase.RECOVERY && !anim.has(CombatState.REBOUND) && !anim.has(CombatState.FEINT)) {
+        if (anim.phase == Phase.RECOVERY && !anim.has(CombatState.REBOUND) && !anim.has(CombatState.FEINT) && !anim.has(CombatState.THROWN)) {
             // The swing went all the way through: its end fades out.
             float elapsed = anim.elapsed(partialTick);
             if (elapsed < FADE_TICKS) {
@@ -45,6 +45,16 @@ final class SwingTrail {
             }
         }
         return null;
+    }
+
+    /** The ribbon of a finisher is golden; the usual one is a pale white. */
+    static int color(FighterAnim anim) {
+        return anim.finisher() ? 0xFFD27A : 0xFFF4E0;
+    }
+
+    /** Heavy blows and finishers leave a brighter ribbon. */
+    static float strength(FighterAnim anim) {
+        return anim.has(CombatState.HEAVY) || anim.finisher() ? 1.5f : 1;
     }
 
     /** Progress of step {@code k} (0 the oldest, {@link #STEPS} the newest) in a range from {@link #range}. */

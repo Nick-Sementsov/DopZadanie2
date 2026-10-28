@@ -21,6 +21,10 @@ public final class CombatConfig {
     private static final ForgeConfigSpec.DoubleValue DAMAGE_MULTIPLIER;
     private static final ForgeConfigSpec.IntValue BATTLE_CRY_COOLDOWN;
     private static final ForgeConfigSpec.BooleanValue ATTACK_YELLS;
+    private static final ForgeConfigSpec.BooleanValue HEAVY_ATTACKS;
+    private static final ForgeConfigSpec.BooleanValue FINISHERS;
+    private static final ForgeConfigSpec.BooleanValue WEAPON_THROWING;
+    private static final ForgeConfigSpec.BooleanValue DODGES;
 
     public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
@@ -33,6 +37,7 @@ public final class CombatConfig {
     public static final ForgeConfigSpec.BooleanValue HIT_STOP;
     public static final ForgeConfigSpec.BooleanValue ATTACK_LUNGE;
     public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS;
+    public static final ForgeConfigSpec.BooleanValue DOUBLE_TAP_DODGE;
 
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
@@ -65,6 +70,18 @@ public final class CombatConfig {
         ATTACK_YELLS = server
                 .comment("Fighters shout now and then as they strike and cry out when a weapon hits them")
                 .define("attackYells", true);
+        HEAVY_ATTACKS = server
+                .comment("Holding the attack key through the wind-up makes a heavy attack: a longer wind-up, more damage and more stamina drained from blockers")
+                .define("heavyAttacks", true);
+        FINISHERS = server
+                .comment("Chained attacks in some orders end in finishers (Whirlwind, Mill, Hammerfall, Sting, Hamstring) and attacks right after a kick are faster")
+                .define("comboFinishers", true);
+        WEAPON_THROWING = server
+                .comment("Weapons can be thrown; they stick into walls and can be picked up again")
+                .define("weaponThrowing", true);
+        DODGES = server
+                .comment("Fighters can dodge: a quick step aside, back or forward that costs stamina")
+                .define("dodges", true);
         SERVER_SPEC = server.build();
 
         ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
@@ -101,6 +118,9 @@ public final class CombatConfig {
         SCREEN_EFFECTS = client
                 .comment("The edges of the screen flash red when you are hit, white on a parry and darken when stamina runs low")
                 .define("screenEffects", true);
+        DOUBLE_TAP_DODGE = client
+                .comment("Pressing left, right or back twice quickly dodges that way while a weapon is in hand (the dodge key works too)")
+                .define("doubleTapDodge", true);
         CLIENT_SPEC = client.build();
     }
 
@@ -159,6 +179,22 @@ public final class CombatConfig {
 
     public static boolean attackYells() {
         return get(ATTACK_YELLS, true);
+    }
+
+    public static boolean heavyAttacks() {
+        return get(HEAVY_ATTACKS, true);
+    }
+
+    public static boolean finishers() {
+        return get(FINISHERS, true);
+    }
+
+    public static boolean weaponThrowing() {
+        return get(WEAPON_THROWING, true);
+    }
+
+    public static boolean dodges() {
+        return get(DODGES, true);
     }
 
     public static int battleCryCooldownTicks() {

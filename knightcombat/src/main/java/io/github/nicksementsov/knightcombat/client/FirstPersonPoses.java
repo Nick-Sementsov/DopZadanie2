@@ -1,11 +1,13 @@
 package io.github.nicksementsov.knightcombat.client;
 
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import org.joml.Vector3f;
 
+import static io.github.nicksementsov.knightcombat.client.PoseMath.backOut;
 import static io.github.nicksementsov.knightcombat.client.PoseMath.lerp;
 import static io.github.nicksementsov.knightcombat.client.PoseMath.smooth;
 
@@ -43,23 +45,39 @@ final class FirstPersonPoses {
             case BLOCK -> 2;
             case STAGGER -> 1;
             case IDLE -> 4;
-            case KICK, CRY -> 3;
+            case KICK, CRY, THROW -> 3;
+            case DODGE -> 1.5f;
             case RECOVERY -> 0;
         };
         FirstPersonPose shown = blend > 0 && elapsed < blend && anim.fpFrom != null
                 ? FirstPersonPose.lerp(anim.fpFrom, target, smooth(elapsed / blend))
                 : target;
+        if (anim.phase == Phase.IDLE) {
+            // A weapon just taken in hand comes up from the hip with a flourish.
+            float draw = anim.drawProgress(partialTick);
+            if (draw < 1) {
+                shown = FirstPersonPose.lerp(drawn(), shown, backOut(draw));
+            }
+        }
         anim.fpShown = shown;
         return anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK ? breathe(shown, time) : shown;
     }
 
     private static FirstPersonPose target(FighterAnim anim, Grip grip, float p) {
         boolean mirrored = anim.has(CombatState.MIRRORED);
+        Combo combo = anim.combo;
         return switch (anim.phase) {
             case IDLE -> guard(grip);
             case BLOCK -> block(grip);
-            case WINDUP -> windup(anim.attack, grip, mirrored, p);
-            case RELEASE -> release(anim.attack, grip, mirrored, p);
+            case WINDUP -> {
+                if (anim.has(CombatState.HEAVY)) {
+                    // The charge: drawn back further (the weight of the weapon makes it tremble, see the animator).
+                    yield FirstPersonPose.lerp(windupEnd(anim.attack, grip, mirrored, combo, 0), windupEnd(anim.attack, grip, mirrored, combo, 1),
+                            smooth(p));
+                }
+                yield combo == Combo.MILL ? mill(grip, p) : windup(anim.attack, grip, mirrored, combo, p);
+            }
+            case RELEASE -> release(anim.attack, grip, mirrored, combo, p);
             case RECOVERY -> {
                 FirstPersonPose from = anim.fpFrom != null ? anim.fpFrom : guard(grip);
                 FirstPersonPose back = FirstPersonPose.lerp(from, guard(grip), PoseMath.backOut(p));
@@ -67,7 +85,7 @@ final class FirstPersonPoses {
                     yield back;
                 }
                 // Bounced off a block or a wall: the weapon jumps back the way it came before returning to the guard.
-                FirstPersonPose recoil = FirstPersonPose.lerp(from, windupEnd(anim.attack, grip, mirrored), 0.4f);
+                FirstPersonPose recoil = FirstPersonPose.lerp(from, windupEnd(anim.attack, grip, mirrored, Combo.NONE, 0), 0.4f);
                 float jolt = p < 0.15f ? smooth(p / 0.15f) : 1 - smooth((p - 0.15f) / 0.85f);
                 yield FirstPersonPose.lerp(back, recoil, jolt);
             }
@@ -92,7 +110,58 @@ final class FirstPersonPoses {
                 FirstPersonPose cry = facing(0.36f + shake, -0.02f + shake, -0.85f, -0.1f, 1, -0.3f, TO_CAMERA, new Vector3f(-1, 0, 0));
                 yield p < 0.75f ? cry : FirstPersonPose.lerp(cry, guard(grip), smooth((p - 0.75f) / 0.25f));
             }
+            case THROW -> throwing(grip, p);
+            case DODGE -> dodge(grip, anim.flags, p);
         };
+    }
+
+    /** Low at the side, point down: the weapon coming out of the scabbard. */
+    private static FirstPersonPose drawn() {
+        return facing(0.42f, -0.62f, -0.6f, 0.1f, -0.75f, -0.6f, TO_CAMERA, new Vector3f(0, 1, 0));
+    }
+
+    /** The wind-up of a mill: the blade circles once down and back at the right side, then is raised for the chop. */
+    private static FirstPersonPose mill(Grip grip, float p) {
+        float t = smooth(p);
+        float theta = lerp(60, -240, t) * DEG;
+        float sin = (float) Math.sin(theta);
+        float cos = (float) Math.cos(theta);
+        float bow = (float) Math.sin(Math.PI * t);
+        Vector3f hand = new Vector3f(lerp(0.42f, 0.32f, t) + 0.12f * bow, lerp(-0.3f, 0.18f, t) + 0.08f * sin, lerp(-0.8f, -0.85f, t) - 0.06f * cos);
+        Vector3f blade = new Vector3f(0.12f, sin, -cos);
+        Vector3f motion = new Vector3f(0, -cos, -sin);
+        FirstPersonPose pose = facing(hand, blade, new Vector3f(1, 0, 0), motion);
+        return p < 0.8f ? pose : FirstPersonPose.lerp(pose, windupEnd(AttackType.OVERHEAD, grip, false, Combo.MILL, 0), smooth((p - 0.8f) / 0.2f));
+    }
+
+    /** Raised beside the head and drawn back over the shoulder (most of the throw), then whipped out ahead. */
+    private static FirstPersonPose throwing(Grip grip, float p) {
+        FirstPersonPose back = facing(0.55f, 0.1f, -0.52f, 0.25f, 0.75f, 0.6f, new Vector3f(1, 0, 0.2f), new Vector3f(0, 1, 0));
+        if (p < 0.72f) {
+            return FirstPersonPose.lerp(guard(grip), back, backOut(p / 0.72f));
+        }
+        FirstPersonPose out = facing(0.14f, -0.04f, -1.0f, 0.02f, 0.15f, -1, new Vector3f(0, 1, 0.1f), new Vector3f(0, -1, 0));
+        return FirstPersonPose.lerp(back, out, smooth((p - 0.72f) / 0.28f));
+    }
+
+    /** A quick step: the weapon swings the other way and dips, then comes back. */
+    private static FirstPersonPose dodge(Grip grip, int flags, float p) {
+        float k = (float) Math.sin(Math.PI * Math.min(1, p * 1.15f));
+        FirstPersonPose pose = guard(grip);
+        Vector3f hand = new Vector3f(pose.hand);
+        Vector3f blade = new Vector3f(pose.blade);
+        if ((flags & (CombatState.DODGE_LEFT | CombatState.DODGE_RIGHT)) != 0) {
+            float side = (flags & CombatState.DODGE_LEFT) != 0 ? -1 : 1;
+            hand.add(-side * 0.1f * k, -0.05f * k, 0);
+            blade.add(-side * 0.3f * k, 0, 0);
+        } else if ((flags & CombatState.DODGE_FORWARD) != 0) {
+            hand.add(0, -0.03f * k, -0.08f * k);
+            blade.add(0, -0.15f * k, -0.2f * k);
+        } else {
+            hand.add(0, 0.04f * k, 0.08f * k);
+            blade.add(0, 0, 0.25f * k);
+        }
+        return new FirstPersonPose(hand, blade, pose.edge);
     }
 
     /** The weapon rises and sinks a little with the breath. */
@@ -123,45 +192,68 @@ final class FirstPersonPoses {
      * From the guard to the end of the wind-up along a curve: the hand rises on the way and the blade turns back,
      * carrying a little past the end and settling there.
      */
-    private static FirstPersonPose windup(AttackType attack, Grip grip, boolean mirrored, float p) {
-        FirstPersonPose pose = FirstPersonPose.lerp(guard(grip), windupEnd(attack, grip, mirrored), PoseMath.backOut(p));
+    private static FirstPersonPose windup(AttackType attack, Grip grip, boolean mirrored, Combo combo, float p) {
+        FirstPersonPose pose = FirstPersonPose.lerp(guard(grip), windupEnd(attack, grip, mirrored, combo, 0), backOut(p));
         if (attack == AttackType.SLASH || attack == AttackType.OVERHEAD) {
             pose.hand.y += 0.06f * (float) Math.sin(Math.PI * smooth(p));
         }
         return pose;
     }
 
-    private static FirstPersonPose windupEnd(AttackType attack, Grip grip, boolean mirrored) {
+    /**
+     * The end of the wind-up; {@code charge} (0 to 1) draws it back further for heavy attacks, and finishers are drawn
+     * back a little further too.
+     */
+    private static FirstPersonPose windupEnd(AttackType attack, Grip grip, boolean mirrored, Combo combo, float charge) {
+        float deep = 1.4f * charge + (combo != Combo.NONE && combo != Combo.KICK_FOLLOW ? 0.4f : 0);
         return switch (attack) {
             // The blade is raised beside the head and cocked back, edge towards the side the swing goes to.
-            case SLASH -> mirrored
-                    ? facing(-0.48f, 0.0f, -0.8f, -0.35f, 0.9f, 0.25f, new Vector3f(0.4f, 0, 1), new Vector3f(1, 0, 0))
-                    : facing(0.6f, 0.02f, -0.8f, 0.3f, 0.9f, 0.25f, new Vector3f(-0.4f, 0, 1), new Vector3f(-1, 0, 0));
-            case OVERHEAD -> facing(0.3f, 0.2f, -0.85f, 0.12f, 0.85f, 0.5f, new Vector3f(1, 0, 0), new Vector3f(0, 0.8f, -0.6f));
-            case STAB -> aimed(0.42f, -0.42f, -0.62f, 0);
+            case SLASH -> {
+                if (combo == Combo.HAMSTRING) {
+                    // Low at the right, point down and back, ready to cut at the legs.
+                    yield facing(0.6f, -0.42f, -0.74f, 0.4f, -0.55f, 0.45f, new Vector3f(-0.3f, 0.2f, 1), new Vector3f(-1, 0, 0));
+                }
+                yield mirrored
+                        ? facing(-0.48f - 0.08f * deep, 0.03f * deep, -0.8f + 0.06f * deep, -0.35f - 0.1f * deep, 0.9f, 0.25f + 0.25f * deep,
+                        new Vector3f(0.4f, 0, 1), new Vector3f(1, 0, 0))
+                        : facing(0.6f + 0.08f * deep, 0.02f + 0.03f * deep, -0.8f + 0.06f * deep, 0.3f + 0.1f * deep, 0.9f, 0.25f + 0.25f * deep,
+                        new Vector3f(-0.4f, 0, 1), new Vector3f(-1, 0, 0));
+            }
+            case OVERHEAD -> facing(0.3f, 0.2f + 0.07f * deep, -0.85f + 0.05f * deep, 0.12f, 0.85f - 0.15f * deep, 0.5f + 0.35f * deep,
+                    new Vector3f(1, 0, 0), new Vector3f(0, 0.8f, -0.6f));
+            case STAB -> aimed(0.42f + 0.04f * deep, -0.42f - 0.03f * deep, -0.62f + 0.14f * deep, 0);
             case KICK -> guard(grip);
         };
     }
 
     /** The pose {@code p} of the way through the release of an attack. */
     static FirstPersonPose release(AttackType attack, Grip grip, boolean mirrored, float p) {
+        return release(attack, grip, mirrored, Combo.NONE, p);
+    }
+
+    /** The pose {@code p} of the way through the release of an attack that may be a finisher. */
+    static FirstPersonPose release(AttackType attack, Grip grip, boolean mirrored, Combo combo, float p) {
         float t = smooth(p);
         return switch (attack) {
-            case SLASH -> slash(grip, mirrored, t);
+            case SLASH -> slash(grip, mirrored, combo, t);
             case OVERHEAD -> {
                 // The chop comes down slightly diagonally, from the upper right to the middle, so the blade stays in view.
-                float theta = lerp(10, 148, t) * DEG;
+                // Hammerfalls and mills come from higher and go lower.
+                boolean big = combo == Combo.HAMMERFALL || combo == Combo.MILL;
+                float theta = lerp(big ? 0 : 10, big ? 160 : 148, t) * DEG;
                 float sin = (float) Math.sin(theta);
                 float cos = (float) Math.cos(theta);
-                Vector3f hand = new Vector3f(lerp(0.3f, 0.1f, t), lerp(0.26f, -0.32f, t), lerp(-0.8f, -0.9f, t) - 0.1f * (float) Math.sin(Math.PI * t));
+                Vector3f hand = new Vector3f(lerp(0.3f, 0.1f, t), lerp(big ? 0.34f : 0.26f, big ? -0.38f : -0.32f, t),
+                        lerp(-0.8f, -0.9f, t) - 0.1f * (float) Math.sin(Math.PI * t));
                 Vector3f blade = new Vector3f(-0.45f * sin, cos, -0.85f * sin);
                 Vector3f motion = new Vector3f(-0.45f * cos, -sin, -0.85f * cos);
                 yield facing(hand, blade, new Vector3f(0.4f, 0.2f, 1), motion);
             }
             case STAB -> {
-                // Out fast, held for a moment at full reach.
+                // Out fast, held for a moment at full reach; a sting lunges further.
                 float out = PoseMath.easeOut(Math.min(1, p * 1.3f));
-                yield aimed(lerp(0.42f, 0.2f, out), lerp(-0.42f, -0.26f, out), lerp(-0.62f, -1.05f, out), 0);
+                float reach = combo == Combo.STING ? -1.25f : -1.05f;
+                yield aimed(lerp(0.42f, combo == Combo.STING ? 0.14f : 0.2f, out), lerp(-0.42f, -0.26f, out), lerp(-0.62f, reach, out), 0);
             }
             case KICK -> guard(grip);
         };
@@ -172,16 +264,19 @@ final class FirstPersonPoses {
      * towards the side the swing goes to, turning further to that side as the swing ends. The swing falls a little
      * from the shoulder to the other hip, so it is not seen edge-on from the eyes.
      */
-    private static FirstPersonPose slash(Grip grip, boolean mirrored, float t) {
+    private static FirstPersonPose slash(Grip grip, boolean mirrored, Combo combo, float t) {
         float side = mirrored ? -1 : 1;
-        float reach = grip == Grip.ONE_HANDED ? 0.62f : 0.5f;
+        // A whirlwind sweeps wider; a hamstring goes low, the blade pointing down at the legs.
+        boolean wide = combo == Combo.WHIRLWIND;
+        boolean low = combo == Combo.HAMSTRING;
+        float reach = (grip == Grip.ONE_HANDED ? 0.62f : 0.5f) + (wide ? 0.2f : 0);
         float bow = (float) Math.sin(t * Math.PI);
-        Vector3f hand = new Vector3f(side * lerp(reach, -reach, t), lerp(0.02f, -0.32f, t) + 0.04f * bow,
+        Vector3f hand = new Vector3f(side * lerp(reach, -reach, t), lerp(0.02f, -0.32f, t) + 0.04f * bow - (low ? 0.2f : 0),
                 lerp(-0.78f, -0.86f, t) - 0.16f * bow);
-        float psi = lerp(-25, -120, t) * DEG;
+        float psi = lerp(wide ? -15 : -25, wide ? -140 : -120, t) * DEG;
         float sin = (float) Math.sin(psi);
         float cos = (float) Math.cos(psi);
-        Vector3f blade = new Vector3f(side * sin, lerp(0.32f, -0.28f, t), -cos);
+        Vector3f blade = new Vector3f(side * sin, low ? lerp(-0.35f, -0.7f, t) : lerp(0.32f, -0.28f, t), -cos);
         Vector3f motion = new Vector3f(-side * cos, 0, -sin);
         return facing(hand, blade, new Vector3f(0, 1, 0.9f), motion);
     }

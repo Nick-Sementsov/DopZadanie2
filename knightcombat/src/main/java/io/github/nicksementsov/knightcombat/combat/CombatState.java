@@ -19,10 +19,25 @@ public final class CombatState {
     public static final int FEINT = 32;
     /** Short stagger after being hit during a wind-up: blocking is allowed. */
     public static final int FLINCHED = 64;
+    /** The attack key was held through the wind-up: the wind-up goes on (the charge) and the attack is heavy. */
+    public static final int HEAVY = 128;
+    /** The attack was started while sprinting. */
+    public static final int SPRINT = 256;
+    /** Directions of a dodge; a dodge with none of them goes back. */
+    public static final int DODGE_LEFT = 512;
+    public static final int DODGE_RIGHT = 1024;
+    public static final int DODGE_FORWARD = 2048;
+    /** Recovery after throwing the weapon. */
+    public static final int THROWN = 4096;
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
     int flags;
+    /** The finisher the current attack is, or {@link Combo#NONE}. */
+    Combo combo = Combo.NONE;
+    /** The attacks chained so far, oldest first; only the last few are kept. */
+    final AttackType[] chain = new AttackType[3];
+    int chainLength;
     int phaseTicks;
     int phaseLength;
     /** Attack pressed during a release or late recovery, started as soon as possible. */
@@ -32,12 +47,16 @@ public final class CombatState {
     Item weaponItem;
 
     boolean blockHeld;
+    /** The key of the last attack is still held. */
+    boolean attackHeld;
     long blockPressedAt = Long.MIN_VALUE / 2;
     long parryUntil = Long.MIN_VALUE / 2;
     long riposteUntil = Long.MIN_VALUE / 2;
     long blockReadyAt = Long.MIN_VALUE / 2;
     long cryReadyAt = Long.MIN_VALUE / 2;
     long yellReadyAt = Long.MIN_VALUE / 2;
+    long dodgeReadyAt = Long.MIN_VALUE / 2;
+    long kickFollowUntil = Long.MIN_VALUE / 2;
     long lastStaminaUse = Long.MIN_VALUE / 2;
     /** Whether the current block caught anything; an empty block is followed by a short pause. */
     boolean blockLanded;
@@ -51,6 +70,9 @@ public final class CombatState {
     boolean syncState;
     int sentStamina = Integer.MIN_VALUE;
     boolean slowed;
+    /** The item in the main hand last tick, to hear a weapon being drawn; {@code null} before the first tick. */
+    Item lastHeld;
+    boolean heldKnown;
 
     public Phase phase() {
         return phase;
@@ -72,6 +94,10 @@ public final class CombatState {
         return phaseLength;
     }
 
+    public Combo combo() {
+        return combo;
+    }
+
     public float stamina() {
         return Math.max(stamina, 0);
     }
@@ -90,6 +116,23 @@ public final class CombatState {
         phaseTicks = 0;
         phaseLength = length;
         syncState = true;
+    }
+
+    /** Adds an attack to the chain, starting a new chain unless it continues the last one. */
+    void chain(AttackType type, boolean continues) {
+        if (!continues || combo != Combo.NONE) {
+            chainLength = 0;
+        }
+        if (chainLength == chain.length) {
+            System.arraycopy(chain, 1, chain, 0, chain.length - 1);
+            chainLength--;
+        }
+        chain[chainLength++] = type;
+    }
+
+    void breakChain() {
+        chainLength = 0;
+        combo = Combo.NONE;
     }
 
     void spend(float amount, long now) {

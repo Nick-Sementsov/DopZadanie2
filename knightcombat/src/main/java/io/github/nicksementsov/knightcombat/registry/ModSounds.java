@@ -23,6 +23,15 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> BATTLE_CRY = register("combat.battle_cry");
     public static final RegistryObject<SoundEvent> ATTACK_YELL = register("combat.attack_yell");
     public static final RegistryObject<SoundEvent> PAIN = register("combat.pain");
+    public static final RegistryObject<SoundEvent> HIT_ARMOR = register("weapon.hit_armor");
+    public static final RegistryObject<SoundEvent> DRAW = register("weapon.draw");
+    public static final RegistryObject<SoundEvent> THROW = register("weapon.throw");
+    public static final RegistryObject<SoundEvent> SPIN = register("weapon.spin");
+    public static final RegistryObject<SoundEvent> STICK = register("weapon.stick");
+    public static final RegistryObject<SoundEvent> CLATTER = register("weapon.clatter");
+    public static final RegistryObject<SoundEvent> DODGE = register("combat.dodge");
+    public static final RegistryObject<SoundEvent> EFFORT = register("combat.effort");
+    public static final RegistryObject<SoundEvent> BODY_FALL = register("combat.body_fall");
 
     private ModSounds() {
     }

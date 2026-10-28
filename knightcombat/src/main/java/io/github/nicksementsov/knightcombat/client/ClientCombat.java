@@ -3,6 +3,7 @@ package io.github.nicksementsov.knightcombat.client;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
@@ -55,7 +56,17 @@ public final class ClientCombat {
     private static long hitAt = Long.MIN_VALUE / 2;
 
     /** The attack key was pressed for a combat attack and is still held: it must not start breaking blocks. */
-    private static boolean attackHeld;
+    private static boolean slashHeld;
+    /** The key of the last attack, while it is held (a held attack becomes a heavy attack). */
+    private static KeyMapping holdKey;
+    private static long dodgeReadyAt = Long.MIN_VALUE / 2;
+    // Double taps of left, right and back for dodging: whether each key was down last tick and when it was last pressed.
+    private static final boolean[] TAP_DOWN = new boolean[3];
+    private static final long[] TAP_AT = {Long.MIN_VALUE / 2, Long.MIN_VALUE / 2, Long.MIN_VALUE / 2};
+    /** Ticks between the two presses of a double tap. */
+    private static final int DOUBLE_TAP = 6;
+    private static Combo comboShown = Combo.NONE;
+    private static long comboAt = Long.MIN_VALUE / 2;
     private static boolean useWasDown;
     private static boolean blocking;
     private static long lastScrollAt = Long.MIN_VALUE / 2;
@@ -105,14 +116,36 @@ public final class ClientCombat {
         return hitAt;
     }
 
+    /** Whether the key of the local player's last attack is still held. */
+    public static boolean attackHeld() {
+        return holdKey != null;
+    }
+
+    /** The finisher the local player last started, for the HUD. */
+    public static Combo comboShown() {
+        return comboShown;
+    }
+
+    public static long comboAt() {
+        return comboAt;
+    }
+
     // ---------------------------------------------------------------- packets
 
     public static void onState(CombatStatePacket packet) {
-        if (Minecraft.getInstance().level == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
             return;
         }
-        animOf(packet.entityId()).apply(Phase.byId(packet.phase()), AttackType.byId(packet.attack()),
-                packet.flags(), packet.length(), ticks - packet.elapsed());
+        FighterAnim anim = animOf(packet.entityId());
+        Phase phase = Phase.byId(packet.phase());
+        Combo combo = Combo.byId(packet.combo());
+        if (mc.player != null && packet.entityId() == mc.player.getId() && phase == Phase.WINDUP && combo != Combo.NONE
+                && combo != Combo.KICK_FOLLOW && (anim.phase != Phase.WINDUP || anim.combo != combo)) {
+            comboShown = combo;
+            comboAt = ticks;
+        }
+        anim.apply(phase, AttackType.byId(packet.attack()), packet.flags(), combo, packet.length(), ticks - packet.elapsed());
     }
 
     public static void onStamina(StaminaPacket packet) {
@@ -146,16 +179,17 @@ public final class ClientCombat {
         }
         if (event.phase == TickEvent.Phase.END) {
             for (Player other : mc.level.players()) {
-                FighterAnim anim = ANIMS.get(other.getId());
+                FighterAnim anim = Weapons.isWeapon(other.getMainHandItem()) ? animOf(other.getId()) : ANIMS.get(other.getId());
                 if (anim != null) {
-                    anim.advance(other);
+                    anim.watchHeld(other);
+                    anim.advance(other, other == player);
                 }
             }
             // The own swing that just began its release (or a kick going out) carries the player forward.
             FighterAnim own = ANIMS.get(player.getId());
             Phase phase = own != null ? own.phase : Phase.IDLE;
             if ((phase == Phase.RELEASE || phase == Phase.KICK) && phase != lastOwnPhase) {
-                CombatFx.onOwnRelease(player, own.attack, Weapons.of(player.getMainHandItem()));
+                CombatFx.onOwnRelease(player, own, Weapons.of(player.getMainHandItem()));
             }
             lastOwnPhase = phase;
             return;
@@ -184,11 +218,16 @@ public final class ClientCombat {
         }
         useWasDown = useDown;
 
+        // The key of an attack let go: if it is let go before the wind-up ends, the attack is not heavy.
+        if (holdKey != null && (!holdKey.isDown() || !canFight)) {
+            holdKey = null;
+            send(CombatAction.ATTACK_RELEASE);
+        }
         if (consume(KeyBindings.OVERHEAD) && canFight) {
-            attack(player, weapon, AttackType.OVERHEAD);
+            attack(player, weapon, AttackType.OVERHEAD, KeyBindings.OVERHEAD);
         }
         if (consume(KeyBindings.STAB) && canFight) {
-            attack(player, weapon, AttackType.STAB);
+            attack(player, weapon, AttackType.STAB, KeyBindings.STAB);
         }
         if (consume(KeyBindings.FEINT) && canFight) {
             send(CombatAction.FEINT);
@@ -200,15 +239,89 @@ public final class ClientCombat {
         if (consume(KeyBindings.KICK) && canFight) {
             send(CombatAction.KICK);
             FighterAnim anim = animOf(player.getId());
-            if ((anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK) && stamina >= CombatRules.KICK_COST) {
-                anim.apply(Phase.KICK, AttackType.KICK, 0, CombatRules.KICK_WINDUP, ticks);
+            // A wind-up can be cancelled into a kick for the price of a feint.
+            boolean cancel = anim.phase == Phase.WINDUP;
+            float cost = CombatRules.KICK_COST + (cancel ? CombatRules.FEINT_COST : 0);
+            if ((anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK || cancel) && stamina >= cost) {
+                anim.apply(Phase.KICK, AttackType.KICK, 0, Combo.NONE, CombatRules.KICK_WINDUP, ticks);
             }
         }
         if (consume(KeyBindings.BATTLE_CRY) && canFight) {
             send(CombatAction.BATTLE_CRY);
         }
+        if (consume(KeyBindings.THROW) && canFight) {
+            throwWeapon(player, weapon);
+        }
+        if (consume(KeyBindings.DODGE) && canFight) {
+            dodge(player, inputDirection(player));
+        }
+        doubleTaps(mc, player, canFight);
         if (!mc.options.keyAttack.isDown()) {
-            attackHeld = false;
+            slashHeld = false;
+        }
+    }
+
+    /** The direction the player is moving: -1 left, 1 right, 2 forward, 0 back (also when standing still). */
+    private static int inputDirection(LocalPlayer player) {
+        float left = player.input.leftImpulse;
+        float forward = player.input.forwardImpulse;
+        if (Math.abs(left) > 0.1f && Math.abs(left) >= Math.abs(forward)) {
+            return left > 0 ? -1 : 1;
+        }
+        return forward > 0.1f ? 2 : 0;
+    }
+
+    /** Left, right or back pressed twice quickly dodges that way. */
+    private static void doubleTaps(Minecraft mc, LocalPlayer player, boolean canFight) {
+        KeyMapping[] keys = {mc.options.keyLeft, mc.options.keyRight, mc.options.keyDown};
+        int[] directions = {-1, 1, 0};
+        for (int i = 0; i < keys.length; i++) {
+            boolean down = keys[i].isDown();
+            if (down && !TAP_DOWN[i]) {
+                if (canFight && CombatConfig.DOUBLE_TAP_DODGE.get() && ticks - TAP_AT[i] <= DOUBLE_TAP) {
+                    dodge(player, directions[i]);
+                    TAP_AT[i] = Long.MIN_VALUE / 2;
+                } else {
+                    TAP_AT[i] = ticks;
+                }
+            }
+            TAP_DOWN[i] = down;
+        }
+    }
+
+    /** A quick step in {@code direction} (-1 left, 1 right, 2 forward, 0 back); a wind-up is cancelled for the price of a feint. */
+    private static void dodge(LocalPlayer player, int direction) {
+        FighterAnim anim = animOf(player.getId());
+        boolean cancel = anim.phase == Phase.WINDUP;
+        boolean free = anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK || cancel || anim.phase == Phase.RECOVERY
+                && (anim.has(CombatState.REBOUND) || anim.has(CombatState.FEINT) || anim.progress(0) >= 0.5f);
+        float cost = CombatRules.DODGE_COST + (cancel ? CombatRules.FEINT_COST : 0);
+        if (!CombatConfig.dodges() || !free || stamina < cost || ticks < dodgeReadyAt || !player.onGround() || player.isInWater()
+                || player.isPassenger()) {
+            return;
+        }
+        send(CombatAction.dodge(direction));
+        dodgeReadyAt = ticks + CombatRules.DODGE_LENGTH + CombatRules.DODGE_COOLDOWN;
+        int flags = switch (direction) {
+            case -1 -> CombatState.DODGE_LEFT;
+            case 1 -> CombatState.DODGE_RIGHT;
+            case 2 -> CombatState.DODGE_FORWARD;
+            default -> 0;
+        };
+        anim.apply(Phase.DODGE, anim.attack, flags, Combo.NONE, CombatRules.DODGE_LENGTH, ticks);
+        CombatFx.onOwnDodge(player, direction);
+    }
+
+    /** Draws the weapon back to throw it; a wind-up is cancelled into the throw for the price of a feint. */
+    private static void throwWeapon(LocalPlayer player, WeaponStats weapon) {
+        send(CombatAction.THROW);
+        FighterAnim anim = animOf(player.getId());
+        boolean cancel = anim.phase == Phase.WINDUP;
+        boolean free = anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK || cancel || anim.phase == Phase.RECOVERY
+                && (anim.has(CombatState.REBOUND) || anim.has(CombatState.FEINT) || anim.progress(0) >= 0.5f);
+        float cost = CombatRules.THROW_COST + (cancel ? CombatRules.FEINT_COST : 0);
+        if (CombatConfig.weaponThrowing() && free && stamina >= cost) {
+            anim.apply(Phase.THROW, anim.attack, 0, Combo.NONE, CombatRules.throwWindup(weapon), ticks);
         }
     }
 
@@ -236,15 +349,15 @@ public final class ClientCombat {
             return;
         }
         if (event.isAttack()) {
-            if (!attackHeld) {
+            if (!slashHeld) {
                 boolean onBlock = mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK;
                 // Boats, minecarts, item frames and paintings are broken the usual way.
                 boolean onObject = mc.hitResult instanceof EntityHitResult hit && !(hit.getEntity() instanceof LivingEntity);
                 if (player.isShiftKeyDown() || onObject || onBlock && !enemyInReach(player, weapon)) {
                     return;
                 }
-                attackHeld = true;
-                attack(player, weapon, AttackType.SLASH);
+                slashHeld = true;
+                attack(player, weapon, AttackType.SLASH, mc.options.keyAttack);
             }
             event.setCanceled(true);
             event.setSwingHand(false);
@@ -274,22 +387,26 @@ public final class ClientCombat {
         }
         lastScrollAt = ticks;
         lastScrollAttack = type;
-        attack(player, weapon, type);
+        // A turn of the wheel cannot be held, so these attacks are never heavy.
+        attack(player, weapon, type, null);
     }
 
-    private static void attack(LocalPlayer player, WeaponStats weapon, AttackType type) {
+    /** An attack; {@code key} is the key that made it, which makes it heavy if it is held through the wind-up. */
+    private static void attack(LocalPlayer player, WeaponStats weapon, AttackType type, KeyMapping key) {
         send(CombatAction.of(type));
+        holdKey = key;
+        if (key == null) {
+            send(CombatAction.ATTACK_RELEASE);
+        }
         // Start the wind-up right away instead of waiting for the server, which confirms or corrects it.
         FighterAnim anim = animOf(player.getId());
         boolean free = anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK
                 || anim.phase == Phase.RECOVERY && anim.has(CombatState.FEINT);
         if (free) {
             boolean riposte = riposteReady();
-            int length = weapon.attack(type).windup();
-            if (riposte) {
-                length = Math.max(3, Math.round(length * CombatRules.RIPOSTE_WINDUP));
-            }
-            anim.apply(Phase.WINDUP, type, riposte ? CombatState.RIPOSTE : 0, length, ticks);
+            boolean sprint = !riposte && player.isSprinting();
+            int length = CombatRules.windup(weapon, type, riposte, false, Combo.NONE, sprint);
+            anim.apply(Phase.WINDUP, type, (riposte ? CombatState.RIPOSTE : 0) | (sprint ? CombatState.SPRINT : 0), Combo.NONE, length, ticks);
             if (riposte) {
                 riposteUntil = Long.MIN_VALUE / 2;
             }
@@ -350,7 +467,9 @@ public final class ClientCombat {
         lastOwnPhase = Phase.IDLE;
         stamina = -1;
         blocking = false;
-        attackHeld = false;
+        slashHeld = false;
+        holdKey = null;
+        comboShown = Combo.NONE;
         lastFeedback = null;
     }
 }

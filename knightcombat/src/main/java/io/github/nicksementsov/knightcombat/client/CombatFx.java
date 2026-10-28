@@ -2,6 +2,7 @@ package io.github.nicksementsov.knightcombat.client;
 
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
+import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.network.Impact;
@@ -168,17 +169,20 @@ public final class CombatFx {
         }
     }
 
-    /** The local player's swing started its release (or a kick went out): it carries them a little forward. */
-    static void onOwnRelease(LocalPlayer me, AttackType attack, WeaponStats weapon) {
+    /**
+     * The local player's swing started its release (or a kick went out): it carries them a little forward, far
+     * for running attacks and lunging finishers. Heavy blows and finishers kick the view out harder.
+     */
+    static void onOwnRelease(LocalPlayer me, FighterAnim anim, WeaponStats weapon) {
+        AttackType attack = anim.attack();
         float weight = weapon != null ? weapon.weight() : 0.4f;
+        boolean heavy = anim.has(CombatState.HEAVY);
+        boolean finisher = anim.finisher();
         if (attack != AttackType.KICK) {
-            CameraEffects.fovKick(0.01f + 0.015f * weight);
-            if (weight >= 0.6f) {
-                CameraEffects.shake(0.06f);
+            CameraEffects.fovKick(0.01f + 0.015f * weight + (heavy ? 0.02f : 0) + (finisher ? 0.015f : 0));
+            if (weight >= 0.6f || heavy || finisher) {
+                CameraEffects.shake(heavy || finisher ? 0.12f : 0.06f);
             }
-        }
-        if (!CombatConfig.ATTACK_LUNGE.get() || !me.onGround() || me.isShiftKeyDown() || me.isInWater() || me.isPassenger()) {
-            return;
         }
         float speed = switch (attack) {
             case STAB -> 0.24f;
@@ -186,11 +190,52 @@ public final class CombatFx {
             case SLASH -> 0.1f;
             case KICK -> 0.1f;
         } * (0.85f + 0.3f * weight);
+        if (anim.has(CombatState.SPRINT)) {
+            speed *= 2.2f;
+        }
+        if (anim.combo() == Combo.STING || anim.combo() == Combo.HAMMERFALL || anim.combo() == Combo.WHIRLWIND) {
+            speed *= 1.7f;
+        }
+        if (CombatConfig.ATTACK_LUNGE.get() && me.onGround() && !me.isShiftKeyDown() && !me.isInWater() && !me.isPassenger()) {
+            push(me, speed);
+        }
+    }
+
+    /** The local player dodged: a quick hop that way, and the view leans into it. */
+    static void onOwnDodge(LocalPlayer me, int direction) {
+        float side = direction == -1 ? -1 : direction == 1 ? 1 : 0;
+        switch (direction) {
+            case -1, 1 -> {
+                pushSide(me, side * 0.62f);
+                CameraEffects.punch(0, 0, side * 4);
+            }
+            case 2 -> {
+                push(me, 0.6f);
+                CameraEffects.punch(0, 2, 0);
+            }
+            default -> {
+                push(me, -0.58f);
+                CameraEffects.punch(0, -2.5f, 0);
+            }
+        }
+        me.setDeltaMovement(me.getDeltaMovement().add(0, 0.2, 0));
+        CameraEffects.fovKick(0.02f);
+    }
+
+    /** Pushes the player along the horizontal direction of the view ({@code forward} may be negative). */
+    private static void push(LocalPlayer me, float forward) {
         Vec3 look = me.getLookAngle();
         double length = Math.sqrt(look.x * look.x + look.z * look.z);
         if (length > 1.0E-3) {
-            me.push(look.x / length * speed, 0, look.z / length * speed);
+            me.push(look.x / length * forward, 0, look.z / length * forward);
         }
+    }
+
+    /** Pushes the player square to the view: positive to the right. */
+    private static void pushSide(LocalPlayer me, float right) {
+        float yaw = me.getYRot() * Mth.DEG_TO_RAD;
+        // The right of an entity looking along (-sin yaw, cos yaw) is (-cos yaw, -sin yaw).
+        me.push(-Mth.cos(yaw) * right, 0, -Mth.sin(yaw) * right);
     }
 
     /** Which side of {@code entity} the blow came from: 1 the right, -1 the left, near 0 straight ahead or behind. */

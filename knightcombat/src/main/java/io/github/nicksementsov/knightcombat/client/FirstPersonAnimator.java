@@ -50,7 +50,6 @@ public final class FirstPersonAnimator {
     private static final Vector3f SHOULDER = new Vector3f(0.95f, -0.95f, 0.1f);
     /** The arms are drawn a little slimmer than the model's, so they frame the view without filling it. */
     private static final float ARM_WIDTH = 0.85f;
-    private static final int TRAIL_COLOR = 0xFFF4E0;
     private static final float TRAIL_OPACITY = 0.45f;
     /** How long a hit shakes the weapon, in ticks. */
     private static final float IMPACT_TICKS = 4;
@@ -119,7 +118,7 @@ public final class FirstPersonAnimator {
             Vector3f[] tips = new Vector3f[SwingTrail.STEPS + 1];
             boolean mirrored = anim.has(CombatState.MIRRORED);
             for (int k = 0; k <= SwingTrail.STEPS; k++) {
-                FirstPersonPose step = FirstPersonPoses.release(anim.attack, weapon.grip(), mirrored, SwingTrail.progress(range, k));
+                FirstPersonPose step = FirstPersonPoses.release(anim.attack, weapon.grip(), mirrored, anim.combo, SwingTrail.progress(range, k));
                 Vector3f stepHand = new Vector3f(step.hand);
                 Vector3f stepBlade = new Vector3f(step.blade);
                 Vector3f stepEdge = new Vector3f(step.edge);
@@ -129,7 +128,7 @@ public final class FirstPersonAnimator {
                 bases[k] = transform.transformPosition(axes.point(0.4f));
                 tips[k] = transform.transformPosition(axes.point(1));
             }
-            SwingTrail.draw(poseStack, buffers, bases, tips, TRAIL_COLOR, TRAIL_OPACITY * range[2]);
+            SwingTrail.draw(poseStack, buffers, bases, tips, SwingTrail.color(anim), Math.min(1, TRAIL_OPACITY * SwingTrail.strength(anim) * range[2]));
         }
     }
 
@@ -176,7 +175,10 @@ public final class FirstPersonAnimator {
             return;
         }
         if (anim.phase() == Phase.WINDUP && anim.attack() != AttackType.KICK) {
-            float tension = Mth.clamp((anim.progress(partialTick) - 0.7f) / 0.3f, 0, 1) * weight;
+            // The end of a heavy weapon's wind-up trembles a little; the charge of a heavy attack trembles harder as it grows.
+            float tension = anim.has(CombatState.HEAVY)
+                    ? (0.6f + 1.4f * anim.progress(partialTick)) * (0.5f + weight)
+                    : Mth.clamp((anim.progress(partialTick) - 0.7f) / 0.3f, 0, 1) * weight;
             float time = ClientCombat.ticks() + partialTick;
             hand.add(0.005f * tension * Mth.sin(time * 5.1f), 0.005f * tension * Mth.sin(time * 6.7f + 1), 0);
         }
