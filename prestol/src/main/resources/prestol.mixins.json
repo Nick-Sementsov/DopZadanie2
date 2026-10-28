@@ -18,7 +18,9 @@
     "MercenaryMixin",
     "RecipeFilterMixin",
     "hyw.RecruitmentMixin",
-    "hyw.SupplyMixin"
+    "hyw.SupplyMixin",
+    "hyw.ElephantPathMixin",
+    "hyw.ElephantTrampleMixin"
   ],
   "client": [
     "GuiMapMixin",
