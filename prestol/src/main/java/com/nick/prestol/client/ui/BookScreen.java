@@ -154,6 +154,12 @@ public class BookScreen extends Screen {
       return out;
    }
 
+   /** The banner of the player's realm as last sent by the server, for the flag editor. */
+   static List<MapSnapshot.Layer> realmBanner() {
+      CompoundTag r = state.getCompound("realm");
+      return r.isEmpty() ? List.of() : banner(r);
+   }
+
    private static List<MapSnapshot.Layer> banner(CompoundTag realm) {
       List<MapSnapshot.Layer> out = new ArrayList<>();
 
@@ -1233,6 +1239,10 @@ public class BookScreen extends Screen {
                g.renderOutline(cx - 1, cy - 1, 18, 12, current ? -7464176 : -10862298);
                String hex = Integer.toHexString(rgb);
                this.hits.add(new BookScreen.Hit(cx, cy, 16, 10, () -> order("color " + hex), null));
+            }
+
+            if (state.getBoolean("paintings")) {
+               this.button(g, Ink.tr("draw_flag"), 28, y + 28, 158, true, () -> FlagEditorScreen.open(this, banner(r)));
             }
          }
 

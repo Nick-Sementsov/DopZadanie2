@@ -5,7 +5,10 @@ import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.util.Msg;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
@@ -38,6 +41,46 @@ public final class FlagActions {
          Realms.tell(server, realm, Msg.good("flag.changed", realm.name()));
          Realms.chronicle(server, "flag", List.of(realm.name()), realm);
          return Realms.Result.yes(Msg.good("flag.changed", realm.name()));
+      }
+   }
+
+   public static final int DRAW_W = 48;
+   public static final int DRAW_H = 32;
+   private static final long UPLOAD_PAUSE_MS = 30000L;
+   private static final Map<UUID, Long> LAST_UPLOAD = new HashMap<>();
+
+   /** Raises a flag the ruler drew (or imported) in the flag editor over the whole realm. */
+   public static Realms.Result upload(MinecraftServer server, ServerPlayer player, int w, int h, byte[] rgb) {
+      RealmData data = RealmData.get(server);
+      Realm realm = data.byRuler(player.getUUID());
+      if (realm == null) {
+         return Realms.Result.no(Msg.bad("err.not_ruler"));
+      } else if (!Flags.paintings()) {
+         return Realms.Result.no(Msg.bad("flag.no_paintings"));
+      } else if (w != DRAW_W || h != DRAW_H || rgb == null || rgb.length != w * h * 3) {
+         return Realms.Result.no(Msg.bad("err.unknown"));
+      } else {
+         long now = System.currentTimeMillis();
+         Long last = LAST_UPLOAD.get(realm.id());
+         if (last != null && now - last < UPLOAD_PAUSE_MS) {
+            return Realms.Result.no(Msg.bad("flag.too_often", (UPLOAD_PAUSE_MS - (now - last)) / 1000L + 1L));
+         } else {
+            LAST_UPLOAD.put(realm.id(), now);
+            String old = realm.flag();
+            String id = RealmFlagImage.register(
+               server, realm.id().toString().substring(0, 8), realm.name(), player.getGameProfile().getName(), w, h, rgb
+            ).toString();
+            realm.setFlag(id);
+            data.setDirty();
+            if (!old.equals(id)) {
+               RealmFlagImage.forget(old);
+            }
+
+            Realms.changed(server);
+            Realms.tell(server, realm, Msg.good("flag.changed", realm.name()));
+            Realms.chronicle(server, "flag", List.of(realm.name()), realm);
+            return Realms.Result.yes(Msg.good("flag.drawn", realm.name()));
+         }
       }
    }
 

@@ -20,7 +20,9 @@
     "hyw.RecruitmentMixin",
     "hyw.SupplyMixin",
     "hyw.ElephantPathMixin",
-    "hyw.ElephantTrampleMixin"
+    "hyw.ElephantTrampleMixin",
+    "hyw.FlagSourcesMixin",
+    "hyw.ColonyFlagsMixin"
   ],
   "client": [
     "GuiMapMixin",

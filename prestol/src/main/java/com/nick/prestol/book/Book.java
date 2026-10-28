@@ -64,6 +64,21 @@ public final class Book {
       }
    }
 
+   public static void flagUpload(ServerPlayer player, int w, int h, byte[] rgb) {
+      MinecraftServer server = player.getServer();
+      if (server != null) {
+         Realms.Result result;
+         try {
+            result = FlagActions.upload(server, player, w, h, rgb);
+         } catch (LinkageError | RuntimeException var7) {
+            Prestol.LOGGER.error("Prestol: the flag of {} could not be raised", player.getGameProfile().getName(), var7);
+            result = Realms.Result.no(Msg.bad("err.internal"));
+         }
+
+         Net.sendBook(player, build(player, result), false);
+      }
+   }
+
    private static UUID uuid(String s) {
       try {
          return UUID.fromString(s);

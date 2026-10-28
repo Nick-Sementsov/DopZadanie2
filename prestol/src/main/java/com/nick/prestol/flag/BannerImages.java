@@ -122,6 +122,11 @@ public final class BannerImages {
       }
    }
 
+   /** Paints banner layers (without the base) into an RGB pixel array; also used by the flag editor. */
+   public static int[] render(DyeColor base, ListTag layers, int w, int h) {
+      return draw(base, layers, w, h);
+   }
+
    private static int[] draw(DyeColor base, ListTag layers, int w, int h) {
       float[][] rgb = new float[w * h][];
       float[] cloth = base.getTextureDiffuseColors();

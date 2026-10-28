@@ -20,7 +20,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Net {
    private static final String VERSION = "1";
-   public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation("prestol", "main"), () -> "1", "1"::equals, "1"::equals);
+   public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation("prestol", "main"), () -> "2", "2"::equals, "2"::equals);
 
    private Net() {
    }
@@ -32,6 +32,9 @@ public final class Net {
       CHANNEL.registerMessage(1, Net.Order.class, Net.Order::write, Net.Order::read, Net.Order::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
       CHANNEL.registerMessage(2, Net.MapData.class, Net.MapData::write, Net.MapData::read, Net.MapData::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
       CHANNEL.registerMessage(3, Net.Choice.class, Net.Choice::write, Net.Choice::read, Net.Choice::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+      CHANNEL.registerMessage(
+         4, Net.FlagUpload.class, Net.FlagUpload::write, Net.FlagUpload::read, Net.FlagUpload::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER)
+      );
    }
 
    public static boolean hasMod(ServerPlayer player) {
@@ -50,6 +53,10 @@ public final class Net {
       if (hasMod(player)) {
          CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new Net.Choice(key, name, seconds));
       }
+   }
+
+   public static void uploadFlag(int w, int h, byte[] rgb) {
+      CHANNEL.sendToServer(new Net.FlagUpload(w, h, rgb));
    }
 
    public static void order(String order) {
@@ -117,6 +124,31 @@ public final class Net {
 
       void handle(Supplier<Context> ctx) {
          ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> Net.ClientHandoff.map(this.bytes)));
+         ctx.get().setPacketHandled(true);
+      }
+   }
+
+   /** A flag drawn in the flag editor: w x h pixels, three bytes (r, g, b) each. */
+   public static record FlagUpload(int w, int h, byte[] rgb) {
+      void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.w);
+         buf.writeVarInt(this.h);
+         buf.writeByteArray(this.rgb);
+      }
+
+      static Net.FlagUpload read(FriendlyByteBuf buf) {
+         int w = buf.readVarInt();
+         int h = buf.readVarInt();
+         return new Net.FlagUpload(w, h, buf.readByteArray(64 * 64 * 3));
+      }
+
+      void handle(Supplier<Context> ctx) {
+         ServerPlayer player = ctx.get().getSender();
+         ctx.get().enqueueWork(() -> {
+            if (player != null) {
+               Book.flagUpload(player, this.w, this.h, this.rgb);
+            }
+         });
          ctx.get().setPacketHandled(true);
       }
    }
