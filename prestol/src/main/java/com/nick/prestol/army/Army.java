@@ -35,6 +35,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
@@ -140,6 +141,8 @@ public final class Army {
             Mercenaries.tick(server, data, now, GIVEN);
          }
 
+         Provisions.tick(server, data, 100, now);
+
          if (garrisons()) {
             if (now >= nextTraining) {
                if (nextTraining > 0L) {
@@ -158,6 +161,7 @@ public final class Army {
                   String settlement = Settlements.key(colony);
                   UUID owner = Settlements.owner(colony);
                   boolean freed = freeGuards(colony);
+                  Map<ResourceLocation, Double> bonus = null;
 
                   for (IBuilding b : colony.getServerBuildingManager().getBuildings().values()) {
                      if (isPost(b)) {
@@ -187,6 +191,18 @@ public final class Army {
 
                         strength.merge(settlement, p.units.size(), Integer::sum);
                         command(level, colony, b, p);
+                        if (!p.units.isEmpty()) {
+                           if (bonus == null) {
+                              bonus = DecreeBonus.of(server, colony);
+                           }
+
+                           for (UUID id : p.units) {
+                              Entity unit = level.getEntity(id);
+                              if (unit != null) {
+                                 DecreeBonus.apply(unit, bonus);
+                              }
+                           }
+                        }
                         if (owner != null && p.units.size() < slots && now >= p.nextAt && !Sieges.isBesieged(settlement) && level.isLoaded(b.getPosition())) {
                            recruit(level, colony, b, key, p, data, now);
                         }
@@ -349,9 +365,14 @@ public final class Army {
    private static void recruit(ServerLevel level, IColony colony, IBuilding b, String key, ArmyData.Post p, ArmyData data, long now) {
       List<Supplies.Need> needs = Supplies.needs(p.type);
       List<IItemHandler> stores = Supplies.stores(colony, b);
-      List<Supplies.Need> missing = Supplies.missing(stores, needs);
+      List<String> missing = new ArrayList<>(Supplies.missing(stores, needs).stream().map(n -> n.name()).toList());
+      ICitizenData recruit = Conscripts.on() ? Conscripts.pick(level.getServer(), colony) : null;
+      if (Conscripts.on() && recruit == null) {
+         missing.add(0, "CITIZEN");
+      }
+
       if (!missing.isEmpty()) {
-         String lack = String.join(",", missing.stream().map(n -> n.name()).toList());
+         String lack = String.join(",", missing);
          if (!lack.equals(p.lack)) {
             p.lack = lack;
             data.setDirty();
@@ -370,6 +391,14 @@ public final class Army {
             p.nextAt = now + 200L;
          } else {
             unit.getPersistentData().putString("prestol_army", "g|" + key);
+            Provisions.fill(unit);
+            if (recruit != null) {
+               String name = recruit.getName();
+               data.conscripts.put(unit.getUUID(), new ArmyData.Conscript(Settlements.key(colony), Conscripts.enlist(colony, recruit)));
+               unit.setCustomName(Conscripts.soldierName(name, p.type));
+               Realms.tellColony(level.getServer(), colony, Msg.info("army.conscripted", name, colony.getName()));
+            }
+
             p.units.add(unit.getUUID());
             p.lack = "";
             p.nextAt = now + (long)((Integer)PrestolConfig.ARMY_REFILL_SECONDS.get()).intValue() * 20L;
@@ -378,13 +407,45 @@ public final class Army {
       }
    }
 
+   /** A starving garrison soldier leaves his post; a recruit goes back to his colony. */
+   static void desert(MinecraftServer server, ArmyData data, Entity unit) {
+      String tag = unit.getPersistentData().getString("prestol_army");
+      if (tag.startsWith("g|")) {
+         ArmyData.Post p = data.peek(tag.substring(2));
+         if (p != null && p.units.remove(unit.getUUID())) {
+            p.nextAt = Math.max(p.nextAt, now(server) + (long)PrestolConfig.ARMY_REFILL_SECONDS.get() * 20L);
+         }
+      }
+
+      dismiss(server, data, unit.getUUID());
+      data.setDirty();
+   }
+
+   public static void inspect(MinecraftServer server) {
+      if (Hyw.present()) {
+         Provisions.inspect(server);
+      }
+   }
+
    static void dismiss(MinecraftServer server, ArmyData data, UUID id) {
+      ArmyData.Conscript conscript = data.conscripts.remove(id);
+
       for (ServerLevel l : server.getAllLevels()) {
          Entity e = l.getEntity(id);
          if (e != null) {
+            if (conscript != null) {
+               data.setDirty();
+               Conscripts.discharge(server, conscript, e.blockPosition());
+            }
+
             e.discard();
             return;
          }
+      }
+
+      if (conscript != null) {
+         IColony colony = Settlements.byKey(conscript.settlement());
+         Conscripts.discharge(server, conscript, colony == null ? BlockPos.ZERO : colony.getCenter());
       }
 
       data.dismissed.add(id);
@@ -480,6 +541,23 @@ public final class Army {
                      if (high >= 0) {
                         t.putInt("rankLow", low);
                         t.putInt("rankHigh", high);
+                     }
+
+                     if (Provisions.on()) {
+                        double food = 0.0;
+                        int fed = 0;
+
+                        for (UUID id : p == null ? Set.<UUID>of() : p.units) {
+                           Entity unit = level == null ? null : level.getEntity(id);
+                           if (unit != null) {
+                              food += Provisions.get(unit);
+                              fed++;
+                           }
+                        }
+
+                        t.putInt("food", fed == 0 ? 100 : (int)Math.round(food / fed));
+                        int daily = PrestolConfig.DAILY_RATION.get() * Math.max(1, p == null ? 0 : p.units.size());
+                        t.putInt("stockDays", Supplies.foodIn(Supplies.stores(colony, b)) / daily);
                      }
 
                      out.add(t);
@@ -679,6 +757,12 @@ public final class Army {
                p.nextAt = Math.max(p.nextAt, now(server) + (long)((Integer)PrestolConfig.ARMY_REFILL_SECONDS.get()).intValue() * 20L);
                data.setDirty();
             }
+
+            ArmyData.Conscript fallen = data.conscripts.remove(e.getUUID());
+            if (fallen != null) {
+               data.setDirty();
+               Conscripts.fallen(server, fallen);
+            }
          } else if (tag.startsWith("m|")) {
             ArmyData.Levy levy = data.militia.remove(e.getUUID());
             if (levy != null) {
@@ -705,6 +789,13 @@ public final class Army {
                ArmyData.Post p = data.peek(tag.substring(2));
                if (p != null && p.units.remove(e.getUUID())) {
                   data.setDirty();
+               }
+
+               // removed by something other than us (a command, another mod): the recruit still goes home
+               ArmyData.Conscript conscript = data.conscripts.remove(e.getUUID());
+               if (conscript != null) {
+                  data.setDirty();
+                  Conscripts.discharge(server, conscript, e.blockPosition());
                }
             } else if (data.militia.remove(e.getUUID()) != null | data.hired.remove(e.getUUID()) != null) {
                data.setDirty();

@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.book.PrestolCommand;
 import com.nick.prestol.client.PrestolClient;
+import com.nick.prestol.compat.HywRules;
 import com.nick.prestol.decree.Decrees;
 import com.nick.prestol.decree.EffectBoost;
 import com.nick.prestol.flag.BannerImages;
@@ -61,6 +62,11 @@ public class Prestol {
       MinecraftForge.EVENT_BUS.register(new MapSync.Events());
       MinecraftForge.EVENT_BUS.register(Conquest.class);
       MinecraftForge.EVENT_BUS.register(Army.class);
+      if (ModList.get().isLoaded("hundred_years_war")) {
+         MinecraftForge.EVENT_BUS.register(HywRules.class);
+         modBus.addListener(HywRules::onTabs);
+      }
+
       DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> PrestolClient.init(modBus));
    }
 
@@ -166,6 +172,10 @@ public class Prestol {
 
          if (server.getTickCount() % 100 == 12) {
             run("army", () -> Army.tick(server));
+         }
+
+         if (server.getTickCount() % 10 == 3) {
+            run("inspect", () -> Army.inspect(server));
          }
 
          if (server.getTickCount() % 200 == 100) {

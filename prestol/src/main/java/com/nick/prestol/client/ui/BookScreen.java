@@ -776,6 +776,10 @@ public class BookScreen extends Screen {
             int have = sel.getInt("have");
             int slots = sel.getInt("slots");
             ry = this.stat(g, Ink.tr("army_garrison"), have, slots, ry);
+            if (sel.contains("food")) {
+               ry = this.stat(g, Ink.tr("army_food", sel.getInt("stockDays")), sel.getInt("food"), 100, ry);
+            }
+
             List<Component> lack = new ArrayList<>();
 
             for (Tag t : sel.getList("lack", 8)) {
@@ -839,7 +843,7 @@ public class BookScreen extends Screen {
 
             for (String kind : KINDS) {
                boolean on = kind.equals(current);
-               this.row(g, 214, ry, 158, 19, on, () -> {
+               this.row(g, 214, ry, 158, 17, on, () -> {
                   if (!on) {
                      order("army " + postKey + " " + kind);
                   }
@@ -857,10 +861,10 @@ public class BookScreen extends Screen {
                   Ink.clip(Component.translatable("prestol.army.cost." + kind, new Object[]{state.getInt("armyArrows")}), Ink.F_SMALL, 146),
                   Ink.F_SMALL,
                   224,
-                  ry + 10,
+                  ry + 9,
                   -9544893
                );
-               ry += 19;
+               ry += 17;
             }
          }
       }

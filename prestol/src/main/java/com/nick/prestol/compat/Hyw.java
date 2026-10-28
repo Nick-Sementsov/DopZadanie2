@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraftforge.fml.ModList;
@@ -105,6 +106,51 @@ public final class Hyw {
             HywBridge.rankUp(unit);
          } catch (Throwable var2) {
             Prestol.LOGGER.warn("Prestol: could not train a Hundred Years War soldier", var2);
+         }
+      }
+   }
+
+   public static boolean eater(Entity entity) {
+      if (!present() || broken) {
+         return false;
+      } else {
+         try {
+            return HywBridge.eater(entity);
+         } catch (LinkageError | RuntimeException var2) {
+            return false;
+         }
+      }
+   }
+
+   public static Attribute rangedDamage() {
+      if (!present() || broken) {
+         return null;
+      } else {
+         try {
+            return HywBridge.rangedDamage();
+         } catch (LinkageError | RuntimeException var1) {
+            return null;
+         }
+      }
+   }
+
+   public static void noSupply(Entity entity) {
+      if (present() && !broken) {
+         try {
+            HywBridge.noSupply(entity);
+         } catch (LinkageError | RuntimeException var2) {
+         }
+      }
+   }
+
+   public static double fromSupplyPoints(ServerLevel level, BlockPos pos, UUID owner, double points, int days) {
+      if (!present() || broken) {
+         return 0.0;
+      } else {
+         try {
+            return HywBridge.fromSupplyPoints(level, pos, owner, points, days);
+         } catch (LinkageError | RuntimeException var7) {
+            return 0.0;
          }
       }
    }

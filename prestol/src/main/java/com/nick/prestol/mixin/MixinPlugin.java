@@ -16,7 +16,9 @@ public class MixinPlugin implements IMixinConfigPlugin {
    }
 
    public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-      if (mixinClassName.endsWith("GuiMapMixin")) {
+      if (mixinClassName.contains(".mixin.hyw.")) {
+         return present("hundred_years_war");
+      } else if (mixinClassName.endsWith("GuiMapMixin")) {
          return present("xaeroworldmap");
       } else {
          return !mixinClassName.endsWith("MapWaypointsMixin") ? true : present("xaeroworldmap") && present("xaerominimap");

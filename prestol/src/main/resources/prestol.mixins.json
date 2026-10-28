@@ -15,7 +15,10 @@
     "GuardHireMixin",
     "SecurityMixin",
     "ManyColoniesMixin",
-    "MercenaryMixin"
+    "MercenaryMixin",
+    "RecipeFilterMixin",
+    "hyw.RecruitmentMixin",
+    "hyw.SupplyMixin"
   ],
   "client": [
     "GuiMapMixin",

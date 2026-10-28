@@ -121,6 +121,45 @@ public final class Supplies {
       return takes;
    }
 
+   /** Eats up to {@code nutrition} food points out of the stores, in store order; returns what was eaten. */
+   public static int takeFood(List<IItemHandler> stores, int nutrition) {
+      int eaten = 0;
+
+      for (IItemHandler h : stores) {
+         for (int slot = 0; slot < h.getSlots() && eaten < nutrition; slot++) {
+            ItemStack s = h.getStackInSlot(slot);
+            int per = s.isEmpty() ? 0 : worth(s);
+            if (per > 0) {
+               int n = Math.min(s.getCount(), Math.max(1, (nutrition - eaten + per - 1) / per));
+               ItemStack got = h.extractItem(slot, n, false);
+               eaten += got.getCount() * per;
+            }
+         }
+
+         if (eaten >= nutrition) {
+            break;
+         }
+      }
+
+      return eaten;
+   }
+
+   /** Food points lying in the stores. */
+   public static int foodIn(List<IItemHandler> stores) {
+      int n = 0;
+
+      for (IItemHandler h : stores) {
+         for (int slot = 0; slot < h.getSlots(); slot++) {
+            ItemStack s = h.getStackInSlot(slot);
+            if (!s.isEmpty()) {
+               n += worth(s) * s.getCount();
+            }
+         }
+      }
+
+      return n;
+   }
+
    public static List<Supplies.Need> missing(List<IItemHandler> stores, List<Supplies.Need> needs) {
       List<Supplies.Need> missing = new ArrayList<>();
       plan(stores, needs, missing);

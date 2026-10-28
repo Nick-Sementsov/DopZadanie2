@@ -26,8 +26,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import ydmsama.hundred_years_war.main.entity.entities.BaseCombatEntity;
+import ydmsama.hundred_years_war.main.registry.HywAttributes;
+import ydmsama.hundred_years_war.main.entity.entities.puppets.IPuppet;
 import ydmsama.hundred_years_war.main.entity.entities.tags.NonCombatUnit;
+import ydmsama.hundred_years_war.main.entity.entities.tags.SiegeUnit;
+import ydmsama.hundred_years_war.main.supply.SupplyManager;
+import ydmsama.hundred_years_war.main.supply.SupplyPointBlockEntity;
 import ydmsama.hundred_years_war.main.utils.RelationSystem;
 import ydmsama.hundred_years_war.main.utils.TeamRelationData;
 import ydmsama.hundred_years_war.main.utils.RelationSystem.RelationType;
@@ -238,6 +244,57 @@ final class HywBridge {
             unit.getPatrolPoints().addAll(patrol);
          }
       }
+   }
+
+   /** Soldiers that eat: owned, fighting, alive units; not workers, siege engines or puppets. */
+   static boolean eater(Entity e) {
+      return e instanceof BaseCombatEntity u
+         && !(e instanceof NonCombatUnit)
+         && !(e instanceof SiegeUnit)
+         && !(e instanceof IPuppet)
+         && u.isAlive()
+         && u.getOwnerUUID() != null;
+   }
+
+   /** Switches a unit from Hundred Years War supply to Prestol provisions. */
+   static void noSupply(Entity e) {
+      if (e instanceof BaseCombatEntity u && u.requiresSupply()) {
+         u.setRequiresSupply(false);
+      }
+   }
+
+   /**
+    * Draws up to {@code points} of provisions from the owner's supply points in range.
+    * A unit of HYW supply feeds a soldier for a quarter of a day; a full provisions bar (100) lasts {@code days} days.
+    */
+   static double fromSupplyPoints(ServerLevel level, BlockPos pos, UUID owner, double points, int days) {
+      double perPoint = 4.0 * days / 100.0;
+      double got = 0.0;
+
+      for (SupplyManager.SupplySource source : SupplyManager.getSupplySources().values()) {
+         if (got >= points) {
+            break;
+         }
+
+         if (source.getType() == SupplyManager.SupplySourceType.SUPPLY_POINT
+            && source.getBlockPos() != null
+            && level.dimension().equals(source.getDimension())
+            && (source.getOwnerId() == null || source.getOwnerId().equals(owner))) {
+            int range = level.getBlockEntity(source.getBlockPos()) instanceof SupplyPointBlockEntity sp ? sp.getSupplyRange() : 16;
+            if (source.getBlockPos().distSqr(pos) <= (double)range * range) {
+               double want = Math.min(points - got, source.getSupplyValue() / perPoint);
+               if (want > 0.0 && source.consumeSupply(want * perPoint)) {
+                  got += want;
+               }
+            }
+         }
+      }
+
+      return got;
+   }
+
+   static Attribute rangedDamage() {
+      return HywAttributes.RANGED_ATTACK_DAMAGE.get();
    }
 
    static boolean fighter(Entity e) {

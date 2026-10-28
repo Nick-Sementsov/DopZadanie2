@@ -81,6 +81,13 @@ public final class PrestolConfig {
    public static final IntValue MILITIA_MAX_VILLAGE;
    public static final IntValue MILITIA_MAX_TOWN;
    public static final IntValue MILITIA_CAPITAL_PERCENT;
+   public static final BooleanValue CONSCRIPTION;
+   public static final BooleanValue CONSCRIPT_EMPLOYED;
+   public static final BooleanValue PROVISIONS;
+   public static final IntValue PROVISION_DAYS;
+   public static final IntValue DAILY_RATION;
+   public static final IntValue DESERT_DAYS;
+   public static final BooleanValue NO_HYW_WORKERS;
 
    private PrestolConfig() {
    }
@@ -295,6 +302,32 @@ public final class PrestolConfig {
             }
          )
          .defineInRange("trainingMinutes", 10, 1, 10000);
+      CONSCRIPTION = b.comment(
+            new String[]{
+               "Солдат гарнизона — житель поселения: он уходит из колонии в башню, а при роспуске возвращается со своим именем и навыками.",
+               "A garrison soldier is one of the settlement's citizens: he leaves the colony for the tower and comes back when discharged."
+            }
+         )
+         .define("conscription", true);
+      CONSCRIPT_EMPLOYED = b.comment("Если безработных нет, призывать и работающих жителей. / Draft working citizens when nobody is idle.")
+         .define("conscriptEmployed", false);
+      PROVISIONS = b.comment(
+            new String[]{
+               "Провиант: солдаты игроков едят обычную еду из колонии (склад, ратуша, своя башня), с пунктов снабжения HYW или из сумки командира.",
+               "Снабжение «Столетней войны» при этом выключается. / Soldiers eat colony food instead of Hundred Years War supply."
+            }
+         )
+         .define("provisions", true);
+      PROVISION_DAYS = b.comment("На сколько игровых дней хватает полного запаса провианта. / Game days a full provisions bar lasts.")
+         .defineInRange("provisionDays", 2, 1, 30);
+      DAILY_RATION = b.comment("Сытость еды, которую солдат съедает за игровой день (хлеб = 5). / Food points a soldier eats per game day.")
+         .defineInRange("dailyRation", 6, 1, 100);
+      DESERT_DAYS = b.comment("Через сколько игровых дней без еды солдат дезертирует (0 — никогда). / Starving days before a soldier deserts (0 = never).")
+         .defineInRange("desertAfterDays", 2, 0, 100);
+      NO_HYW_WORKERS = b.comment(
+            "Вырезать рабочих «Столетней войны»: их нельзя нанять, их свитки и верстаки не работают. / Remove Hundred Years War workers."
+         )
+         .define("removeHywWorkers", true);
       b.pop();
       b.push("workers");
       AI_FIXES = b.comment("Поправки ИИ жителей: инструмент в руках, лесоруб без лишней ходьбы, еда без таверны. / Citizen AI fixes.").define("aiFixes", true);

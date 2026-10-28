@@ -21,6 +21,8 @@ public final class ArmyData extends SavedData {
    final Set<UUID> dismissed = new HashSet<>();
    final Set<String> guardsFreed = new HashSet<>();
    final Map<UUID, ArmyData.Hire> hired = new HashMap<>();
+   /** Garrison soldiers raised from citizens: who they were, so they can come home when discharged. */
+   final Map<UUID, ArmyData.Conscript> conscripts = new HashMap<>();
 
    public static ArmyData get(MinecraftServer server) {
       return (ArmyData)server.overworld().getDataStorage().computeIfAbsent(ArmyData::load, ArmyData::new, "prestol_army");
@@ -102,6 +104,15 @@ public final class ArmyData extends SavedData {
          hires.add(t);
       });
       tag.put("hired", hires);
+      ListTag drafted = new ListTag();
+      this.conscripts.forEach((u, c) -> {
+         CompoundTag t = new CompoundTag();
+         t.putUUID("unit", u);
+         t.putString("settlement", c.settlement());
+         t.put("citizen", c.citizen());
+         drafted.add(t);
+      });
+      tag.put("conscripts", drafted);
       return tag;
    }
 
@@ -144,7 +155,15 @@ public final class ArmyData extends SavedData {
          d.guardsFreed.add(s.getAsString());
       }
 
+      for (Tag x : tag.getList("conscripts", 10)) {
+         CompoundTag t = (CompoundTag)x;
+         d.conscripts.put(t.getUUID("unit"), new ArmyData.Conscript(t.getString("settlement"), t.getCompound("citizen")));
+      }
+
       return d;
+   }
+
+   public static record Conscript(String settlement, CompoundTag citizen) {
    }
 
    public static record Hire(UUID player, long until) {
