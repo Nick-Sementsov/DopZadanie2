@@ -26,7 +26,8 @@
     "hyw.CaptainOrdersMixin",
     "hyw.CaptainExtMixin",
     "hyw.SharedPathAccess",
-    "hyw.GroupPathSkipMixin"
+    "hyw.GroupPathSkipMixin",
+    "hyw.SpoilerClientCheckMixin"
   ],
   "client": [
     "GuiMapMixin",
