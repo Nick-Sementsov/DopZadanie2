@@ -1,0 +1,98 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.24,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+version = mod_version
+group = 'com.nick.prestol'
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+        client {}
+        server {
+            args '--nogui'
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+// Compile-only stubs for mods that are not published anywhere (EcoMinecolonies).
+// They are compiled together with the mod and stripped from the jar.
+sourceSets.main.java.srcDir 'src/stubs/java'
+
+repositories {
+    maven { name = 'LDT Team'; url = 'https://ldtteam.jfrog.io/ldtteam/modding/' }
+    // Not exclusiveContent: ForgeGradle serves the remapped copies under the same group from its own repo.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+    flatDir { dirs 'libs' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    compileOnly fg.deobf("com.ldtteam:minecolonies:${minecolonies_version}") { transitive = false }
+    compileOnly fg.deobf("com.ldtteam:blockui:${blockui_version}") { transitive = false }
+    compileOnly fg.deobf("com.ldtteam:structurize:${structurize_version}") { transitive = false }
+    compileOnly fg.deobf("maven.modrinth:xaeros-minimap:${xaero_minimap_version}")
+    compileOnly fg.deobf("maven.modrinth:xaeros-world-map:${xaero_worldmap_version}")
+    compileOnly fg.deobf("maven.modrinth:immersive-paintings:${immersive_paintings_version}")
+    compileOnly fg.deobf("local:HundredYearsWar:${hyw_jar_version}")
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    def props = [mod_version: mod_version]
+    inputs.properties props
+    filesMatching('META-INF/mods.toml') {
+        expand props
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    exclude 'com/ecominecolonies/**'
+    manifest {
+        attributes([
+            'Specification-Title'   : mod_id,
+            'Specification-Vendor'  : 'Nick',
+            'Specification-Version' : '1',
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': project.jar.archiveVersion,
+            'Implementation-Vendor' : 'Nick',
+            'MixinConfigs'          : "${mod_id}.mixins.json"
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

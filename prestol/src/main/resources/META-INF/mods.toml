@@ -1,0 +1,72 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="prestol"
+version="${mod_version}"
+displayName="Престол — державы, войны и осады для MineColonies"
+authors="Nick"
+description='''
+Державы из поселений MineColonies: ступени поселений, столица, земли на карте Xaero, указы и законы,
+дипломатия, война, осада ратуши и захват (оставить, разграбить, поработить), революция и мятеж.
+Флаг державы — картинка Immersive Paintings, над ратушами висит флаг Betsy Ross.
+Всё управление — в «Книге державы» (F7).
+'''
+displayTest="MATCH_VERSION"
+
+[[dependencies.prestol]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="minecolonies"
+    mandatory=true
+    versionRange="[1.1.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="hundred_years_war"
+    mandatory=false
+    versionRange="[0.7,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="immersive_paintings"
+    mandatory=false
+    versionRange="[0.6,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="betsyross"
+    mandatory=false
+    versionRange="[2.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.prestol]]
+    modId="xaeroworldmap"
+    mandatory=false
+    versionRange="[1.30,)"
+    ordering="AFTER"
+    side="CLIENT"
+
+[[dependencies.prestol]]
+    modId="xaerominimap"
+    mandatory=false
+    versionRange="[24.0,)"
+    ordering="AFTER"
+    side="CLIENT"
