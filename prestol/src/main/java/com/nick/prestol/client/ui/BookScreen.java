@@ -804,7 +804,13 @@ public class BookScreen extends Screen {
             int slots = sel.getInt("slots");
             ry = this.stat(g, Ink.tr("army_garrison"), have, slots, ry);
             if (sel.contains("food")) {
-               ry = this.stat(g, Ink.tr("army_food", sel.getInt("stockDays")), sel.getInt("food"), 100, ry);
+               int f = sel.getInt("food");
+               ry = this.meter(g, Ink.tr("army_food"), f + "%", f, f >= 50 ? -11634130 : (f >= 25 ? -4684245 : -6669790), ry);
+            }
+
+            if (sel.contains("morale")) {
+               int m = sel.getInt("morale");
+               ry = this.meter(g, Ink.tr("army_morale"), String.valueOf(m), m, m >= 80 ? -11634130 : (m >= 40 ? -4684245 : -6669790), ry);
             }
 
             List<Component> lack = new ArrayList<>();
@@ -841,6 +847,10 @@ public class BookScreen extends Screen {
             }
 
             ry = this.small(g, status, 214, ry + 2, 158, color);
+            if (sel.contains("stockDays")) {
+               ry = this.small(g, Ink.tr("army_food_days", sel.getInt("stockDays")), 214, ry, 158, -9544893);
+            }
+
             ry = this.small(g, Ink.tr("army_task", Component.translatable("prestol.army.task." + sel.getString("task"))), 214, ry, 158, -9544893);
             Component school = Component.translatable("prestol.army.school." + sel.getString("school"));
             if (sel.getInt("schoolLevel") > 0) {
@@ -895,6 +905,15 @@ public class BookScreen extends Screen {
             }
          }
       }
+   }
+
+   /** A labelled bar out of 100 with its value written before it; red ink when the bar is red. */
+   private int meter(GuiGraphics g, Component label, String value, int percent, int rgb, int y) {
+      Component v = Component.literal(value);
+      Ink.text(g, label, Ink.F_BODY, 214, y, -13951730);
+      Ink.text(g, v, Ink.F_BODY, 312 - Ink.width(v, Ink.F_BODY) - 4, y, rgb == -6669790 ? -7464176 : -13951730);
+      Ink.bar(g, 314, y + 2, 58, 6, percent / 100.0F, rgb);
+      return y + 12;
    }
 
    private int stat(GuiGraphics g, Component label, int have, int need, int y) {

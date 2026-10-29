@@ -142,6 +142,7 @@ public final class Army {
          }
 
          Provisions.tick(server, data, 100, now);
+         Morale.tick(server, data, 100, now);
 
          if (garrisons()) {
             if (now >= nextTraining) {
@@ -422,7 +423,7 @@ public final class Army {
    }
 
    public static void inspect(MinecraftServer server) {
-      if (Hyw.present()) {
+      if (Hyw.present() && (Provisions.on() || Morale.on())) {
          Provisions.inspect(server);
       }
    }
@@ -558,6 +559,23 @@ public final class Army {
                         t.putInt("food", fed == 0 ? 100 : (int)Math.round(food / fed));
                         int daily = PrestolConfig.DAILY_RATION.get() * Math.max(1, p == null ? 0 : p.units.size());
                         t.putInt("stockDays", Supplies.foodIn(Supplies.stores(colony, b)) / daily);
+                     }
+
+                     if (Morale.on()) {
+                        double spirit = 0.0;
+                        int seen = 0;
+
+                        for (UUID id : p == null ? Set.<UUID>of() : p.units) {
+                           Entity unit = level == null ? null : level.getEntity(id);
+                           if (unit != null) {
+                              spirit += Morale.get(unit);
+                              seen++;
+                           }
+                        }
+
+                        if (seen > 0) {
+                           t.putInt("morale", (int)Math.round(spirit / seen));
+                        }
                      }
 
                      out.add(t);
@@ -746,6 +764,7 @@ public final class Army {
 
    @SubscribeEvent
    public static void onDeath(LivingDeathEvent event) {
+      Morale.onDeath(event);
       Entity e = event.getEntity();
       String tag = e.getPersistentData().getString("prestol_army");
       MinecraftServer server = e.getServer();
@@ -808,6 +827,10 @@ public final class Army {
    public static void onJoin(EntityJoinLevelEvent event) {
       Entity e = event.getEntity();
       Level level = event.getLevel();
+      if (!level.isClientSide()) {
+         Morale.teachFlight(e);
+      }
+
       if (!level.isClientSide() && e.getPersistentData().contains("prestol_army")) {
          MinecraftServer server = level.getServer();
          if (server != null) {

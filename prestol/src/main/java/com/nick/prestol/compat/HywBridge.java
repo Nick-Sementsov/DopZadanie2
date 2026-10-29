@@ -248,11 +248,15 @@ final class HywBridge {
 
    /** Soldiers that eat: owned, fighting, alive units; not workers, siege engines or puppets. */
    static boolean eater(Entity e) {
+      return soldier(e) && e.isAlive();
+   }
+
+   /** An owned fighting unit, alive or just fallen; not a worker, a siege engine or a puppet. */
+   static boolean soldier(Entity e) {
       return e instanceof BaseCombatEntity u
          && !(e instanceof NonCombatUnit)
          && !(e instanceof SiegeUnit)
          && !(e instanceof IPuppet)
-         && u.isAlive()
          && u.getOwnerUUID() != null;
    }
 

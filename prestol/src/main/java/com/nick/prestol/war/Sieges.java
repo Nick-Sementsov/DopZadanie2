@@ -6,6 +6,7 @@ import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.core.colony.jobs.AbstractJobGuard;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.army.Army;
+import com.nick.prestol.army.Morale;
 import com.nick.prestol.compat.Hyw;
 import com.nick.prestol.map.MapSync;
 import com.nick.prestol.realm.Holding;
@@ -292,7 +293,7 @@ public final class Sieges {
       }
 
       if (Hyw.present()) {
-         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null)) {
+         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null && !Morale.routed(ex))) {
             if (inRange(colony, e)) {
                UUID owner = Hyw.soldierOwner(e);
                boolean attackerx;
@@ -350,7 +351,7 @@ public final class Sieges {
       }
 
       if (Hyw.present() && defender != null) {
-         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null)) {
+         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null && !Morale.routed(ex))) {
             if (inRange(colony, e)) {
                Realm rx = realmOfPlayer(server, data, Hyw.soldierOwner(e));
                if (rx != null && (rx == defender || Wars.allied(rx, defender))) {

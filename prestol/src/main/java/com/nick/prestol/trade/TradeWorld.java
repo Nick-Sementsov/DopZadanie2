@@ -650,14 +650,20 @@ public final class TradeWorld {
          t.wp = 0;
          t.leaving = true;
          t.dwellUntil = Realms.now(server) + 24000L;
-         t.status("robbed");
          Entity killer = source.getEntity();
-         String who = killer instanceof Player p ? p.getGameProfile().getName() : (killer == null ? "?" : killer.getName().getString());
-         MutableComponent msg = Msg.bad("trade.robbed", t.name, who);
-         t.note(Trading.json(msg));
-         if (realm != null) {
-            Realms.tell(server, realm, msg);
-            Realms.chronicle(server, "caravan_robbed", List.of(t.name, who), realm);
+         if (killer == null) {
+            // a fall, the water, a fire: nobody to blame
+            t.status("lost");
+            lost(server, t, Msg.bad("trade.merchant_died", t.name));
+         } else {
+            t.status("robbed");
+            String who = killer instanceof Player p ? p.getGameProfile().getName() : killer.getName().getString();
+            MutableComponent msg = Msg.bad("trade.robbed", t.name, who);
+            t.note(Trading.json(msg));
+            if (realm != null) {
+               Realms.tell(server, realm, msg);
+               Realms.chronicle(server, "caravan_robbed", List.of(t.name, who), realm);
+            }
          }
       }
    }

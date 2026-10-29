@@ -122,6 +122,19 @@ public final class Hyw {
       }
    }
 
+   /** Like {@link #eater} but also true for a soldier who has just fallen. */
+   public static boolean soldier(Entity entity) {
+      if (!present() || broken) {
+         return false;
+      } else {
+         try {
+            return HywBridge.soldier(entity);
+         } catch (LinkageError | RuntimeException var2) {
+            return false;
+         }
+      }
+   }
+
    public static Attribute rangedDamage() {
       if (!present() || broken) {
          return null;

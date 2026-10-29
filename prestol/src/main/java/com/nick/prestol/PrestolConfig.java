@@ -88,6 +88,8 @@ public final class PrestolConfig {
    public static final IntValue DAILY_RATION;
    public static final IntValue DESERT_DAYS;
    public static final BooleanValue NO_HYW_WORKERS;
+   public static final BooleanValue MORALE;
+   public static final IntValue ROUT_BELOW;
    public static final BooleanValue ECONOMY;
    public static final IntValue TAX_LOW;
    public static final IntValue TAX_NORMAL;
@@ -339,6 +341,15 @@ public final class PrestolConfig {
          .defineInRange("dailyRation", 6, 1, 100);
       DESERT_DAYS = b.comment("Через сколько игровых дней без еды солдат дезертирует (0 — никогда). / Starving days before a soldier deserts (0 = never).")
          .defineInRange("desertAfterDays", 2, 0, 100);
+      MORALE = b.comment(
+            new String[]{
+               "Боевой дух солдат игроков: сытость, жалованье, своя земля, командир рядом, опыт и перевес в бою; гибель товарищей его роняет.",
+               "Высокий дух бьёт сильнее, низкий слабее, сломленный солдат бежит. / Soldier morale: spirit drives damage and routs."
+            }
+         )
+         .define("morale", true);
+      ROUT_BELOW = b.comment("Ниже какого духа солдат бежит с поля боя (0 — никогда). / Morale below which a soldier flees (0 = never).")
+         .defineInRange("routBelow", 20, 0, 100);
       NO_HYW_WORKERS = b.comment(
             "Вырезать рабочих «Столетней войны»: их нельзя нанять, их свитки и верстаки не работают. / Remove Hundred Years War workers."
          )

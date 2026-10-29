@@ -51,7 +51,7 @@ final class DecreeBonus {
       }
    }
 
-   private static void set(LivingEntity unit, Attribute attribute, UUID id, String name, double amount, Operation op) {
+   static void set(LivingEntity unit, Attribute attribute, UUID id, String name, double amount, Operation op) {
       AttributeInstance inst = unit.getAttribute(attribute);
       if (inst != null) {
          AttributeModifier cur = inst.getModifier(id);

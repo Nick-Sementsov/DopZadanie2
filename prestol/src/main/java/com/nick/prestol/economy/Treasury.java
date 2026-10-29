@@ -169,6 +169,9 @@ public final class Treasury {
                   }
 
                   eco.log(r.id(), day, paid < pay ? "pay_short" : "pay", -paid, String.valueOf(soldiers));
+               } else {
+                  // nobody left to pay: new recruits do not inherit the debt
+                  eco.unpaid.remove(r.id());
                }
 
                if (income > 0L || pay > 0L) {

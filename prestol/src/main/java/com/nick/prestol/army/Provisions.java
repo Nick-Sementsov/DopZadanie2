@@ -205,9 +205,9 @@ public final class Provisions {
       }
    }
 
-   /** Shows the soldier a player looks at over the hotbar: name, level and, to his own side, the provisions. */
+   /** Shows the soldier a player looks at over the hotbar: name, level and, to his own side, provisions and morale. */
    static void inspect(MinecraftServer server) {
-      if (on()) {
+      {
          RealmData realms = RealmData.get(server);
 
          for (ServerPlayer p : server.getPlayerList().getPlayers()) {
@@ -225,10 +225,14 @@ public final class Provisions {
                }
 
                MutableComponent line = Component.empty().append(unit.getDisplayName()).append(" · ").append(Msg.t("army.rank", Hyw.rank(unit)));
-               if (ours) {
+               if (ours && on()) {
                   int food = (int)Math.round(get(unit));
                   ChatFormatting color = food >= 50 ? ChatFormatting.GREEN : (food >= 25 ? ChatFormatting.GOLD : ChatFormatting.RED);
                   line.append(" · ").append(Msg.t("army.provisions", food).withStyle(color));
+               }
+
+               if (ours && Morale.on()) {
+                  line.append(" · ").append(Morale.describe(unit));
                }
 
                p.displayClientMessage(line, true);
