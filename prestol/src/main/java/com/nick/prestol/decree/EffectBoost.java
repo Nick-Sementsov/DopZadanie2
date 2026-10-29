@@ -82,7 +82,7 @@ public final class EffectBoost {
          IResearchEffect current = map.get(id);
          boolean stillOurs = slot != null && current == slot.ours();
          IResearchEffect base = stronger(safe(research, id), stillOurs ? slot.base() : current);
-         if (bonus > 0.0) {
+         if (Math.abs(bonus) > 1.0E-9) {
             double strength = (base == null ? 0.0 : base.getEffect()) + bonus;
             if (!stillOurs || !(Math.abs(slot.ours().getEffect() - strength) < 1.0E-9)) {
                IResearchEffect ours = factory.create(id, strength);

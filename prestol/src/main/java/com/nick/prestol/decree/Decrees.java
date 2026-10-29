@@ -1,5 +1,7 @@
 package com.nick.prestol.decree;
 
+import com.nick.prestol.economy.Treasury;
+
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.IGlobalResearchTree;
 import com.minecolonies.api.research.ILocalResearchTree;
@@ -196,6 +198,13 @@ public final class Decrees {
          }
       }
 
+      if (Treasury.on()) {
+         // the tax rate changes happiness in every settlement of every realm
+         for (Realm r : realms.all()) {
+            keys.addAll(r.members());
+         }
+      }
+
       for (String key : keys) {
          IColony colony = Settlements.byKey(key);
          if (colony == null) {
@@ -247,6 +256,7 @@ public final class Decrees {
          }
       }
 
+      Treasury.addEffects(server, key, out);
       return out;
    }
 

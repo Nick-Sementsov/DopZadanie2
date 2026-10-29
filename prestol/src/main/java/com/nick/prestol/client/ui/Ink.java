@@ -147,10 +147,12 @@ public final class Ink {
       smooth(BUTTON);
       RenderSystem.enableBlend();
       int v = state * 32;
-      int cap = Math.min(6, w / 2);
-      g.blit(BUTTON, x, y, cap, h, 0.0F, (float)v, 12, 32, 200, 96);
+      // the caps carry the rivets; a narrow button keeps only their rim so its sign stays clear
+      int tex = w < 30 ? 4 : 12;
+      int cap = Math.min(tex / 2, w / 2);
+      g.blit(BUTTON, x, y, cap, h, 0.0F, (float)v, tex, 32, 200, 96);
       g.blit(BUTTON, x + cap, y, w - cap * 2, h, 12.0F, (float)v, 176, 32, 200, 96);
-      g.blit(BUTTON, x + w - cap, y, cap, h, 188.0F, (float)v, 12, 32, 200, 96);
+      g.blit(BUTTON, x + w - cap, y, cap, h, (float)(200 - tex), (float)v, tex, 32, 200, 96);
    }
 
    public static void seal(GuiGraphics g, int x, int y, int size, int rgb) {

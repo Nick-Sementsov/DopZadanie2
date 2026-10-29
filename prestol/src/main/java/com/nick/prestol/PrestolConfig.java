@@ -88,6 +88,21 @@ public final class PrestolConfig {
    public static final IntValue DAILY_RATION;
    public static final IntValue DESERT_DAYS;
    public static final BooleanValue NO_HYW_WORKERS;
+   public static final BooleanValue ECONOMY;
+   public static final IntValue TAX_LOW;
+   public static final IntValue TAX_NORMAL;
+   public static final IntValue TAX_HIGH;
+   public static final IntValue SOLDIER_PAY;
+   public static final BooleanValue TRADE;
+   public static final IntValue CARAVAN_COST;
+   public static final IntValue PACK_ANIMAL_COST;
+   public static final IntValue SHIP_COST;
+   public static final IntValue MAX_TRADERS;
+   public static final DoubleValue CARAVAN_SPEED;
+   public static final DoubleValue SHIP_SPEED;
+   public static final IntValue DWELL_SECONDS;
+   public static final IntValue ROBBERY_CHANCE;
+   public static final IntValue ESCORT_COST;
 
    private PrestolConfig() {
    }
@@ -328,6 +343,36 @@ public final class PrestolConfig {
             "Вырезать рабочих «Столетней войны»: их нельзя нанять, их свитки и верстаки не работают. / Remove Hundred Years War workers."
          )
          .define("removeHywWorkers", true);
+      b.pop();
+      b.push("economy");
+      ECONOMY = b.comment("Казна держав: налоги с поселений, жалованье гарнизонам, монеты из золота. / Realm treasuries: taxes, soldier pay, gold coins.")
+         .define("enabled", true);
+      TAX_LOW = b.comment(
+            "Монет с каждого жителя в игровой день при низком, обычном и высоком налоге (самородок = 1, слиток = 9). / Coins per citizen per game day."
+         )
+         .defineInRange("taxLow", 1, 0, 1000);
+      TAX_NORMAL = b.defineInRange("taxNormal", 2, 0, 1000);
+      TAX_HIGH = b.defineInRange("taxHigh", 3, 0, 1000);
+      SOLDIER_PAY = b.comment("Жалованье солдату гарнизона, монет в игровой день. / Pay of a garrison soldier, coins per game day.")
+         .defineInRange("soldierPay", 2, 0, 1000);
+      b.pop();
+      b.push("trade");
+      TRADE = b.comment("Караваны и корабли, рынки поселений, торговля между державами. / Caravans, ships, settlement markets, trade between realms.")
+         .define("enabled", true);
+      CARAVAN_COST = b.comment("Сколько монет стоит снарядить караван (без вьючных животных). / Coins to fit out a caravan.")
+         .defineInRange("caravanCost", 96, 0, 100000);
+      PACK_ANIMAL_COST = b.comment("Цена одного вьючного мула (до 4 в караване). / Coins per pack mule (up to 4).").defineInRange("packAnimalCost", 48, 0, 100000);
+      SHIP_COST = b.comment("Сколько монет стоит торговый корабль. / Coins for a merchant ship.").defineInRange("shipCost", 192, 0, 100000);
+      MAX_TRADERS = b.comment("Сколько караванов и кораблей может быть у одной державы. / Traders per realm.").defineInRange("maxPerRealm", 6, 0, 100);
+      CARAVAN_SPEED = b.comment("Скорость каравана, блоков в секунду. / Caravan speed, blocks per second.").defineInRange("caravanSpeed", 2.5, 0.5, 20.0);
+      SHIP_SPEED = b.comment("Скорость корабля, блоков в секунду. / Ship speed, blocks per second.").defineInRange("shipSpeed", 6.0, 0.5, 30.0);
+      DWELL_SECONDS = b.comment("Сколько секунд торговец стоит в каждом поселении. / Seconds a trader stays at each stop.")
+         .defineInRange("dwellSeconds", 30, 1, 3600);
+      ROBBERY_CHANCE = b.comment(
+            "Шанс (%), что караван без охраны ограбят разбойники на перегоне по чужой или ничьей земле. / Robbery chance per leg without escort."
+         )
+         .defineInRange("robberyChance", 3, 0, 100);
+      ESCORT_COST = b.comment("Монет за одного стражника охраны на перегон. / Coins per escort guard per leg.").defineInRange("escortCost", 4, 0, 10000);
       b.pop();
       b.push("workers");
       AI_FIXES = b.comment("Поправки ИИ жителей: инструмент в руках, лесоруб без лишней ходьбы, еда без таверны. / Citizen AI fixes.").define("aiFixes", true);

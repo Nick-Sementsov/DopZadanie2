@@ -47,6 +47,20 @@ public final class ArmyData extends SavedData {
       return this.posts;
    }
 
+   /** Garrison soldiers serving in the posts of these settlements. */
+   public int soldiersOf(java.util.Collection<String> settlements) {
+      int n = 0;
+
+      for (Map.Entry<String, ArmyData.Post> e : this.posts.entrySet()) {
+         int at = e.getKey().indexOf('@');
+         if (settlements.contains(at < 0 ? e.getKey() : e.getKey().substring(0, at))) {
+            n += e.getValue().units.size();
+         }
+      }
+
+      return n;
+   }
+
    public Map<UUID, ArmyData.Levy> militia() {
       return this.militia;
    }

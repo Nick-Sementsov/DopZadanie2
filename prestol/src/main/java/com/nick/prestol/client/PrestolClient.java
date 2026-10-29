@@ -8,7 +8,9 @@ import java.lang.reflect.Method;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import com.nick.prestol.trade.TradeEntities;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.common.MinecraftForge;
@@ -28,6 +30,7 @@ public final class PrestolClient {
 
    public static void init(IEventBus modBus) {
       modBus.addListener((RegisterKeyMappingsEvent e) -> e.register(OPEN_BOOK));
+      modBus.addListener((EntityRenderersEvent.RegisterRenderers e) -> e.registerEntityRenderer(TradeEntities.MERCHANT.get(), MerchantRenderer::new));
       worldMap = hook("xaeroworldmap", "com.nick.prestol.client.xaero.WorldMapHook");
       minimap = hook("xaerominimap", "com.nick.prestol.client.xaero.MinimapHook");
       MinecraftForge.EVENT_BUS.addListener(PrestolClient::onTick);

@@ -5,6 +5,7 @@ import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.economy.Treasury;
 import com.nick.prestol.flag.TownFlags;
 import com.nick.prestol.map.MapSync;
 import com.nick.prestol.util.Msg;
@@ -219,6 +220,7 @@ public final class Realms {
       data.remove(realm);
       Hyw.onRealmRemoved(server, realm);
       Wars.onRealmRemoved(server, realm);
+      Treasury.onRealmRemoved(server, realm);
       if (announce != null) {
          tellAll(server, announce);
       }

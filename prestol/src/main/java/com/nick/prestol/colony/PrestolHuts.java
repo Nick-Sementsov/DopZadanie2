@@ -7,6 +7,7 @@ import com.minecolonies.api.colony.jobs.registry.JobEntry;
 import com.minecolonies.api.creativetab.ModCreativeTabs;
 import com.minecolonies.api.entity.citizen.Skill;
 import com.minecolonies.api.items.ItemBlockHut;
+import com.minecolonies.api.sounds.ModSoundEvents;
 import com.minecolonies.api.tileentities.MinecoloniesTileEntities;
 import com.minecolonies.core.colony.buildings.modules.BuildingModules;
 import com.minecolonies.core.colony.buildings.modules.CraftingWorkerBuildingModule;
@@ -20,6 +21,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import net.minecraft.network.chat.Component;
@@ -121,6 +123,25 @@ public final class PrestolHuts {
 
    private static void onSetup(FMLCommonSetupEvent event) {
       event.enqueueWork(PrestolHuts::allowHutEntities);
+      event.enqueueWork(PrestolHuts::lendVoices);
+   }
+
+   /**
+    * MineColonies keeps the voices of citizens per job and has none for jobs it does not know: a brewer or a
+    * winemaker who wants to say something would crash his AI. They speak like a cook and a composter.
+    */
+   private static void lendVoices() {
+      Map<String, ?> voices = ModSoundEvents.CITIZEN_SOUND_EVENTS;
+      lend(voices, "brewer", "cook");
+      lend(voices, "winemaker", "composter");
+   }
+
+   @SuppressWarnings("unchecked")
+   private static void lend(Map<String, ?> voices, String job, String like) {
+      Object v = voices.containsKey(like) ? voices.get(like) : voices.get("unemployed");
+      if (v != null && !voices.containsKey(job)) {
+         ((Map<String, Object>)voices).put(job, v);
+      }
    }
 
    /** MineColonies lists the blocks of its building block entity once, from its own huts: add ours. */

@@ -15,11 +15,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component.Serializer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.DyeColor;
@@ -244,6 +248,9 @@ public class BookScreen extends Screen {
          case GUIDE:
             this.guidePage(g);
             break;
+         case TRADE:
+            this.tradePage(g);
+            break;
          case ARMY:
             this.armyPage(g);
       }
@@ -274,7 +281,7 @@ public class BookScreen extends Screen {
 
    private void ribbons(GuiGraphics g, boolean cloth) {
       List<BookScreen.Page> list = this.pages();
-      int step = list.size() > 9 ? 22 : 24;
+      int step = Math.min(24, 220 / Math.max(1, list.size()));
 
       for (int i = 0; i < list.size(); i++) {
          BookScreen.Page p = list.get(i);
@@ -348,8 +355,10 @@ public class BookScreen extends Screen {
    private int button(GuiGraphics g, Component label, int x, int y, int w, boolean enabled, Runnable action) {
       boolean hover = enabled && this.mx >= x && this.my >= y && this.mx < x + w && this.my < y + 15;
       Ink.strap(g, x, y, w, 15, enabled ? (hover ? 1 : 0) : 2);
-      Component l = Ink.clip(label, Ink.F_SMALL, w - 10);
-      Ink.centered(g, l, Ink.F_SMALL, x + w / 2, y + 4, enabled ? -994166 : -5199720);
+      // narrow buttons carry a single sign, too thin in the book's face: draw it in the plain pixel font
+      ResourceLocation font = w < 30 ? Style.DEFAULT_FONT : Ink.F_SMALL;
+      Component l = Ink.clip(label, font, w < 30 ? w - 2 : w - 10);
+      Ink.centered(g, l, font, x + w / 2, y + 4, enabled ? -994166 : -5199720);
       if (enabled) {
          this.hits.add(new BookScreen.Hit(x, y, w, 15, action, null));
       }
@@ -1263,6 +1272,559 @@ public class BookScreen extends Screen {
       this.scroll.put("guide", 0);
    }
 
+   // ================================================================== treasury and trade
+
+   private static final int[] AMOUNTS = {1, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
+   private static final int[] PRICES = {0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 64, 81, 100, 128, 162, 200, 256, 324, 500, 729};
+   private static final String[] ORDER_KINDS = {"load", "unload", "buy", "sell"};
+   private static String tradeTab = "treasury";
+   private String selTrader;
+   private int selStop = -1;
+   private String selMarket;
+   private int placeIndex;
+   private int orderKind;
+   private int orderAmount = 5;
+   private int orderPrice = 4;
+   private boolean offerSell = true;
+   private int offerAmount = 5;
+   private int offerPrice = 4;
+
+   private static int step(int[] values, int index, int dir) {
+      return Math.max(0, Math.min(values.length - 1, index + dir));
+   }
+
+   private static String coins(long n) {
+      String s = Long.toString(Math.abs(n));
+      StringBuilder b = new StringBuilder();
+
+      for (int i = 0; i < s.length(); i++) {
+         if (i > 0 && (s.length() - i) % 3 == 0) {
+            b.append(' ');
+         }
+
+         b.append(s.charAt(i));
+      }
+
+      return (n < 0L ? "−" : "") + b;
+   }
+
+   private static ItemStack stackOf(String id, int count) {
+      ResourceLocation rl = ResourceLocation.tryParse(id);
+      Item item = rl == null ? Items.AIR : BuiltInRegistries.ITEM.get(rl);
+      return new ItemStack(item == null ? Items.AIR : item, Math.max(1, Math.min(count, 64)));
+   }
+
+   private static Component itemName(String id) {
+      return stackOf(id, 1).getHoverName();
+   }
+
+   private void icon(GuiGraphics g, ItemStack stack, int x, int y, float scale) {
+      PoseStack pose = g.pose();
+      pose.pushPose();
+      pose.translate((float)x, (float)y, 0.0F);
+      pose.scale(scale, scale, 1.0F);
+      g.renderItem(stack, 0, 0);
+      pose.popPose();
+   }
+
+   /** A pair of little − + buttons around a value. */
+   private void stepper(GuiGraphics g, int x, int y, Component value, int w, Runnable less, Runnable more) {
+      this.button(g, Component.literal("-"), x, y, 14, true, less);
+      Ink.centered(g, Ink.clip(value, Ink.F_SMALL, w - 30), Ink.F_SMALL, x + w / 2, y + 4, -13951730);
+      this.button(g, Component.literal("+"), x + w - 14, y, 14, true, more);
+   }
+
+   private void tradePage(GuiGraphics g) {
+      int y = this.heading(g, BookScreen.Page.TRADE.title(), 28, 24, 158);
+      if (!state.getBoolean("economy")) {
+         this.line(g, Ink.tr("economy_off"), 28, y, 158, -9544893);
+      } else if (!state.contains("treasury")) {
+         this.line(g, Ink.tr("no_realm_no_trade"), 28, y, 158, -9544893);
+      } else {
+         String[] tabs = state.contains("trade") ? new String[]{"treasury", "traders", "markets"} : new String[]{"treasury"};
+         int tx = 28;
+
+         for (String tab : tabs) {
+            boolean on = tab.equals(tradeTab);
+            int w = 158 / tabs.length - 2;
+            this.button(g, Ink.tr("tab_" + tab).withStyle(on ? ChatFormatting.UNDERLINE : ChatFormatting.RESET), tx, y - 4, w, !on, () -> tradeTab = tab);
+            tx += w + 3;
+         }
+
+         y += 16;
+         if (tradeTab.equals("traders") && state.contains("trade")) {
+            this.tradersTab(g, y);
+         } else if (tradeTab.equals("markets") && state.contains("trade")) {
+            this.marketsTab(g, y);
+         } else {
+            this.treasuryTab(g, y);
+         }
+      }
+   }
+
+   private void treasuryTab(GuiGraphics g, int y) {
+      CompoundTag t = state.getCompound("treasury");
+      boolean ruler = t.getBoolean("ruler");
+      Ink.text(g, Ink.tr("treasury_balance"), Ink.F_BODY, 28, y, -13951730);
+      Component bal = Ink.tr("coins", coins(t.getLong("coins")));
+      Ink.text(g, bal, Ink.F_BOLD, 186 - Ink.width(bal, Ink.F_BOLD), y, -7464176);
+      y += 13;
+      long income = t.getLong("income");
+      long pay = t.getLong("pay");
+      y = this.small(g, Ink.tr("treasury_income", coins(income)), 28, y, 158, -13673956);
+      y = this.small(g, Ink.tr("treasury_pay", coins(pay), t.getInt("soldiers")), 28, y, 158, -7464176);
+      y = this.small(g, Ink.tr("treasury_net", (income - pay >= 0L ? "+" : "") + coins(income - pay)), 28, y, 158, -13951730);
+      if (t.getInt("unpaid") > 0) {
+         y = this.small(g, Ink.tr("treasury_unpaid", t.getInt("unpaid")), 28, y + 1, 158, -7464176);
+      }
+
+      y = this.sub(g, Ink.tr("treasury_tax"), 28, y + 4);
+      String tax = t.getString("tax");
+
+      for (CompoundTag r : list(t, "rates")) {
+         String id = r.getString("id");
+         boolean on = id.equals(tax);
+         this.row(g, 28, y, 158, 12, on, () -> {
+            if (ruler && !on) {
+               order("treasury tax " + id);
+            }
+         });
+         Ink.text(g, Component.literal(on ? "✔ " : "").append(Component.translatable("prestol.tax." + id)), Ink.F_BODY, 30, y + 1, on ? -7464176 : -13951730);
+         int h = r.getInt("happiness");
+         Component right = Component.literal("+" + coins(r.getLong("income")) + "  ").append(Ink.tr("happiness_short", (h > 0 ? "+" : "") + h + "%"));
+         Ink.text(g, right, Ink.F_SMALL, 186 - Ink.width(right, Ink.F_SMALL), y + 2, h < 0 ? -7464176 : -9544893);
+         y += 13;
+      }
+
+      y = this.sub(g, Ink.tr("treasury_duty"), 28, y + 3);
+      int duty = t.getInt("duty");
+      int bx = 28;
+
+      for (int d : new int[]{0, 5, 10, 25}) {
+         this.button(g, Component.literal((d == duty ? "✔" : "") + d + "%"), bx, y, 37, ruler && d != duty, () -> order("treasury duty " + d));
+         bx += 40;
+      }
+
+      this.small(g, Ink.tr("treasury_duty_note"), 28, y + 18, 158, -9544893);
+      int ry = 30;
+      ry = this.sub(g, Ink.tr("treasury_gold"), 214, ry);
+      this.button(g, Ink.tr("treasury_deposit"), 214, ry, 158, true, () -> order("treasury deposit"));
+      ry += 18;
+      int wx = 214;
+      String[] labels = {"withdraw_ingot", "withdraw_block", "withdraw_blocks"};
+      int[] amounts = {9, 81, 729};
+
+      for (int i = 0; i < 3; i++) {
+         int n = amounts[i];
+         this.button(g, Ink.tr(labels[i]), wx, ry, 51, ruler && t.getLong("coins") >= n, () -> order("treasury withdraw " + n));
+         wx += 53;
+      }
+
+      ry += 17;
+      ry = this.small(g, Ink.tr(ruler ? "treasury_gold_note" : "treasury_gold_note_member"), 214, ry, 158, -9544893) + 4;
+      ry = this.sub(g, Ink.tr("treasury_ledger"), 214, ry);
+      int off = this.beginScroll(g, "ledger", 214, ry, 158, 224 - ry);
+      int ly = ry - off;
+      List<CompoundTag> ledger = list(t, "ledger");
+
+      for (CompoundTag e : ledger) {
+         List<Object> args = list(e);
+         for (int i = 0; i < args.size(); i++) {
+            if (args.get(i) instanceof String s && s.startsWith("item.") || args.get(i) instanceof String s2 && s2.startsWith("block.")) {
+               args.set(i, Component.translatable((String)args.get(i)));
+            }
+         }
+
+         Component what = Component.translatable("prestol.ledger." + e.getString("key"), args.toArray());
+         long a = e.getLong("amount");
+         Component sum = Component.literal((a >= 0L ? "+" : "") + coins(a));
+         Ink.text(g, sum, Ink.F_SMALL, 372 - Ink.width(sum, Ink.F_SMALL), ly, a >= 0L ? -13673956 : -7464176);
+         int h = Ink.para(g, Ink.tr("day_short", e.getLong("day")).append(" · ").append(what), Ink.F_SMALL, 214, ly, 120, -13951730);
+         ly += Math.max(9, h) + 2;
+      }
+
+      if (ledger.isEmpty()) {
+         ly = this.small(g, Ink.tr("treasury_ledger_empty"), 214, ly, 158, -9544893);
+      }
+
+      this.endScroll(g, "ledger", ly + off - ry);
+   }
+
+   private CompoundTag selectedTrader(List<CompoundTag> traders) {
+      CompoundTag sel = null;
+
+      for (CompoundTag t : traders) {
+         if (t.getString("id").equals(this.selTrader)) {
+            sel = t;
+         }
+      }
+
+      if (sel == null && !traders.isEmpty()) {
+         sel = traders.get(0);
+         this.selTrader = sel.getString("id");
+         this.selStop = -1;
+      }
+
+      return sel;
+   }
+
+   private void tradersTab(GuiGraphics g, int y) {
+      CompoundTag trade = state.getCompound("trade");
+      boolean ruler = trade.getBoolean("ruler");
+      List<CompoundTag> traders = list(trade, "traders");
+      CompoundTag sel = this.selectedTrader(traders);
+      int listBottom = ruler ? 178 : 224;
+      int off = this.beginScroll(g, "traders", 28, y, 158, listBottom - y);
+      int yy = y - off;
+
+      for (CompoundTag t : traders) {
+         String id = t.getString("id");
+         this.row(g, 28, yy, 158, 22, id.equals(this.selTrader), () -> {
+            this.selTrader = id;
+            this.selStop = -1;
+            this.scroll.put("route", 0);
+         });
+         this.icon(g, new ItemStack(t.getString("kind").equals("ship") ? Items.DARK_OAK_CHEST_BOAT : Items.LEAD), 28, yy + 2, 0.75F);
+         Ink.text(g, Ink.clip(Component.literal(t.getString("name")), Ink.F_BODY, 110), Ink.F_BODY, 42, yy + 1, -13951730);
+         Component cargo = Component.literal(t.getInt("used") + "/" + t.getInt("slots"));
+         Ink.text(g, cargo, Ink.F_SMALL, 186 - Ink.width(cargo, Ink.F_SMALL), yy + 2, -9544893);
+         Component status = this.traderStatus(t);
+         Ink.text(g, Ink.clip(status, Ink.F_SMALL, 140), Ink.F_SMALL, 42, yy + 12, t.getBoolean("running") ? -13673956 : -9544893);
+         yy += 23;
+      }
+
+      if (traders.isEmpty()) {
+         yy = this.small(g, Ink.tr("traders_none"), 28, yy, 158, -9544893);
+      }
+
+      this.endScroll(g, "traders", yy + off - y);
+      if (ruler) {
+         int cy = 182;
+         String name = this.field(g, "trader_name", 28, cy, 158, Ink.tr("trader_name"));
+         boolean okName = name.length() >= 2 && name.length() <= 24 && traders.size() < trade.getInt("max");
+         this.button(g, Ink.tr("new_caravan", coins(trade.getInt("caravanCost"))), 28, cy + 15, 78, okName, () -> {
+            order("trade new caravan " + name);
+            this.fields.remove("trader_name");
+         });
+         this.button(g, Ink.tr("new_ship", coins(trade.getInt("shipCost"))), 108, cy + 15, 78, okName, () -> {
+            order("trade new ship " + name);
+            this.fields.remove("trader_name");
+         });
+         this.tip(28, cy + 15, 158, 15, Ink.tr("new_trader_tip"));
+      }
+
+      if (sel == null) {
+         this.line(g, Ink.tr("traders_intro"), 214, 30, 158, -9544893);
+      } else {
+         this.traderDetail(g, trade, sel, ruler);
+      }
+   }
+
+   private Component traderStatus(CompoundTag t) {
+      List<Object> args = new ArrayList<>();
+
+      for (Tag a : t.getList("statusArgs", 8)) {
+         args.add(a.getAsString());
+      }
+
+      return Component.translatable("prestol.trade.status." + t.getString("status"), args.toArray());
+   }
+
+   private void traderDetail(GuiGraphics g, CompoundTag trade, CompoundTag t, boolean ruler) {
+      String id = t.getString("id");
+      boolean ship = t.getString("kind").equals("ship");
+      int ry = this.heading(g, Component.literal(t.getString("name")), 214, 24, 158);
+      ry = this.small(g, Component.translatable("prestol.trade.kind." + t.getString("kind")).append(" · ").append(this.traderStatus(t)), 214, ry - 3, 158, -9544893);
+      ry = this.stat(g, Ink.tr("trader_cargo"), t.getInt("used"), t.getInt("slots"), ry + 1);
+      int ix = 214;
+
+      for (CompoundTag c : list(t, "cargo")) {
+         if (ix > 356) {
+            break;
+         }
+
+         ItemStack s = stackOf(c.getString("item"), c.getInt("n"));
+         this.icon(g, s, ix, ry, 0.75F);
+         Component n = Component.literal(String.valueOf(c.getInt("n")));
+         Ink.text(g, n, Ink.F_SMALL, ix + 13 - Ink.width(n, Ink.F_SMALL), ry + 7, -13951730);
+         this.tip(ix, ry, 14, 14, s.getHoverName().copy().append(" ×" + c.getInt("n")));
+         ix += 16;
+      }
+
+      if (!list(t, "cargo").isEmpty()) {
+         ry += 15;
+      }
+
+      if (ruler) {
+         boolean running = t.getBoolean("running");
+         this.button(g, Ink.tr(running ? "trader_halt" : "trader_go"), 214, ry, 50, true, () -> order("trade run " + id + (running ? " off" : " on")));
+         if (!ship) {
+            int a = t.getInt("animals");
+            this.stepper(g, 266, ry, Ink.tr("trader_mules", a), 52, () -> order("trade animals " + id + " " + (a - 1)), () -> order("trade animals " + id + " " + (a + 1)));
+            this.tip(266, ry, 52, 15, Ink.tr("trader_mules_tip", trade.getInt("animalCost")));
+         }
+
+         int gd = t.getInt("guards");
+         this.stepper(g, 320, ry, Ink.tr("trader_guards", gd), 52, () -> order("trade guards " + id + " " + (gd - 1)), () -> order("trade guards " + id + " " + (gd + 1)));
+         this.tip(320, ry, 52, 15, Ink.tr("trader_guards_tip", trade.getInt("escortCost")));
+         ry += 18;
+      }
+
+      List<CompoundTag> route = list(t, "route");
+      int top = ry;
+      int bottom = ruler ? 190 : 224;
+      int off = this.beginScroll(g, "route", 214, top, 158, bottom - top);
+      int yy = top - off;
+      yy = this.sub(g, Ink.tr("trader_route"), 214, yy);
+
+      for (int i = 0; i < route.size(); i++) {
+         CompoundTag s = route.get(i);
+         int index = i;
+         boolean on = i == this.selStop;
+         this.row(g, 214, yy, 158, 12, on, () -> this.selStop = on ? -1 : index);
+         boolean next = i == t.getInt("target") && t.getBoolean("running");
+         MutableComponent label = Component.literal((next ? "➜ " : "") + (i + 1) + ". " + s.getString("name"));
+         if (!s.getBoolean("own") && !s.getString("realm").isEmpty()) {
+            label.append(Component.literal(" (" + s.getString("realm") + ")").withStyle(ChatFormatting.ITALIC));
+         }
+
+         Ink.text(g, Ink.clip(label, Ink.F_BODY, 112), Ink.F_BODY, 216, yy + 1, on ? -7464176 : -13951730);
+         Component meta = Component.literal(s.getList("orders", 10).size() + "⚖" + (s.contains("dist") ? " " + s.getInt("dist") : ""));
+         Ink.text(g, meta, Ink.F_SMALL, 372 - Ink.width(meta, Ink.F_SMALL), yy + 2, -9544893);
+         yy += 13;
+         if (on) {
+            yy = this.stopEditor(g, trade, t, s, index, ruler, yy);
+         }
+      }
+
+      List<CompoundTag> journal = list(t, "journal");
+      if (!journal.isEmpty()) {
+         yy = this.sub(g, Ink.tr("trader_journal"), 214, yy + 3);
+         int shown = 0;
+
+         for (Tag j : t.getList("journal", 8)) {
+            if (shown++ >= 6) {
+               break;
+            }
+
+            Component c;
+            try {
+               c = Serializer.fromJson(j.getAsString());
+            } catch (RuntimeException var17) {
+               c = null;
+            }
+
+            if (c != null) {
+               yy += Ink.para(g, Component.literal(c.getString()), Ink.F_SMALL, 214, yy, 156, -9544893) + 2;
+            }
+         }
+      }
+
+      this.endScroll(g, "route", yy + off - top);
+      if (ruler) {
+         List<CompoundTag> places = list(trade, "places");
+         if (!places.isEmpty()) {
+            this.placeIndex = Math.floorMod(this.placeIndex, places.size());
+            CompoundTag p = places.get(this.placeIndex);
+            MutableComponent name = Component.literal(p.getString("name"));
+            if (!p.getBoolean("own")) {
+               name.append(" (" + p.getString("realm") + (p.getBoolean("war") ? ", ⚔" : "") + ")");
+            }
+
+            this.button(g, Component.literal("◀"), 214, 194, 14, true, () -> this.placeIndex--);
+            Ink.centered(g, Ink.clip(name, Ink.F_SMALL, 96), Ink.F_SMALL, 280, 198, p.getBoolean("war") ? -7464176 : -13951730);
+            this.button(g, Component.literal("▶"), 330, 194, 14, true, () -> this.placeIndex++);
+            String key = p.getString("key");
+            this.button(g, Component.literal("+"), 346, 194, 26, route.size() < 8, () -> order("trade stop " + id + " add " + key));
+            this.tip(214, 194, 158, 15, this.placeTip(p));
+            this.small(g, Ink.tr("trader_add_stop"), 214, 211, 158, -9544893);
+         }
+      }
+   }
+
+   private Component placeTip(CompoundTag p) {
+      MutableComponent c = Component.literal(p.getString("name"));
+      if (!p.getBoolean("own")) {
+         c.append("\n").append(Ink.tr("place_foreign", p.getString("realm"), p.getInt("duty")));
+      }
+
+      for (CompoundTag o : list(p, "offers")) {
+         c.append("\n").append(Ink.tr(o.getBoolean("sell") ? "offer_line_sell" : "offer_line_buy", itemName(o.getString("item")), o.getInt("price"), o.getInt("stock")));
+      }
+
+      return c;
+   }
+
+   private int stopEditor(GuiGraphics g, CompoundTag trade, CompoundTag t, CompoundTag s, int index, boolean ruler, int yy) {
+      String id = t.getString("id");
+      List<CompoundTag> orders = list(s, "orders");
+
+      for (int oi = 0; oi < orders.size(); oi++) {
+         CompoundTag o = orders.get(oi);
+         int orderIndex = oi;
+         String kind = o.getString("kind");
+         this.icon(g, stackOf(o.getString("item"), 1), 220, yy, 0.6F);
+         Component text = Ink.tr(
+            "order_" + kind, itemName(o.getString("item")), o.getInt("amount"), o.getInt("price")
+         );
+         Ink.text(g, Ink.clip(text, Ink.F_SMALL, 128), Ink.F_SMALL, 232, yy + 2, -13951730);
+         if (ruler) {
+            this.button(g, Component.literal("✕"), 360, yy - 1, 12, true, () -> order("trade order " + id + " " + index + " del " + orderIndex));
+         }
+
+         yy += 11;
+      }
+
+      if (orders.isEmpty()) {
+         yy = this.small(g, Ink.tr("stop_no_orders"), 220, yy, 150, -9544893);
+      }
+
+      if (ruler) {
+         String kind = ORDER_KINDS[this.orderKind];
+         this.button(g, Ink.tr("kind_" + kind), 214, yy + 1, 48, true, () -> this.orderKind = (this.orderKind + 1) % ORDER_KINDS.length);
+         this.tip(214, yy + 1, 48, 15, Ink.tr("kind_" + kind + "_tip"));
+         this.stepper(g, 264, yy + 1, Component.literal("×" + AMOUNTS[this.orderAmount]), 52, () -> this.orderAmount = step(AMOUNTS, this.orderAmount, -1), () -> this.orderAmount = step(AMOUNTS, this.orderAmount, 1));
+         boolean priced = kind.equals("buy") || kind.equals("sell");
+         if (priced) {
+            this.stepper(g, 318, yy + 1, Component.literal((kind.equals("buy") ? "≤" : "≥") + PRICES[this.orderPrice]), 54, () -> this.orderPrice = step(PRICES, this.orderPrice, -1), () -> this.orderPrice = step(PRICES, this.orderPrice, 1));
+            this.tip(318, yy + 1, 54, 15, Ink.tr("order_price_tip"));
+         }
+
+         yy += 17;
+         this.button(g, Ink.tr("order_from_hand"), 214, yy, 158, true, () -> order(
+            "trade order " + id + " " + index + " add " + kind + " " + AMOUNTS[this.orderAmount] + " " + (priced ? PRICES[this.orderPrice] : 0)
+         ));
+         yy += 17;
+         this.button(g, Ink.tr("stop_up"), 214, yy, 24, index > 0, () -> {
+            order("trade stop " + id + " up " + index);
+            this.selStop = index - 1;
+         });
+         this.button(g, Ink.tr("stop_down"), 240, yy, 24, true, () -> {
+            order("trade stop " + id + " down " + index);
+            this.selStop = index + 1;
+         });
+         this.button(g, Ink.tr("wp_add", s.getInt("wps")), 266, yy, 66, true, () -> order("trade wp " + id + " " + index + " add"));
+         this.tip(266, yy, 66, 15, Ink.tr("wp_tip"));
+         this.button(g, Ink.tr("wp_clear"), 334, yy, 18, s.getInt("wps") > 0, () -> order("trade wp " + id + " " + index + " clear"));
+         this.button(g, Component.literal("✕"), 354, yy, 18, true, () -> {
+            order("trade stop " + id + " del " + index);
+            this.selStop = -1;
+         });
+         yy += 19;
+      }
+
+      return yy;
+   }
+
+   private void marketsTab(GuiGraphics g, int y) {
+      CompoundTag trade = state.getCompound("trade");
+      List<CompoundTag> mine = list(trade, "markets");
+      List<CompoundTag> foreign = new ArrayList<>();
+
+      for (CompoundTag p : list(trade, "places")) {
+         if (!p.getBoolean("own") && p.contains("offers")) {
+            foreign.add(p);
+         }
+      }
+
+      List<CompoundTag> all = new ArrayList<>(mine);
+      all.addAll(foreign);
+      CompoundTag sel = null;
+
+      for (CompoundTag m : all) {
+         if (m.getString("key").equals(this.selMarket)) {
+            sel = m;
+         }
+      }
+
+      if (sel == null && !all.isEmpty()) {
+         sel = all.get(0);
+         this.selMarket = sel.getString("key");
+      }
+
+      int off = this.beginScroll(g, "markets", 28, y, 158, 224 - y);
+      int yy = y - off;
+      yy = this.sub(g, Ink.tr("markets_mine"), 28, yy);
+
+      for (CompoundTag m : mine) {
+         String key = m.getString("key");
+         this.row(g, 28, yy, 158, 12, key.equals(this.selMarket), () -> this.selMarket = key);
+         Ink.text(g, Ink.clip(Component.literal(m.getString("name")), Ink.F_BODY, 130), Ink.F_BODY, 30, yy + 1, -13951730);
+         Component n = Component.literal(String.valueOf(m.getList("offers", 10).size()));
+         Ink.text(g, n, Ink.F_SMALL, 186 - Ink.width(n, Ink.F_SMALL), yy + 2, -9544893);
+         yy += 13;
+      }
+
+      if (mine.isEmpty()) {
+         yy = this.small(g, Ink.tr("markets_none"), 28, yy, 158, -9544893);
+      }
+
+      yy = this.sub(g, Ink.tr("markets_foreign"), 28, yy + 4);
+
+      for (CompoundTag m : foreign) {
+         String key = m.getString("key");
+         this.row(g, 28, yy, 158, 12, key.equals(this.selMarket), () -> this.selMarket = key);
+         Component name = Component.literal(m.getString("name") + " (" + m.getString("realm") + ")");
+         Ink.text(g, Ink.clip(name, Ink.F_BODY, 150), Ink.F_BODY, 30, yy + 1, m.getBoolean("war") ? -7464176 : -13951730);
+         yy += 13;
+      }
+
+      if (foreign.isEmpty()) {
+         yy = this.small(g, Ink.tr("markets_foreign_none"), 28, yy, 158, -9544893);
+      }
+
+      this.endScroll(g, "markets", yy + off - y);
+      if (sel == null) {
+         this.line(g, Ink.tr("markets_intro"), 214, 30, 158, -9544893);
+      } else {
+         boolean editable = mine.contains(sel);
+         String key = sel.getString("key");
+         int ry = this.heading(g, Component.literal(sel.getString("name")), 214, 24, 158);
+         if (!editable) {
+            ry = this.small(g, Ink.tr("place_foreign", sel.getString("realm"), sel.getInt("duty")), 214, ry - 3, 158, -9544893) + 2;
+         }
+
+         List<CompoundTag> offers = list(sel, "offers");
+         int top = ry;
+         int bottom = editable ? 172 : 224;
+         int mo = this.beginScroll(g, "offers", 214, top, 158, bottom - top);
+         int oy = top - mo;
+
+         for (int i = 0; i < offers.size(); i++) {
+            CompoundTag o = offers.get(i);
+            int index = i;
+            boolean sell = o.getBoolean("sell");
+            this.icon(g, stackOf(o.getString("item"), 1), 214, oy, 0.75F);
+            Component a = Ink.tr(sell ? "offer_sell" : "offer_buy", itemName(o.getString("item")), o.getInt("price"));
+            Ink.text(g, Ink.clip(a, Ink.F_SMALL, 130), Ink.F_SMALL, 228, oy, sell ? -13673956 : -7464176);
+            Component b = Ink.tr(sell ? "offer_keep" : "offer_upto", o.getInt("amount"), o.getInt("stock"));
+            Ink.text(g, Ink.clip(b, Ink.F_SMALL, 130), Ink.F_SMALL, 228, oy + 9, -9544893);
+            if (editable) {
+               this.button(g, Component.literal("✕"), 360, oy + 1, 12, true, () -> order("trade market " + key + " del " + index));
+            }
+
+            oy += 20;
+         }
+
+         if (offers.isEmpty()) {
+            oy = this.small(g, Ink.tr("offers_none"), 214, oy, 158, -9544893);
+         }
+
+         this.endScroll(g, "offers", oy + mo - top);
+         if (editable) {
+            int ey = 176;
+            this.button(g, Ink.tr(this.offerSell ? "offer_kind_sell" : "offer_kind_buy"), 214, ey, 52, true, () -> this.offerSell = !this.offerSell);
+            this.stepper(g, 268, ey, Ink.tr("offer_price", PRICES[this.offerPrice]), 52, () -> this.offerPrice = step(PRICES, this.offerPrice, -1), () -> this.offerPrice = step(PRICES, this.offerPrice, 1));
+            this.stepper(g, 322, ey, Component.literal((this.offerSell ? "⌂" : "≤") + AMOUNTS[this.offerAmount]), 50, () -> this.offerAmount = step(AMOUNTS, this.offerAmount, -1), () -> this.offerAmount = step(AMOUNTS, this.offerAmount, 1));
+            this.tip(322, ey, 50, 15, Ink.tr(this.offerSell ? "offer_keep_tip" : "offer_upto_tip"));
+            this.button(g, Ink.tr("offer_from_hand"), 214, ey + 17, 158, true, () -> order(
+               "trade market " + key + " " + (this.offerSell ? "sell " : "buy ") + PRICES[this.offerPrice] + " " + AMOUNTS[this.offerAmount]
+            ));
+            this.small(g, Ink.tr("market_note"), 214, ey + 34, 158, -9544893);
+         }
+      }
+   }
+
    private static List<Object> list(CompoundTag e) {
       List<Object> out = new ArrayList<>();
       ListTag a = e.getList("args", 8);
@@ -1496,6 +2058,7 @@ public class BookScreen extends Screen {
       WAR(Items.IRON_SWORD, 7017492),
       ARMY(Items.SHIELD, 4084840),
       DECREES(Items.WRITABLE_BOOK, 5975928),
+      TRADE(Items.GOLD_INGOT, 12093995),
       CHRONICLE(Items.BOOK, 7227938),
       BANNER(Items.RED_BANNER, 11569706),
       GUIDE(Items.KNOWLEDGE_BOOK, 3043214),

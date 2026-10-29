@@ -8,6 +8,8 @@ import com.nick.prestol.decree.DecreeData;
 import com.nick.prestol.decree.DecreeType;
 import com.nick.prestol.decree.Decrees;
 import com.nick.prestol.decree.LawType;
+import com.nick.prestol.economy.Treasury;
+import com.nick.prestol.trade.Trading;
 import com.nick.prestol.flag.FlagActions;
 import com.nick.prestol.flag.Flags;
 import com.nick.prestol.land.Lands;
@@ -174,6 +176,10 @@ public final class Book {
                return w[1].equals("enact") ? Decrees.enact(server, player, law) : Decrees.repeal(server, player, law);
             case "army":
                return w.length >= 3 ? Army.order(server, player, w[1], w[2]) : Realms.Result.no(Msg.bad("err.unknown"));
+            case "treasury":
+               return Treasury.order(server, player, w);
+            case "trade":
+               return Trading.order(server, player, w);
             case "admin":
                return Admin.run(server, player, w);
             default:
@@ -194,7 +200,7 @@ public final class Book {
       tag.putBoolean("paintings", Flags.paintings());
       tag.putInt("standardWool", (Integer)PrestolConfig.STANDARD_WOOL.get());
       tag.put("rules", Guide.rules());
-      if (answer != null) {
+      if (answer != null && answer.message() != null) {
          tag.putString("answer", Serializer.toJson(answer.message()));
          tag.putBoolean("answerOk", answer.ok());
       }
@@ -206,6 +212,14 @@ public final class Book {
 
       Realm mine = Realms.realmOf(server, player);
       boolean ruler = Realms.isRuler(mine, player);
+      tag.putBoolean("economy", Treasury.on());
+      if (mine != null && Treasury.on()) {
+         tag.put("treasury", Treasury.describe(server, mine, ruler));
+         if (Trading.on()) {
+            tag.put("trade", Trading.describe(server, player, mine));
+         }
+      }
+
       Set<IColony> shown = new LinkedHashSet<>(Settlements.ownedBy(player.getUUID()));
       if (mine != null) {
          shown.addAll(Realms.members(mine));

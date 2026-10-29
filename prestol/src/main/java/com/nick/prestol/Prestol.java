@@ -9,9 +9,12 @@ import com.nick.prestol.book.Guide;
 import com.nick.prestol.book.PrestolCommand;
 import com.nick.prestol.client.PrestolClient;
 import com.nick.prestol.colony.PrestolHuts;
+import com.nick.prestol.trade.TradeEntities;
+import com.nick.prestol.trade.TradeWorld;
 import com.nick.prestol.compat.HywRules;
 import com.nick.prestol.decree.Decrees;
 import com.nick.prestol.decree.EffectBoost;
+import com.nick.prestol.economy.Treasury;
 import com.nick.prestol.flag.BannerImages;
 import com.nick.prestol.flag.TownFlags;
 import com.nick.prestol.map.MapSync;
@@ -36,6 +39,7 @@ import net.minecraftforge.event.TickEvent.Phase;
 import net.minecraftforge.event.TickEvent.ServerTickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.DistExecutor;
@@ -61,12 +65,14 @@ public class Prestol {
       IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
       modBus.addListener(this::onSetup);
       PrestolHuts.register(modBus);
+      TradeEntities.register(modBus);
       MinecraftForge.EVENT_BUS.register(this);
       MinecraftForge.EVENT_BUS.register(new RealmTicker());
       MinecraftForge.EVENT_BUS.register(new MapSync.Events());
       MinecraftForge.EVENT_BUS.register(Conquest.class);
       MinecraftForge.EVENT_BUS.register(Army.class);
       MinecraftForge.EVENT_BUS.register(Guide.class);
+      MinecraftForge.EVENT_BUS.register(TradeWorld.class);
       if (ModList.get().isLoaded("hundred_years_war")) {
          MinecraftForge.EVENT_BUS.register(HywRules.class);
          modBus.addListener(HywRules::onTabs);
@@ -121,6 +127,12 @@ public class Prestol {
       Wars.applyHostility(server, RealmData.get(server));
       Realms.changed(server);
       LOGGER.info("Prestol: ready, {} realms, decree effects {}", RealmData.get(server).all().size(), EffectBoost.isAvailable() ? "ok" : "UNAVAILABLE");
+   }
+
+   /** Merchants, mules and boats leave the world before it is saved. */
+   @SubscribeEvent
+   public void onServerStopping(ServerStoppingEvent event) {
+      run("trade", () -> TradeWorld.despawnAll(event.getServer()));
    }
 
    @SubscribeEvent
@@ -180,6 +192,12 @@ public class Prestol {
                   }
                }
          }
+
+         if (t == 1) {
+            run("treasury", () -> Treasury.tick(server));
+         }
+
+         run("trade", () -> TradeWorld.tick(server));
 
          if (server.getTickCount() % 100 == 12) {
             run("army", () -> Army.tick(server));
