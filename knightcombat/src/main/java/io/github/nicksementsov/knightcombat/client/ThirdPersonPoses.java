@@ -64,6 +64,23 @@ final class ThirdPersonPoses {
             if (draw < 1) {
                 shown = ThirdPersonPose.lerp(drawn(grip), shown, backOut(draw));
             }
+            if (!lance) {
+                float run = anim.sprint(partialTick);
+                if (run > 0) {
+                    shown = ThirdPersonPose.lerp(shown, running(grip), run);
+                }
+                float inspect = anim.inspectWeight(partialTick);
+                if (inspect > 0) {
+                    shown = ThirdPersonPose.lerp(shown, inspect(grip, anim.inspectProgress(partialTick)), inspect);
+                }
+            }
+        }
+        if (anim.phase == Phase.BLOCK) {
+            shown = guardReaction(shown, anim.has(CombatState.SHIELD), anim.guardJolt(partialTick), anim.parryPush(partialTick));
+        }
+        float air = anim.air(partialTick);
+        if (air > 0 && (anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK)) {
+            shown = airborne(shown, air);
         }
         anim.tpShown = shown;
         return anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK ? breathe(shown, time) : shown;
@@ -76,7 +93,7 @@ final class ThirdPersonPoses {
             case IDLE -> lance ? lanceRaised() : guard(grip);
             case COUCH -> couched();
             // Behind a raised shield the weapon stays ready to strike back.
-            case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
+            case BLOCK -> anim.has(CombatState.SHIELD) ? shieldGuard(grip) : block(grip);
             case WINDUP -> {
                 if (anim.has(CombatState.HEAVY)) {
                     // The charge: drawn back further, the arms trembling with the strain.
@@ -270,6 +287,120 @@ final class ThirdPersonPoses {
             case POLEARM -> pose(dir(0.25f, -0.2f, 0.95f), dir(-1, 0.12f, 0.05f), dir(0.12f, 1, -0.3f),
                     dir(-0.25f, -0.6f, 0.6f), 0.15f);
         };
+    }
+
+    /**
+     * Behind a raised shield: the shield shoulder turned to the enemy, the body bent a little behind it, a one-handed
+     * weapon held high at the side with its point forward over the shield, ready to thrust.
+     */
+    private static ThirdPersonPose shieldGuard(Grip grip) {
+        if (grip != Grip.ONE_HANDED) {
+            return guard(grip).lean(0.06f);
+        }
+        return pose(dir(0.42f, 0.22f, 0.8f), dir(-0.12f, 0.1f, 1), dir(0, -1, 0.1f), dir(-0.3f, -0.9f, 0.3f), 0.35f)
+                .lean(0.08f).head(0.1f).step(0.08f);
+    }
+
+    /**
+     * A blow on the guard drives it back against the body and rocks the fighter back (behind a shield the weapon only
+     * shakes); a parry sweeps the blade out and up against the blow and turns the shoulders with it.
+     */
+    private static ThirdPersonPose guardReaction(ThirdPersonPose pose, boolean shield, float jolt, float parry) {
+        if (jolt == 0 && parry == 0) {
+            return pose;
+        }
+        ThirdPersonPose p = pose.copy();
+        float k = shield ? 0.35f : 1;
+        p.arm.add(0, -0.3f * jolt * k, -0.7f * jolt * k).normalize();
+        p.blade.add(0, 0.3f * jolt * k, -0.4f * jolt * k).normalize();
+        p.lean -= 0.1f * jolt;
+        p.head -= 0.1f * jolt;
+        p.step -= 0.18f * jolt;
+        if (!shield) {
+            p.arm.add(0.3f * parry, 0.15f * parry, 0).normalize();
+            p.blade.add(0.9f * parry, 0.7f * parry, 0.3f * parry).normalize();
+            p.bodyYaw -= 0.3f * parry;
+        }
+        return p;
+    }
+
+    /** Running: the weapon carried low at the side, point forward (two-handed ones across the body), leaning into the run. */
+    private static ThirdPersonPose running(Grip grip) {
+        return switch (grip) {
+            case ONE_HANDED -> pose(dir(0.22f, -0.95f, 0.1f), dir(0.05f, -0.45f, 0.9f), dir(0, -0.9f, -0.45f),
+                    dir(-0.2f, -0.9f, -0.3f), 0.05f).lean(0.12f);
+            case TWO_HANDED -> pose(dir(0.05f, -0.75f, 0.65f), dir(-0.55f, 0.8f, 0.25f), dir(0.3f, 0.45f, -0.85f),
+                    dir(-0.3f, -0.9f, 0.3f), 0.15f).lean(0.1f);
+            case POLEARM -> pose(dir(0.35f, -0.92f, 0.15f), dir(-0.05f, 0.25f, 1), dir(0, -1, 0.25f),
+                    dir(-0.3f, -0.9f, 0.3f), 0.1f).lean(0.12f);
+        };
+    }
+
+    /** Off the ground: the weapon arm lifts a little and the free arm goes out for balance. */
+    private static ThirdPersonPose airborne(ThirdPersonPose pose, float air) {
+        ThirdPersonPose p = pose.copy();
+        p.arm.add(0, 0.18f * air, 0).normalize();
+        p.off.set(PoseMath.lerp(p.off, dir(-0.75f, 0.15f, 0.25f), 0.6f * air)).normalize();
+        p.head -= 0.06f * air;
+        return p;
+    }
+
+    /**
+     * Looking the weapon over, {@code t} of the way through: a one-handed weapon is raised before the face, turned
+     * from the flat to the edge and twirled at the side; a two-handed one is rested on the shoulder; a polearm is
+     * grounded upright and leant on.
+     */
+    static ThirdPersonPose inspect(Grip grip, float t) {
+        ThirdPersonPose guard = guard(grip);
+        return switch (grip) {
+            case ONE_HANDED -> {
+                ThirdPersonPose flat = pose(dir(0.12f, 0.05f, 1), dir(-0.2f, 1, 0.15f), dir(1, 0, 0), dir(-0.3f, -0.9f, 0.3f), 0.05f)
+                        .head(0.12f);
+                ThirdPersonPose edge = pose(dir(0.12f, 0.05f, 1), dir(-0.2f, 1, 0.15f), dir(0, 0.15f, -1), dir(-0.3f, -0.9f, 0.3f), 0.05f)
+                        .head(0.12f);
+                if (t < 0.2f) {
+                    yield ThirdPersonPose.lerp(guard, flat, backOut(t / 0.2f));
+                }
+                if (t < 0.38f) {
+                    yield flat;
+                }
+                if (t < 0.52f) {
+                    yield ThirdPersonPose.lerp(flat, edge, smooth((t - 0.38f) / 0.14f));
+                }
+                if (t < 0.62f) {
+                    yield edge;
+                }
+                ThirdPersonPose twirlStart = twirl(0);
+                if (t < 0.7f) {
+                    yield ThirdPersonPose.lerp(edge, twirlStart, smooth((t - 0.62f) / 0.08f));
+                }
+                if (t < 0.88f) {
+                    yield twirl(smooth((t - 0.7f) / 0.18f));
+                }
+                yield ThirdPersonPose.lerp(twirlStart, guard, smooth((t - 0.88f) / 0.12f));
+            }
+            case TWO_HANDED -> {
+                float shrug = t > 0.4f && t < 0.6f ? (float) Math.sin((t - 0.4f) / 0.2f * Math.PI) : 0;
+                ThirdPersonPose shoulder = pose(dir(0.5f, 0.05f + 0.08f * shrug, 0.3f), dir(0.2f, 0.4f, -0.9f), dir(0, 1, 0.35f),
+                        dir(-0.3f, -0.9f, 0.2f), 0.1f).head(-0.05f * shrug);
+                yield t < 0.22f ? ThirdPersonPose.lerp(guard, shoulder, backOut(t / 0.22f))
+                        : t < 0.78f ? shoulder : ThirdPersonPose.lerp(shoulder, guard, smooth((t - 0.78f) / 0.22f));
+            }
+            case POLEARM -> {
+                ThirdPersonPose planted = pose(dir(0.5f, -0.8f, 0.35f), dir(0.05f, 1, 0.08f), dir(0, 0, 1), dir(-0.3f, -0.9f, 0.2f), 0.05f)
+                        .lean(-0.04f).step(-0.1f);
+                yield t < 0.22f ? ThirdPersonPose.lerp(guard, planted, smooth(t / 0.22f))
+                        : t < 0.8f ? planted : ThirdPersonPose.lerp(planted, guard, smooth((t - 0.8f) / 0.2f));
+            }
+        };
+    }
+
+    /** A twirl of the blade at the side, {@code u} of one turn: it spins forward, down, back and up again. */
+    private static ThirdPersonPose twirl(float u) {
+        float theta = (90 - 360 * u) * DEG;
+        float sin = (float) Math.sin(theta);
+        float cos = (float) Math.cos(theta);
+        return pose(dir(0.38f, -0.85f, 0.3f), dir(0.06f, sin, cos), dir(0, -cos, sin), dir(-0.3f, -0.9f, 0.3f), 0.1f);
     }
 
     private static ThirdPersonPose staggered() {

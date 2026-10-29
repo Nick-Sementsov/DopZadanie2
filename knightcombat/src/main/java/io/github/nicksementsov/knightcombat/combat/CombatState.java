@@ -60,6 +60,9 @@ public final class CombatState {
     long couchReadyAt = Long.MIN_VALUE / 2;
     /** How fast the mount runs, for the force of a couched lance. */
     final MountTracker mount = new MountTracker();
+    /** The inventory slot a shield was put away into for a two-handed weapon (-1: none), and its item. */
+    int stowedSlot = -1;
+    Item stowedItem;
     long blockPressedAt = Long.MIN_VALUE / 2;
     long parryUntil = Long.MIN_VALUE / 2;
     long riposteUntil = Long.MIN_VALUE / 2;

@@ -27,6 +27,7 @@ public final class CombatConfig {
     private static final ForgeConfigSpec.BooleanValue DODGES;
     private static final ForgeConfigSpec.BooleanValue SHIELDS;
     private static final ForgeConfigSpec.BooleanValue MOUNTED_CHARGES;
+    private static final ForgeConfigSpec.BooleanValue TWO_HANDED_PUTS_AWAY_SHIELD;
 
     public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
@@ -40,6 +41,7 @@ public final class CombatConfig {
     public static final ForgeConfigSpec.BooleanValue ATTACK_LUNGE;
     public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS;
     public static final ForgeConfigSpec.BooleanValue DOUBLE_TAP_DODGE;
+    public static final ForgeConfigSpec.BooleanValue IDLE_ANIMATIONS;
 
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
@@ -92,6 +94,10 @@ public final class CombatConfig {
                 .comment("Riders lower a lance (Epic Knights' tournament lances too) or a spear with the use key and strike with the speed of",
                         "the mount: the faster, the harder, throwing riders out of the saddle. Epic Knights' own lance collisions are then off")
                 .define("mountedCharges", true);
+        TWO_HANDED_PUTS_AWAY_SHIELD = server
+                .comment("A two-handed weapon (two-handed swords and axes, polearms) needs both hands: while one is held, a shield in the off",
+                        "hand is put away into the inventory (dropped if there is no room) and taken back when the weapon is put away")
+                .define("twoHandedPutsAwayShield", true);
         SERVER_SPEC = server.build();
 
         ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
@@ -131,6 +137,10 @@ public final class CombatConfig {
         DOUBLE_TAP_DODGE = client
                 .comment("Pressing left, right or back twice quickly dodges that way while a weapon is in hand (the dodge key works too)")
                 .define("doubleTapDodge", true);
+        IDLE_ANIMATIONS = client
+                .comment("A knight standing still for a while looks the weapon over: turns the blade, rests a two-handed weapon on the",
+                        "shoulder, leans on a polearm")
+                .define("idleAnimations", true);
         CLIENT_SPEC = client.build();
     }
 
@@ -213,6 +223,10 @@ public final class CombatConfig {
 
     public static boolean mountedCharges() {
         return get(MOUNTED_CHARGES, true);
+    }
+
+    public static boolean twoHandedPutsAwayShield() {
+        return get(TWO_HANDED_PUTS_AWAY_SHIELD, true);
     }
 
     public static int battleCryCooldownTicks() {

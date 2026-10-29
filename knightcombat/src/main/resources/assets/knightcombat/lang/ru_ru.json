@@ -64,6 +64,8 @@
   "hud.knightcombat.kicked": "Вас выбили из блока",
   "hud.knightcombat.flinched": "Замах сбит",
   "hud.knightcombat.battle_cry": "Боевой клич!",
+  "hud.knightcombat.shield_stowed": "Двуручное оружие — щит убран в инвентарь",
+  "hud.knightcombat.shield_dropped": "Некуда убрать щит — он брошен",
   "hud.knightcombat.combo.whirlwind": "Вихрь!",
   "hud.knightcombat.combo.mill": "Мельница!",
   "hud.knightcombat.combo.hammerfall": "Молот!",

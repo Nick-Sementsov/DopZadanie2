@@ -29,7 +29,11 @@ public enum Feedback {
     /** A hit interrupted your wind-up. */
     FLINCHED,
     /** Your battle cry restored stamina. */
-    BATTLE_CRY;
+    BATTLE_CRY,
+    /** You took a two-handed weapon: your shield was put away into the inventory. */
+    SHIELD_STOWED,
+    /** You took a two-handed weapon and there was no room for your shield: it was dropped. */
+    SHIELD_DROPPED;
 
     private static final Feedback[] VALUES = values();
 

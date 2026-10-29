@@ -59,6 +59,25 @@ final class FirstPersonPoses {
             if (draw < 1) {
                 shown = FirstPersonPose.lerp(drawn(), shown, backOut(draw));
             }
+            if (!lance) {
+                float run = anim.sprint(partialTick);
+                if (run > 0) {
+                    shown = FirstPersonPose.lerp(shown, running(grip), run);
+                }
+                float inspect = anim.inspectWeight(partialTick);
+                if (inspect > 0) {
+                    shown = FirstPersonPose.lerp(shown, inspect(grip, anim.inspectProgress(partialTick)), inspect);
+                }
+            }
+        }
+        if (anim.phase == Phase.BLOCK) {
+            shown = guardReaction(shown, anim.has(CombatState.SHIELD), anim.guardJolt(partialTick), anim.parryPush(partialTick));
+        }
+        float air = anim.air(partialTick);
+        if (air > 0 && (anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK)) {
+            // Off the ground the weapon lifts a little and tips back.
+            shown = new FirstPersonPose(new Vector3f(shown.hand).add(0, 0.04f * air, 0.02f * air),
+                    new Vector3f(shown.blade).add(0, 0, 0.12f * air), shown.edge);
         }
         anim.fpShown = shown;
         return anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK ? breathe(shown, time) : shown;
@@ -70,7 +89,7 @@ final class FirstPersonPoses {
         return switch (anim.phase) {
             case IDLE -> lance ? lanceRaised() : guard(grip);
             case COUCH -> couched();
-            case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
+            case BLOCK -> anim.has(CombatState.SHIELD) ? shieldGuard(grip) : block(grip);
             case WINDUP -> {
                 if (anim.has(CombatState.HEAVY)) {
                     // The charge: drawn back further (the weight of the weapon makes it tremble, see the animator).
@@ -211,6 +230,70 @@ final class FirstPersonPoses {
         // Raised across the upper half of the view, edge up, so the enemy stays visible below the blade.
         float y = grip == Grip.POLEARM ? -0.02f : 0.06f;
         return facing(0.3f, y, -0.8f, -1f, 0.32f, -0.25f, new Vector3f(0, 0.25f, 1), new Vector3f(0, 1, 0));
+    }
+
+    /** Behind a raised shield a one-handed weapon is held high at the right, point forward over the shield. */
+    private static FirstPersonPose shieldGuard(Grip grip) {
+        return grip == Grip.ONE_HANDED
+                ? facing(0.5f, -0.14f, -0.8f, -0.1f, 0.28f, -1, new Vector3f(0.25f, 1, 0.35f), new Vector3f(0, -1, 0))
+                : guard(grip);
+    }
+
+    /**
+     * A blow on the guard drives the weapon down towards the eyes (behind a shield it only shakes); a parry sweeps
+     * it out to the right and up against the blow.
+     */
+    private static FirstPersonPose guardReaction(FirstPersonPose pose, boolean shield, float jolt, float parry) {
+        if (jolt == 0 && parry == 0) {
+            return pose;
+        }
+        float k = shield ? 0.35f : 1;
+        Vector3f hand = new Vector3f(pose.hand).add(0, -0.07f * jolt * k, 0.12f * jolt * k);
+        Vector3f blade = new Vector3f(pose.blade).add(0, -0.25f * jolt * k, 0);
+        if (!shield) {
+            hand.add(0.08f * parry, 0.05f * parry, -0.04f * parry);
+            blade.add(0.7f * parry, 0.6f * parry, -0.2f * parry);
+        }
+        return new FirstPersonPose(hand, blade, pose.edge);
+    }
+
+    /** Running: the weapon carried low at the right, point forward; a two-handed one across the body. */
+    private static FirstPersonPose running(Grip grip) {
+        return switch (grip) {
+            case ONE_HANDED -> facing(0.54f, -0.5f, -0.66f, 0.06f, -0.06f, -1, new Vector3f(0.7f, 0.4f, 0.6f), new Vector3f(0, -1, 0));
+            case TWO_HANDED -> facing(0.34f, -0.52f, -0.66f, -0.75f, 0.75f, -0.35f, new Vector3f(0.2f, 0.3f, 1), new Vector3f(0, 1, 0));
+            case POLEARM -> facing(0.5f, -0.54f, -0.64f, -0.08f, 0.22f, -1, new Vector3f(0.7f, 0.5f, 0.5f), new Vector3f(0, -1, 0));
+        };
+    }
+
+    /**
+     * Looking the weapon over, {@code t} of the way through: a one-handed weapon is brought up before the eyes, flat
+     * to them, then turned to look along the edge; a two-handed one is swung onto the shoulder; a polearm is grounded
+     * upright at the side.
+     */
+    private static FirstPersonPose inspect(Grip grip, float t) {
+        FirstPersonPose guard = guard(grip);
+        return switch (grip) {
+            case ONE_HANDED -> {
+                FirstPersonPose flat = facing(0.17f, -0.2f, -0.6f, -0.05f, 1, -0.25f, new Vector3f(0, 0.1f, 1), new Vector3f(-1, 0, 0));
+                FirstPersonPose edge = facing(0.17f, -0.18f, -0.6f, -0.05f, 1, -0.25f, new Vector3f(1, 0, 0.1f), new Vector3f(0, 0, 1));
+                yield t < 0.22f ? FirstPersonPose.lerp(guard, flat, backOut(t / 0.22f))
+                        : t < 0.42f ? flat
+                        : t < 0.58f ? FirstPersonPose.lerp(flat, edge, smooth((t - 0.42f) / 0.16f))
+                        : t < 0.78f ? edge
+                        : FirstPersonPose.lerp(edge, guard, smooth((t - 0.78f) / 0.22f));
+            }
+            case TWO_HANDED -> {
+                FirstPersonPose shoulder = facing(0.58f, -0.4f, -0.42f, 0.35f, 0.55f, 0.75f, new Vector3f(1, 0.2f, 0), new Vector3f(0, 1, 0));
+                yield t < 0.22f ? FirstPersonPose.lerp(guard, shoulder, backOut(t / 0.22f))
+                        : t < 0.78f ? shoulder : FirstPersonPose.lerp(shoulder, guard, smooth((t - 0.78f) / 0.22f));
+            }
+            case POLEARM -> {
+                FirstPersonPose planted = facing(0.62f, -0.62f, -0.78f, 0.05f, 1, 0.05f, TO_CAMERA, new Vector3f(0, 0, -1));
+                yield t < 0.22f ? FirstPersonPose.lerp(guard, planted, smooth(t / 0.22f))
+                        : t < 0.8f ? planted : FirstPersonPose.lerp(planted, guard, smooth((t - 0.8f) / 0.2f));
+            }
+        };
     }
 
     /**

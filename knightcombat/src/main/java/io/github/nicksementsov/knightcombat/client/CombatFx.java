@@ -63,7 +63,11 @@ public final class CombatFx {
                 case BLOCK -> 0.3f + 0.35f * weight;
                 default -> 0.25f;
             };
-            ClientCombat.animOf(victim.getId()).hurt(side(victim, attacker != null ? attacker.position() : point), strength);
+            FighterAnim anim = ClientCombat.animOf(victim.getId());
+            anim.hurt(side(victim, attacker != null ? attacker.position() : point), strength);
+            if (impact == Impact.BLOCK || impact == Impact.PARRY) {
+                anim.guardHit(impact == Impact.PARRY, 0.45f + 0.55f * weight);
+            }
         }
 
         boolean struck = attacker == me;

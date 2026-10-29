@@ -39,12 +39,15 @@ import org.joml.Vector3f;
  * <p>
  * The whole model turns too: it spins with a whirlwind and leans into a dodge.
  * <p>
- * A shield in the other hand is held before the body and thrust out in a bash; while it is raised, Minecraft poses
- * that arm and the weapon stays ready behind it.
+ * A shield in the other hand is posed by this mod too, with or without a weapon: held before the body, raised to
+ * block (driven back by the blows it takes, punched out against a parried one) and thrust out in a bash. It is taken
+ * out of the hand as well and {@link WeaponLayer} draws it with its model at rest, not Minecraft's blocking one.
  */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID, value = Dist.CLIENT)
 public final class ThirdPersonAnimator {
     private static HumanoidModel.ArmPose armPose;
+    /** The arm pose of a shield carried without a weapon: only that arm is posed. */
+    private static HumanoidModel.ArmPose shieldPose;
     private static float partialTick;
 
     // The player being drawn: weapons taken out of their hands and the blade and edge directions of their pose (model space).
@@ -55,8 +58,14 @@ public final class ThirdPersonAnimator {
     private static int hiddenSlot;
     private static ItemStack hiddenMain = ItemStack.EMPTY;
     private static ItemStack hiddenOff = ItemStack.EMPTY;
+    /** The thing taken out of the off hand is a shield to draw (not something hidden behind a two-handed weapon). */
+    private static boolean drawnShield;
+    /** The player being drawn carries a shield and no weapon. */
+    private static boolean shieldOnly;
     private static final Vector3f BLADE = new Vector3f();
     private static final Vector3f EDGE = new Vector3f();
+    /** How far the arm of a raised shield is raised forward (radians about the shoulder): higher than Minecraft raises it. */
+    static final float SHIELD_UP_X = -1.25f;
     /** Share of a turn a whirlwind spins during its release; the rest comes in the recovery. */
     private static final float SPIN_IN_RELEASE = 0.7f;
     /** Whether the pose stack of the player being drawn was turned, to be put back afterwards. */
@@ -68,6 +77,7 @@ public final class ThirdPersonAnimator {
     /** Creates the arm pose; arm poses are an extensible enum, so this runs once during client setup. */
     static void init() {
         armPose = HumanoidModel.ArmPose.create("KNIGHTCOMBAT_WEAPON", false, ThirdPersonAnimator::pose);
+        shieldPose = HumanoidModel.ArmPose.create("KNIGHTCOMBAT_SHIELD", false, ThirdPersonAnimator::poseShieldOnly);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -79,21 +89,46 @@ public final class ThirdPersonAnimator {
         if (lance) {
             weapon = Lances.RENDER;
         }
-        if (armPose == null || weapon == null || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSleeping() || player.isFallFlying()
-                || player.isVisuallySwimming() || player.isSpectator()) {
+        boolean shield = CombatConfig.shields() && Shields.isShield(player.getOffhandItem()) && (weapon == null || !weapon.twoHanded());
+        if (armPose == null || weapon == null && !shield || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSleeping()
+                || player.isFallFlying() || player.isVisuallySwimming() || player.isSpectator()) {
             return;
         }
         partialTick = event.getPartialTick();
         PlayerModel<?> model = event.getRenderer().getModel();
-        if (player.getMainArm() == HumanoidArm.RIGHT) {
-            model.rightArmPose = armPose;
-        } else {
-            model.leftArmPose = armPose;
-        }
+        boolean rightHanded = player.getMainArm() == HumanoidArm.RIGHT;
         Inventory inventory = player.getInventory();
         posed = player;
         posedStats = weapon;
         posedLance = lance;
+        shieldOnly = weapon == null;
+        if (shield) {
+            // The shield arm is posed by this mod, raised or not, and the shield drawn by WeaponLayer.
+            hiddenOff = inventory.offhand.get(0);
+            inventory.offhand.set(0, ItemStack.EMPTY);
+            drawnShield = true;
+            if (rightHanded) {
+                model.leftArmPose = shieldOnly ? shieldPose : HumanoidModel.ArmPose.EMPTY;
+            } else {
+                model.rightArmPose = shieldOnly ? shieldPose : HumanoidModel.ArmPose.EMPTY;
+            }
+        }
+        if (weapon == null) {
+            return;
+        }
+        if (rightHanded) {
+            model.rightArmPose = armPose;
+        } else {
+            model.leftArmPose = armPose;
+        }
+        if (shield && Shields.raisedInOffHand(player)) {
+            // While an item is in use Minecraft poses only the arm that holds it.
+            if (rightHanded) {
+                model.leftArmPose = armPose;
+            } else {
+                model.rightArmPose = armPose;
+            }
+        }
         hiddenSlot = inventory.selected;
         if (HeldModel.measurable(inventory.items.get(hiddenSlot))) {
             hiddenMain = inventory.items.get(hiddenSlot);
@@ -185,11 +220,18 @@ public final class ThirdPersonAnimator {
         posedStats = null;
         hiddenMain = ItemStack.EMPTY;
         hiddenOff = ItemStack.EMPTY;
+        drawnShield = false;
+        shieldOnly = false;
     }
 
     /** The weapon taken out of the hand of {@code player} for drawing, or {@code null}. */
     static ItemStack hiddenWeapon(Player player) {
         return player == posed && !hiddenMain.isEmpty() ? hiddenMain : null;
+    }
+
+    /** The shield taken out of the off hand of {@code player} for drawing, or {@code null}. */
+    static ItemStack hiddenShield(Player player) {
+        return player == posed && drawnShield && !hiddenOff.isEmpty() ? hiddenOff : null;
     }
 
     static WeaponStats posedStats() {
@@ -209,7 +251,8 @@ public final class ThirdPersonAnimator {
             return;
         }
         WeaponStats weapon = posedStats;
-        boolean left = arm == HumanoidArm.LEFT;
+        // Called for the weapon arm, or for the shield arm while the shield is raised; either way both arms are posed.
+        boolean left = player.getMainArm() == HumanoidArm.LEFT;
         ModelPart main = left ? model.leftArm : model.rightArm;
         ModelPart off = left ? model.rightArm : model.leftArm;
         // Before this runs the arms hold the walking swing; keep a little of it.
@@ -238,23 +281,18 @@ public final class ThirdPersonAnimator {
         // The fist faces along the blade it holds.
         Quaternionf mainRotation = PoseMath.armFrame(armDir, BLADE);
         set(main, mainRotation);
-        main.xRot += walkMain * 0.15f;
+        // A running fighter swings the weapon arm with the stride.
+        main.xRot += walkMain * (0.15f + (anim != null ? 0.3f * anim.sprint(partialTick) : 0));
 
-        // A raised shield: Minecraft has already posed that arm (it poses the arm of the item in use first).
-        boolean shieldUp = Shields.raisedInOffHand(player);
-        // A thrown weapon and a couched spear are held in one hand; the other holds the reins.
+        // A thrown weapon and a couched spear are held in one hand, the other holds the reins; a two-handed weapon
+        // rested on the shoulder or a polearm leant on is held in one hand too.
         boolean oneHand = anim != null && (anim.phase == Phase.THROW || anim.phase == Phase.COUCH
-                || anim.phase == Phase.RECOVERY && anim.has(CombatState.LANCE));
+                || anim.phase == Phase.RECOVERY && anim.has(CombatState.LANCE)
+                || anim.phase == Phase.IDLE && anim.inspectWeight(partialTick) > 0.5f);
         if (weapon.grip().twoHanded() && !oneHand) {
             reachForGrip(main, off, weapon.grip(), left);
-        } else if (Shields.isShield(player.getOffhandItem())) {
-            if (!shieldUp) {
-                // Held before the body, its face to the front, lower than Minecraft's raised shield; a bash thrusts it out.
-                float bash = ThirdPersonPoses.bash(anim, partialTick);
-                off.xRot = Mth.lerp(bash, -0.8f, -1.3f) + walkOff * 0.15f;
-                off.yRot = (left ? -1 : 1) * Mth.lerp(bash, 0.8f, 0.9f);
-                off.zRot = (left ? -1 : 1) * Mth.lerp(bash, 0.3f, 0);
-            }
+        } else if (drawnShield) {
+            poseShield(model, off, left, anim, walkOff);
         } else {
             Vector3f offDir = mirrored(body.transform(new Vector3f(pose.off)), left);
             set(off, PoseMath.armFrame(offDir, new Vector3f(0, 0, -1)));
@@ -263,7 +301,7 @@ public final class ThirdPersonAnimator {
 
         if (flinch != 0) {
             main.zRot += (left ? -1 : 1) * 0.25f * flinch;
-            if (!shieldUp) {
+            if (!drawnShield) {
                 off.xRot -= 0.4f * flinch;
             }
         }
@@ -286,6 +324,39 @@ public final class ThirdPersonAnimator {
         }
         model.head.xRot += pose.head + pose.lean * 0.5f - 0.35f * flinch;
         model.head.yRot += flinchSide * 0.25f * flinch;
+    }
+
+    /** The arm pose of a shield carried without a weapon: only the shield arm is posed, the other hand is Minecraft's. */
+    private static void poseShieldOnly(HumanoidModel<?> model, LivingEntity entity, HumanoidArm arm) {
+        if (entity != posed || !shieldOnly) {
+            return;
+        }
+        ModelPart off = arm == HumanoidArm.LEFT ? model.leftArm : model.rightArm;
+        poseShield(model, off, arm == HumanoidArm.RIGHT, ClientCombat.anim(posed), off.xRot);
+    }
+
+    /**
+     * The arm with the shield ({@code mainLeft}: the weapon hand is the left one). At rest the shield is held before
+     * the body, its face to the front. Raised, it comes up before the chest and the chin and a little forward; blows
+     * on it drive the arm back and down, a parry punches it out against the blow, and a bash thrusts it far out.
+     */
+    private static void poseShield(HumanoidModel<?> model, ModelPart off, boolean mainLeft, FighterAnim anim, float walk) {
+        float side = mainLeft ? -1 : 1;
+        float bash = ThirdPersonPoses.bash(anim, partialTick);
+        float raise = anim != null ? anim.shieldRaise(partialTick) : 0;
+        float jolt = anim != null ? anim.guardJolt(partialTick) * raise : 0;
+        float parry = anim != null ? anim.parryPush(partialTick) * raise : 0;
+        float x = Mth.lerp(raise, -0.8f, SHIELD_UP_X);
+        float y = Mth.lerp(raise, 0.8f, 0.85f);
+        float z = Mth.lerp(raise, 0.3f, 0);
+        x = Mth.lerp(bash, x, -1.3f) + 0.5f * jolt - 0.35f * parry;
+        y = Mth.lerp(bash, y, 0.9f) + 0.2f * jolt;
+        z = Mth.lerp(bash, z, 0);
+        off.xRot = x + walk * 0.15f * (1 - raise);
+        off.yRot = side * y;
+        off.zRot = side * z;
+        off.z += -0.5f * raise + 1.5f * jolt - 1.5f * parry;
+        model.head.xRot += 0.08f * raise;
     }
 
     /** The blade and edge directions of a pose in model space, turned with the body and mirrored for the left hand. */

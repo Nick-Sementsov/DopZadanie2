@@ -10,7 +10,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 /** The network channel of the mod. The mod has to be installed on both the server and the clients. */
 public final class CombatNetwork {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             KnightCombat.id("main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 

@@ -64,6 +64,8 @@
   "hud.knightcombat.kicked": "Kicked out of your block",
   "hud.knightcombat.flinched": "Wind-up interrupted",
   "hud.knightcombat.battle_cry": "Battle cry!",
+  "hud.knightcombat.shield_stowed": "Two-handed weapon: shield put away",
+  "hud.knightcombat.shield_dropped": "No room for the shield: it was dropped",
   "hud.knightcombat.combo.whirlwind": "Whirlwind!",
   "hud.knightcombat.combo.mill": "Mill!",
   "hud.knightcombat.combo.hammerfall": "Hammerfall!",

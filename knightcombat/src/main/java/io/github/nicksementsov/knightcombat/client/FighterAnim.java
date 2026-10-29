@@ -6,6 +6,7 @@ import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
+import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.world.entity.player.Player;
@@ -22,6 +23,9 @@ public final class FighterAnim {
     private static final int REMOTE_GRACE = 3;
     /** Length of the flourish of drawing a weapon, in ticks. */
     static final float DRAW_TICKS = 9;
+    /** Ticks a fighter stands still before looking the weapon over, and how long that takes. */
+    private static final int IDLE_BEFORE_INSPECT = 240;
+    private static final float INSPECT_TICKS = 56;
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
@@ -59,6 +63,25 @@ public final class FighterAnim {
     // The weapon in hand and when it was drawn.
     private Item heldItem;
     private float drawnAt = -100;
+
+    // How far the shield is raised, eased in and out (this tick and the last).
+    private float shieldRaise;
+    private float shieldRaiseO;
+    // The last blow on the guard (a weapon block or a shield): when, how hard and whether it was parried.
+    private float guardHitAt = -100;
+    private float guardHitStrength;
+    private boolean guardParried;
+    // How the fighter moves, eased: running, and off the ground.
+    private float sprint;
+    private float sprintO;
+    private float air;
+    private float airO;
+    // Standing idle: for how long, and the inspection of the weapon that comes of it (its progress and its weight).
+    private int idleTicks;
+    private float inspect;
+    private float inspectO;
+    private float inspectWeight;
+    private float inspectWeightO;
 
     public Phase phase() {
         return phase;
@@ -131,6 +154,93 @@ public final class FighterAnim {
         }
         float envelope = x < 1 ? x : (float) (Math.exp(-(x - 1) / 2.5) * Math.cos((x - 1) * 0.55));
         return envelope * hurtStrength;
+    }
+
+    /**
+     * Follows what the fighter's body does, once a tick: the shield going up or down, running, jumping and standing
+     * idle long enough to look the weapon over.
+     */
+    void tickBody(Player player) {
+        boolean raised = Shields.raised(player);
+        shieldRaiseO = shieldRaise;
+        shieldRaise = approach(shieldRaise, raised ? 1 : 0, raised ? 0.4f : 0.28f);
+        sprintO = sprint;
+        sprint = approach(sprint, player.isSprinting() && !player.isPassenger() && !player.isSwimming() ? 1 : 0, 0.2f);
+        boolean airborne = !player.onGround() && !player.isPassenger() && !player.isInWater() && !player.getAbilities().flying;
+        airO = air;
+        air = approach(air, airborne ? 1 : 0, 0.25f);
+
+        boolean still = phase == Phase.IDLE && !raised && !airborne && sprint == 0 && player.walkAnimation.speed() < 0.05f
+                && CombatConfig.IDLE_ANIMATIONS.get();
+        idleTicks = still ? idleTicks + 1 : 0;
+        boolean inspecting = idleTicks >= IDLE_BEFORE_INSPECT;
+        if (inspecting) {
+            inspectO = inspect;
+            inspect = (idleTicks - IDLE_BEFORE_INSPECT) / INSPECT_TICKS;
+            if (inspect >= 1) {
+                inspect = 1;
+                idleTicks = 0;
+                inspecting = false;
+            }
+        }
+        inspectWeightO = inspectWeight;
+        // Interrupted, the inspection fades out from where it was.
+        inspectWeight = approach(inspectWeight, inspecting ? 1 : 0, 0.2f);
+    }
+
+    private static float approach(float value, float target, float step) {
+        return value < target ? Math.min(target, value + step) : Math.max(target, value - step);
+    }
+
+    /** How far the shield is raised, 0 down to 1 up, eased. */
+    float shieldRaise(float partialTick) {
+        return PoseMath.smooth(PoseMath.lerp(shieldRaiseO, shieldRaise, partialTick));
+    }
+
+    /** How far the fighter is into a run, 0..1. */
+    float sprint(float partialTick) {
+        return PoseMath.smooth(PoseMath.lerp(sprintO, sprint, partialTick));
+    }
+
+    /** How far the fighter is off the ground, 0..1. */
+    float air(float partialTick) {
+        return PoseMath.smooth(PoseMath.lerp(airO, air, partialTick));
+    }
+
+    /** How much of the inspection of the weapon is shown, 0..1. */
+    float inspectWeight(float partialTick) {
+        return PoseMath.smooth(PoseMath.lerp(inspectWeightO, inspectWeight, partialTick));
+    }
+
+    /** How far the inspection of the weapon is, 0..1. */
+    float inspectProgress(float partialTick) {
+        return inspect < inspectO ? inspect : PoseMath.lerp(inspectO, inspect, partialTick);
+    }
+
+    /** A blow landed on the fighter's guard with {@code strength} 0..1; {@code parried}: it was turned aside. */
+    void guardHit(boolean parried, float strength) {
+        guardHitAt = ClientCombat.ticks();
+        guardHitStrength = strength;
+        guardParried = parried;
+    }
+
+    /** How far the last blow on the guard drives it back now: a snap, then a springy return, about one at the strongest. */
+    float guardJolt(float partialTick) {
+        float x = ClientCombat.ticks() + partialTick - guardHitAt;
+        if (guardParried || x < 0 || x > 10) {
+            return 0;
+        }
+        float envelope = x < 1 ? x : (float) (Math.exp(-(x - 1) / 2) * Math.cos((x - 1) * 0.6));
+        return envelope * guardHitStrength;
+    }
+
+    /** How far a parry turns the guard out against the blow now: out at once, back over a few ticks; 0..1. */
+    float parryPush(float partialTick) {
+        float x = ClientCombat.ticks() + partialTick - guardHitAt;
+        if (!guardParried || x < 0 || x > 8) {
+            return 0;
+        }
+        return x < 1.5f ? PoseMath.easeOut(x / 1.5f) : 1 - PoseMath.smooth((x - 1.5f) / 6.5f);
     }
 
     /** Progress through the phase, 0..1. Phases without a length are always complete. */

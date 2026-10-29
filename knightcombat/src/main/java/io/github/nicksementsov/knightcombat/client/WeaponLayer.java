@@ -1,6 +1,7 @@
 package io.github.nicksementsov.knightcombat.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
@@ -10,6 +11,7 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -22,6 +24,9 @@ import org.joml.Vector3f;
  * Draws the weapon in the hand of a posed player, with the blade and the edge pointing where the pose says,
  * and the trail of a swing behind it. The weapon keeps its own model and hand transform (so it looks the way
  * its mod made it) and is only turned around the hand and made a little larger.
+ * <p>
+ * The shield in the other hand is drawn here too, where Minecraft would draw it, but always with its model at rest:
+ * Minecraft's model of a raised shield would turn it on the arm that this mod raises its own way.
  */
 public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
     /** Longest weapons that are still made larger, in blocks from the hand to the tip. */
@@ -37,6 +42,10 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
     @Override
     public void render(@NotNull PoseStack poseStack, @NotNull MultiBufferSource buffers, int light, @NotNull AbstractClientPlayer player,
                        float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
+        ItemStack shield = ThirdPersonAnimator.hiddenShield(player);
+        if (shield != null) {
+            renderShield(poseStack, buffers, light, player, shield, partialTick);
+        }
         ItemStack stack = ThirdPersonAnimator.hiddenWeapon(player);
         WeaponStats weapon = ThirdPersonAnimator.posedStats();
         if (stack == null || weapon == null) {
@@ -76,6 +85,48 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
             }
             SwingTrail.draw(poseStack, buffers, bases, tips, SwingTrail.color(anim), Math.min(1, TRAIL_OPACITY * SwingTrail.strength(anim) * range[2]));
         }
+    }
+
+    /** How far Minecraft raises the arm of a raised shield (radians about the shoulder). */
+    private static final float VANILLA_BLOCK_X = -0.9424779f;
+
+    /** The shield in the off hand, placed on the hand as Minecraft's item layer places it. */
+    private void renderShield(PoseStack poseStack, MultiBufferSource buffers, int light, AbstractClientPlayer player, ItemStack shield,
+                              float partialTick) {
+        HumanoidArm arm = player.getMainArm().getOpposite();
+        boolean left = arm == HumanoidArm.LEFT;
+        FighterAnim anim = ClientCombat.anim(player);
+        float raise = anim != null ? anim.shieldRaise(partialTick) : 0;
+        poseStack.pushPose();
+        getParentModel().translateToHand(arm, poseStack);
+        poseStack.mulPose(Axis.XP.rotationDegrees(-90));
+        poseStack.mulPose(Axis.YP.rotationDegrees(180));
+        poseStack.translate((left ? -1 : 1) / 16f, 0.125f, -0.625f);
+        if (raise > 0) {
+            // The arm is raised higher than Minecraft raises it: the shield is turned back on the hand by as much,
+            // so it stands upright again, and then turned the way a raised shield's model turns it.
+            poseStack.mulPose(Axis.XP.rotation(raise * (ThirdPersonAnimator.SHIELD_UP_X - VANILLA_BLOCK_X)));
+            poseStack.mulPoseMatrix(raisedShield(left, raise));
+        }
+        HeldModel.render(shield, left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, left,
+                poseStack, buffers, light);
+        poseStack.popPose();
+    }
+
+    /**
+     * How a raised shield's model turns a shield on the hand, {@code raise} of the way: the change from the hand
+     * transform of a shield at rest to that of a raised one (Minecraft's shield; Epic Knights copies it), applied to the
+     * model at rest.
+     */
+    private static Matrix4f raisedShield(boolean left, float raise) {
+        float mirror = left ? -1 : 1;
+        Vector3f restT = left ? new Vector3f(-10, 6, 12) : new Vector3f(10, 6, -4);
+        Vector3f blockT = left ? new Vector3f(-13.51f, 3, 5) : new Vector3f(3.51f, 11, -2);
+        Quaternionf restR = new Quaternionf().rotationXYZ(0, mirror * 90 * Mth.DEG_TO_RAD, 0);
+        Quaternionf blockR = new Quaternionf().rotationXYZ(45 * Mth.DEG_TO_RAD, mirror * 135 * Mth.DEG_TO_RAD, 0);
+        Vector3f t = new Vector3f(restT).lerp(blockT, raise).div(16);
+        Quaternionf r = new Quaternionf(restR).slerp(blockR, raise);
+        return new Matrix4f().translation(t).rotate(r).rotate(new Quaternionf(restR).conjugate()).translate(new Vector3f(restT).div(-16));
     }
 
     /**

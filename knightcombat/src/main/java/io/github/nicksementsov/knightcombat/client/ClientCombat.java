@@ -196,10 +196,14 @@ public final class ClientCombat {
         }
         if (event.phase == TickEvent.Phase.END) {
             for (Player other : mc.level.players()) {
-                FighterAnim anim = Weapons.isWeapon(other.getMainHandItem()) ? animOf(other.getId()) : ANIMS.get(other.getId());
+                // Fighters with a weapon, a lance or a shield are animated.
+                boolean armed = Weapons.isWeapon(other.getMainHandItem()) || Lances.isLance(other.getMainHandItem())
+                        || Shields.isShield(other.getOffhandItem());
+                FighterAnim anim = armed ? animOf(other.getId()) : ANIMS.get(other.getId());
                 if (anim != null) {
                     anim.watchHeld(other);
                     anim.advance(other, other == player);
+                    anim.tickBody(other);
                 }
             }
             trackMount(player);

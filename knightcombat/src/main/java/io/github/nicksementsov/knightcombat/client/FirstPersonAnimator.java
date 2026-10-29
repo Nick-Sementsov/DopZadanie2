@@ -64,12 +64,18 @@ public final class FirstPersonAnimator {
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
         LocalPlayer player = Minecraft.getInstance().player;
-        // A raised shield is drawn by Minecraft; the weapon stays ready beside it.
+        // While the shield is raised the weapon stays ready beside it; other items in use are left to Minecraft.
         if (player == null || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSpectator()) {
             return;
         }
-        if (event.getHand() == InteractionHand.OFF_HAND && !player.isUsingItem() && Shields.isShield(event.getItemStack())
-                && renderShieldBash(event, player)) {
+        if (event.getHand() == InteractionHand.OFF_HAND && CombatConfig.shields() && Shields.isShield(event.getItemStack())) {
+            WeaponStats main = Weapons.of(player.getMainHandItem());
+            if (main != null && main.twoHanded()) {
+                // Both hands are on the weapon.
+                event.setCanceled(true);
+            } else {
+                renderShield(event, player);
+            }
             return;
         }
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
@@ -146,28 +152,33 @@ public final class FirstPersonAnimator {
     }
 
     /**
-     * Draws the shield in the off hand thrust forward and across the view during a bash, where Minecraft would
-     * draw it at its usual place. Returns false (and draws nothing) when the player is not bashing.
+     * Draws the shield in the off hand. At rest it is where Minecraft holds it. Raised, it comes up before the view
+     * and towards the middle, its face to the front; a blow on it knocks it back towards the eyes and shakes it, a
+     * parry punches it out, and a bash thrusts it forward and across.
      */
-    private static boolean renderShieldBash(RenderHandEvent event, LocalPlayer player) {
-        float bash = ThirdPersonPoses.bash(ClientCombat.anim(player), event.getPartialTick());
-        if (bash == 0) {
-            return false;
-        }
+    private static void renderShield(RenderHandEvent event, LocalPlayer player) {
         event.setCanceled(true);
+        FighterAnim anim = ClientCombat.anim(player);
+        float partialTick = event.getPartialTick();
+        float bash = ThirdPersonPoses.bash(anim, partialTick);
+        float raise = anim != null ? anim.shieldRaise(partialTick) : Shields.raised(player) ? 1 : 0;
+        float jolt = anim != null ? anim.guardJolt(partialTick) * raise : 0;
+        float parry = anim != null ? anim.parryPush(partialTick) * raise : 0;
         HumanoidArm arm = player.getMainArm().getOpposite();
         boolean right = arm == HumanoidArm.RIGHT;
         int side = right ? 1 : -1;
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
-        // Where Minecraft holds an item in this hand, moved in towards the middle, up and forward.
-        poseStack.translate(side * (0.56f - 0.3f * bash), -0.52f - 0.6f * event.getEquipProgress() + 0.12f * bash, -0.72f - 0.3f * bash);
-        poseStack.mulPose(Axis.YP.rotationDegrees(-side * 20 * bash));
-        Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer().renderItem(player, event.getItemStack(),
-                right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND, !right,
-                poseStack, event.getMultiBufferSource(), event.getPackedLight());
+        float x = 0.56f - 0.3f * bash - 0.16f * raise;
+        float y = -0.52f - 0.6f * event.getEquipProgress() + 0.12f * bash + 0.28f * raise - 0.05f * jolt;
+        float z = -0.72f - 0.3f * bash - 0.12f * raise + 0.12f * jolt - 0.14f * parry;
+        poseStack.translate(side * x, y, z);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-side * (20 * bash + 22 * raise - 8 * parry)));
+        poseStack.mulPose(Axis.XP.rotationDegrees(-10 * jolt));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(side * 5 * jolt));
+        HeldModel.render(event.getItemStack(), right ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
+                !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
         poseStack.popPose();
-        return true;
     }
 
     /** Places a pose for the weapon: long weapons a little further away, and everything mirrored for left-handed players. */

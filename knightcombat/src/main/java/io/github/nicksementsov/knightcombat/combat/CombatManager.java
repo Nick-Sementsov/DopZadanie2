@@ -38,6 +38,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.Item;
@@ -506,6 +507,9 @@ public final class CombatManager {
         }
         s.lastHeld = heldItem;
         s.heldKnown = true;
+        if (CombatConfig.twoHandedPutsAwayShield()) {
+            stowShield(player, s);
+        }
         trackMount(player, s);
         if (CombatConfig.mountedCharges() && EpicKnights.isLance(heldItem)) {
             raiseLance(player.getMainHandItem());
@@ -1146,6 +1150,65 @@ public final class CombatManager {
         player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getEyeY() + 0.2, player.getZ(), 6, 0.3, 0.1, 0.3, 0.02);
         feedback(player, Feedback.BATTLE_CRY);
         impact(player, Impact.CRY, player, null, player.getEyePosition(), 0);
+    }
+
+    // ---------------------------------------------------------------- two hands, no shield
+
+    /**
+     * A two-handed weapon needs both hands: while one is held, a shield in the off hand is put away into the
+     * inventory (dropped at the feet when there is no room), and once the weapon is put away the shield is taken
+     * back into the off hand.
+     */
+    private static void stowShield(ServerPlayer player, CombatState s) {
+        Inventory inventory = player.getInventory();
+        WeaponStats main = Weapons.of(player.getMainHandItem());
+        boolean twoHands = main != null && main.twoHanded();
+        ItemStack off = player.getOffhandItem();
+        if (twoHands && Shields.isShield(off)) {
+            if (player.isUsingItem() && player.getUsedItemHand() == InteractionHand.OFF_HAND) {
+                player.stopUsingItem();
+            }
+            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
+            int slot = freeSlot(inventory);
+            if (slot >= 0) {
+                inventory.setItem(slot, off);
+                s.stowedSlot = slot;
+                s.stowedItem = off.getItem();
+                feedback(player, Feedback.SHIELD_STOWED);
+            } else {
+                player.drop(off, false);
+                s.stowedSlot = -1;
+                feedback(player, Feedback.SHIELD_DROPPED);
+            }
+            playSound(player, SoundEvents.ARMOR_EQUIP_GENERIC, 0.7f, 0.85f);
+            return;
+        }
+        if (s.stowedSlot < 0 || twoHands) {
+            return;
+        }
+        ItemStack stowed = inventory.getItem(s.stowedSlot);
+        if (off.isEmpty() && stowed.getItem() == s.stowedItem && Shields.isShield(stowed)) {
+            inventory.setItem(s.stowedSlot, ItemStack.EMPTY);
+            player.setItemInHand(InteractionHand.OFF_HAND, stowed);
+            playSound(player, SoundEvents.ARMOR_EQUIP_GENERIC, 0.7f, 1.05f);
+        }
+        // Taken back, or moved elsewhere by the player: either way it is no longer ours to look after.
+        s.stowedSlot = -1;
+    }
+
+    /** A free slot for a shield put away: in the inventory above the hotbar first, then in the hotbar. */
+    private static int freeSlot(Inventory inventory) {
+        for (int i = Inventory.getSelectionSize(); i < inventory.items.size(); i++) {
+            if (inventory.items.get(i).isEmpty()) {
+                return i;
+            }
+        }
+        for (int i = 0; i < Inventory.getSelectionSize(); i++) {
+            if (i != inventory.selected && inventory.items.get(i).isEmpty()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     // ---------------------------------------------------------------- mounted charges
