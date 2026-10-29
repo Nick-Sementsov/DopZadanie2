@@ -99,6 +99,9 @@ public final class PrestolConfig {
    public static final IntValue TAX_HIGH;
    public static final IntValue SOLDIER_PAY;
    public static final BooleanValue TRADE;
+   public static final BooleanValue COURT;
+   public static final IntValue OUTLAW_DAYS;
+   public static final BooleanValue TITLES_IN_NAMES;
    public static final IntValue CARAVAN_COST;
    public static final IntValue PACK_ANIMAL_COST;
    public static final IntValue SHIP_COST;
@@ -381,6 +384,16 @@ public final class PrestolConfig {
       TAX_HIGH = b.defineInRange("taxHigh", 3, 0, 1000);
       SOLDIER_PAY = b.comment("Жалованье солдату гарнизона, монет в игровой день. / Pay of a garrison soldier, coins per game day.")
          .defineInRange("soldierPay", 2, 0, 1000);
+      b.pop();
+      b.push("court");
+      COURT = b.comment(
+            "Двор державы: казначей, маршал и канцлер, титулы по владениям, объявление вне закона с наградой за голову. / Court offices, titles and outlaws."
+         )
+         .define("enabled", true);
+      OUTLAW_DAYS = b.comment("Сколько игровых дней длится объявление вне закона. / Game days an outlaw stays outlawed.")
+         .defineInRange("outlawDays", 7, 1, 1000);
+      TITLES_IN_NAMES = b.comment("Показывать титул перед именем в чате и списке игроков. / Show titles before names in chat and the player list.")
+         .define("titlesInNames", true);
       b.pop();
       b.push("trade");
       TRADE = b.comment("Караваны и корабли, рынки поселений, торговля между державами. / Caravans, ships, settlement markets, trade between realms.")

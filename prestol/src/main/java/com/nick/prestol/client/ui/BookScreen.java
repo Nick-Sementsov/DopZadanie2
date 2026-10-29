@@ -251,6 +251,9 @@ public class BookScreen extends Screen {
          case TRADE:
             this.tradePage(g);
             break;
+         case COURT:
+            this.courtPage(g);
+            break;
          case ARMY:
             this.armyPage(g);
       }
@@ -271,7 +274,7 @@ public class BookScreen extends Screen {
       List<BookScreen.Page> out = new ArrayList<>();
 
       for (BookScreen.Page p : BookScreen.Page.values()) {
-         if (p != BookScreen.Page.ADMIN || state.getBoolean("op")) {
+         if ((p != BookScreen.Page.ADMIN || state.getBoolean("op")) && (p != BookScreen.Page.COURT || state.contains("court"))) {
             out.add(p);
          }
       }
@@ -1369,6 +1372,135 @@ public class BookScreen extends Screen {
       this.button(g, Component.literal("+"), x + w - 14, y, 14, true, more);
    }
 
+   private static final int[] BOUNTIES = {0, 9, 27, 45, 81, 162, 243, 405, 729};
+
+   private static String capitalize(String s) {
+      return s.isEmpty() ? s : s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+   }
+
+   private final int[] courtPick = new int[3];
+   private int courtBounty = 2;
+
+   /** Court and law: the offices and the lords of the realm on the left, outlaws and prices on heads on the right. */
+   private void courtPage(GuiGraphics g) {
+      CompoundTag court = state.getCompound("court");
+      int y = this.heading(g, BookScreen.Page.COURT.title(), 28, 24, 158);
+      boolean appoint = court.getBoolean("appoint");
+      List<CompoundTag> lords = list(court, "lords");
+      List<CompoundTag> candidates = new ArrayList<>();
+
+      for (CompoundTag l : lords) {
+         if (!l.getBoolean("ruler")) {
+            candidates.add(l);
+         }
+      }
+
+      y = this.sub(g, Ink.tr("court_offices"), 28, y);
+      int i = 0;
+
+      for (CompoundTag o : list(court, "offices")) {
+         int index = i++;
+         String id = o.getString("id");
+         Component office = Component.translatable("prestol.court.office." + id);
+         Ink.text(g, Component.literal(capitalize(office.getString())), Ink.F_BOLD, 28, y, -13951730);
+         Component holder = o.contains("name") ? Component.literal(o.getString("name")) : Ink.tr("court_vacant");
+         Ink.text(g, holder, Ink.F_BODY, 186 - Ink.width(holder, Ink.F_BODY), y, o.contains("name") ? -13673956 : -9544893);
+         this.tip(28, y, 158, 11, Component.translatable("prestol.court.office." + id + ".desc"));
+         y += 12;
+         if (appoint && !candidates.isEmpty()) {
+            int pick = Math.floorMod(this.courtPick[index], candidates.size());
+            CompoundTag c = candidates.get(pick);
+            this.button(g, Component.literal("◀"), 28, y, 14, candidates.size() > 1, () -> this.courtPick[index]--);
+            Ink.centered(g, Ink.clip(Component.literal(c.getString("name")), Ink.F_SMALL, 38), Ink.F_SMALL, 62, y + 4, -13951730);
+            this.button(g, Component.literal("▶"), 82, y, 14, candidates.size() > 1, () -> this.courtPick[index]++);
+            String who = c.getUUID("id").toString();
+            this.button(g, Ink.tr("court_appoint"), 98, y, 52, !c.getString("name").equals(o.getString("name")), () -> order("court appoint " + id + " " + who));
+            if (o.contains("name")) {
+               this.button(g, Ink.tr("court_dismiss"), 152, y, 34, true, () -> order("court dismiss " + id));
+            }
+
+            y += 18;
+         } else if (o.getBoolean("me")) {
+            this.button(g, Ink.tr("court_resign"), 28, y, 50, true, () -> order("court dismiss " + id));
+            y += 18;
+         } else {
+            y += 2;
+         }
+      }
+
+      y = this.sub(g, Ink.tr("court_lords"), 28, y + 2);
+      int off = this.beginScroll(g, "lords", 28, y, 158, 196 - y);
+      int yy = y - off;
+
+      for (CompoundTag l : lords) {
+         MutableComponent line = Component.empty();
+         if (l.contains("title")) {
+            try {
+               Component t = Serializer.fromJson(l.getString("title"));
+               if (t != null) {
+                  // the realm's colour is for chat; on parchment titles are written in red ink
+                  line.append(Component.literal(t.getString()).withStyle(st -> st.withColor(0x8E1B10))).append(" ");
+               }
+            } catch (RuntimeException var9) {
+            }
+         }
+
+         line.append(Component.literal(l.getString("name")).withStyle(ChatFormatting.BLACK));
+         Ink.text(g, Ink.clip(line, Ink.F_BODY, 158), Ink.F_BODY, 28, yy, -13951730);
+         yy += 11;
+      }
+
+      this.endScroll(g, "lords", yy + off - y);
+      this.small(g, Ink.tr("court_titles_note"), 28, 198, 158, -9544893);
+      // the law
+      int ry = this.heading(g, Ink.tr("court_law"), 214, 24, 158);
+      boolean law = court.getBoolean("law");
+      ry = this.sub(g, Ink.tr("court_outlaws"), 214, ry);
+      List<CompoundTag> outlaws = list(court, "outlaws");
+      int bottom = law ? 150 : 176;
+      int roff = this.beginScroll(g, "outlaws", 214, ry, 158, bottom - ry);
+      int oy = ry - roff;
+
+      for (CompoundTag o : outlaws) {
+         Component reason = Component.translatable("prestol.court.reason." + o.getString("reason"));
+         int top = oy;
+         oy += Ink.para(g, Ink.tr("court_outlaw_line", o.getString("name"), reason, o.getLong("bounty"), o.getInt("days")), Ink.F_SMALL, 214, oy, law ? 100 : 158, -7464176);
+         if (law) {
+            String who = o.getUUID("id").toString();
+            this.button(g, Ink.tr("court_pardon"), 316, top, 56, true, () -> order("court pardon " + who));
+            oy = Math.max(oy, top + 16);
+         }
+
+         oy += 4;
+      }
+
+      if (outlaws.isEmpty()) {
+         oy = this.small(g, Ink.tr("court_no_outlaws"), 214, oy, 158, -9544893);
+      }
+
+      List<CompoundTag> wanted = list(court, "wanted");
+      if (!wanted.isEmpty()) {
+         oy = this.sub(g, Ink.tr("court_wanted"), 214, oy + 4);
+
+         for (CompoundTag w : wanted) {
+            oy = this.small(g, Ink.tr("court_wanted_line", w.getString("name"), w.getLong("bounty"), w.getString("realm")), 214, oy, 158, -4684245);
+         }
+      }
+
+      this.endScroll(g, "outlaws", oy + roff - ry);
+      if (law) {
+         String name = this.field(g, "outlaw", 214, 154, 158, Ink.tr("court_name"));
+         this.stepper(g, 214, 170, Ink.tr("court_bounty", BOUNTIES[this.courtBounty]), 62, () -> this.courtBounty = step(BOUNTIES, this.courtBounty, -1), () -> this.courtBounty = step(BOUNTIES, this.courtBounty, 1));
+         int bounty = BOUNTIES[this.courtBounty];
+         this.dangerous(g, "outlaw", Ink.tr("court_outlaw"), 280, 170, 92, !name.isEmpty() && !name.contains(" "), () -> {
+            order("court outlaw " + name + " " + bounty);
+            this.fields.remove("outlaw");
+         });
+      }
+
+      this.small(g, Ink.tr("court_law_note", court.getInt("days")), 214, law ? 190 : 180, 158, -9544893);
+   }
+
    private void tradePage(GuiGraphics g) {
       int y = this.heading(g, BookScreen.Page.TRADE.title(), 28, 24, 158);
       if (!state.getBoolean("economy")) {
@@ -2093,6 +2225,7 @@ public class BookScreen extends Screen {
       WAR(Items.IRON_SWORD, 7017492),
       ARMY(Items.SHIELD, 4084840),
       DECREES(Items.WRITABLE_BOOK, 5975928),
+      COURT(Items.NAME_TAG, 9118290),
       TRADE(Items.GOLD_INGOT, 12093995),
       CHRONICLE(Items.BOOK, 7227938),
       BANNER(Items.RED_BANNER, 11569706),

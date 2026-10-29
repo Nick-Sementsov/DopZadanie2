@@ -26,6 +26,7 @@ import com.nick.prestol.realm.Realms;
 import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
 import com.nick.prestol.war.Camps;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.war.WarBlocks;
 import com.nick.prestol.war.WarData;
 import com.nick.prestol.war.Wars;
@@ -77,6 +78,7 @@ public class Prestol {
       MinecraftForge.EVENT_BUS.register(Guide.class);
       MinecraftForge.EVENT_BUS.register(TradeWorld.class);
       MinecraftForge.EVENT_BUS.register(Camps.class);
+      MinecraftForge.EVENT_BUS.register(Court.class);
       if (ModList.get().isLoaded("hundred_years_war")) {
          MinecraftForge.EVENT_BUS.register(HywRules.class);
          modBus.addListener(HywRules::onTabs);
@@ -201,6 +203,10 @@ public class Prestol {
 
          if (t == 1) {
             run("treasury", () -> Treasury.tick(server));
+         }
+
+         if (t == 7) {
+            run("court", () -> Court.tick(server));
          }
 
          run("trade", () -> TradeWorld.tick(server));

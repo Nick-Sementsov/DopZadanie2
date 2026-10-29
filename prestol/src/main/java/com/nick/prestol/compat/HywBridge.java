@@ -3,6 +3,8 @@ package com.nick.prestol.compat;
 import com.minecolonies.api.colony.IColony;
 import com.mojang.authlib.GameProfile;
 import com.nick.prestol.realm.Realm;
+import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.CourtData;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
@@ -95,6 +97,24 @@ final class HywBridge {
       }
 
       List<Realm> realms = new ArrayList<>(data.all());
+      CourtData court = CourtData.get(server);
+      Map<UUID, Set<UUID>> outlaws = new HashMap<>();
+
+      // a pardoned outlaw is no longer the realm's enemy; war enemies are set right again just below
+      for (Realm realm : realms) {
+         Set<UUID> now = Court.on() ? new HashSet<>(court.outlawsOf(realm.id())) : new HashSet<>();
+         outlaws.put(realm.id(), now);
+         Set<UUID> side = new HashSet<>(members(realm));
+         side.add(realm.id());
+
+         for (UUID gone : court.hywHostile(realm.id())) {
+            if (!now.contains(gone)) {
+               for (UUID x : side) {
+                  setBoth(x, gone, RelationType.NEUTRAL, changed);
+               }
+            }
+         }
+      }
 
       for (int i = 0; i < realms.size(); i++) {
          for (int j = i + 1; j < realms.size(); j++) {
@@ -114,6 +134,25 @@ final class HywBridge {
                }
             }
          }
+      }
+
+      // the realm's soldiers fall upon its outlaws
+      for (Realm realm : realms) {
+         Set<UUID> now = outlaws.getOrDefault(realm.id(), Set.of());
+         Set<UUID> side = new HashSet<>(members(realm));
+         side.add(realm.id());
+
+         for (UUID o : now) {
+            if (RelationSystem.getRelationData(o) == null) {
+               RelationSystem.addPlayerAndEnsureRelations(o, nameOf(server, o));
+            }
+
+            for (UUID x : side) {
+               setBoth(x, o, RelationType.HOSTILE, changed);
+            }
+         }
+
+         court.setHywHostile(realm.id(), now);
       }
 
       for (UUID id : changed) {

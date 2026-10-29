@@ -71,7 +71,7 @@ public final class RealmActions {
 
    public static Realms.Result invite(MinecraftServer server, ServerPlayer player, String key) {
       RealmData data = RealmData.get(server);
-      Realm realm = data.byRuler(player.getUUID());
+      Realm realm = Court.servedAs(server, player, Court.Office.CHANCELLOR);
       if (realm == null) {
          return Realms.Result.no(Msg.bad("err.not_ruler"));
       } else {
@@ -141,7 +141,7 @@ public final class RealmActions {
 
    public static Realms.Result approve(MinecraftServer server, ServerPlayer player, String key, boolean yes) {
       RealmData data = RealmData.get(server);
-      Realm realm = data.byRuler(player.getUUID());
+      Realm realm = Court.servedAs(server, player, Court.Office.CHANCELLOR);
       if (realm == null) {
          return Realms.Result.no(Msg.bad("err.not_ruler"));
       } else if (!data.applications(realm.id()).remove(key)) {

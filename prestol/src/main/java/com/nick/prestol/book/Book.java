@@ -3,6 +3,7 @@ package com.nick.prestol.book;
 import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.decree.DecreeData;
 import com.nick.prestol.decree.DecreeType;
@@ -177,6 +178,8 @@ public final class Book {
                return w[1].equals("enact") ? Decrees.enact(server, player, law) : Decrees.repeal(server, player, law);
             case "army":
                return w.length >= 3 ? Army.order(server, player, w[1], w[2]) : Realms.Result.no(Msg.bad("err.unknown"));
+            case "court":
+               return Court.order(server, player, w);
             case "treasury":
                return Treasury.order(server, player, w);
             case "trade":
@@ -215,7 +218,7 @@ public final class Book {
       boolean ruler = Realms.isRuler(mine, player);
       tag.putBoolean("economy", Treasury.on());
       if (mine != null && Treasury.on()) {
-         tag.put("treasury", Treasury.describe(server, mine, ruler));
+         tag.put("treasury", Treasury.describe(server, mine, Court.may(server, mine, player, Court.Office.TREASURER)));
          if (Trading.on()) {
             tag.put("trade", Trading.describe(server, player, mine));
          }
@@ -248,6 +251,8 @@ public final class Book {
       if (mine != null) {
          CompoundTag r = realm(server, data, mine, now);
          r.putBoolean("ruler", ruler);
+         boolean chancellor = Court.may(server, mine, player, Court.Office.CHANCELLOR);
+         r.putBoolean("chancellor", chancellor);
          r.putInt("lawSlots", Decrees.lawSlots(mine));
          ListTag enacted = new ListTag();
 
@@ -264,7 +269,7 @@ public final class Book {
 
          r.put("lawsActive", effective);
          r.putInt("lawLock", (int)Math.max(0L, (decrees.lawLockUntil(mine.id()) - now) / 20L));
-         if (ruler) {
+         if (chancellor) {
             ListTag apps = new ListTag();
 
             for (String k : data.applications(mine.id())) {
@@ -283,6 +288,9 @@ public final class Book {
 
          tag.put("realm", r);
          tag.put("camps", Camps.describe(server, mine));
+         if (Court.on()) {
+            tag.put("court", Court.describe(server, player, mine));
+         }
       }
 
       ListTag free = new ListTag();

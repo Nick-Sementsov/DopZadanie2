@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.compat.Hyw;
 import com.nick.prestol.economy.Coins;
 import com.nick.prestol.economy.EconomyData;
@@ -658,6 +659,10 @@ public final class TradeWorld {
          } else {
             t.status("robbed");
             String who = killer instanceof Player p ? p.getGameProfile().getName() : killer.getName().getString();
+            if (killer instanceof ServerPlayer robber) {
+               Court.robbed(server, t.realm, robber);
+            }
+
             MutableComponent msg = Msg.bad("trade.robbed", t.name, who);
             t.note(Trading.json(msg));
             if (realm != null) {

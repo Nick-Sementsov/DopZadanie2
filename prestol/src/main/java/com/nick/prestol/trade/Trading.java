@@ -3,6 +3,7 @@ package com.nick.prestol.trade;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.army.Supplies;
 import com.nick.prestol.economy.Coins;
 import com.nick.prestol.economy.EconomyData;
@@ -306,8 +307,8 @@ public final class Trading {
          Realm realm = Realms.realmOf(server, player);
          if (realm == null) {
             return Realms.Result.no(Msg.bad("err.need_realm"));
-         } else if (!Realms.isRuler(realm, player)) {
-            return Realms.Result.no(Msg.bad("err.not_ruler"));
+         } else if (!Court.may(server, realm, player, Court.Office.TREASURER)) {
+            return Realms.Result.no(Msg.bad("err.not_treasurer"));
          } else {
             TradeData data = TradeData.get(server);
             if (w[1].equals("new")) {
@@ -587,7 +588,7 @@ public final class Trading {
          return Realms.Result.no(Msg.bad("err.unknown"));
       } else {
          Realm realm = RealmData.get(server).byMember(w[2]);
-         if (!Settlements.isOwner(player, colony) && !Realms.isRuler(realm, player)) {
+         if (!Settlements.isOwner(player, colony) && !Court.may(server, realm, player, Court.Office.TREASURER)) {
             return Realms.Result.no(Msg.bad("err.not_your_settlement"));
          } else if (realm == null) {
             return Realms.Result.no(Msg.bad("err.market_needs_realm"));
@@ -635,7 +636,7 @@ public final class Trading {
       TradeData data = TradeData.get(server);
       RealmData realms = RealmData.get(server);
       EconomyData eco = EconomyData.get(server);
-      t.putBoolean("ruler", Realms.isRuler(realm, player));
+      t.putBoolean("ruler", Court.may(server, realm, player, Court.Office.TREASURER));
       t.putInt("max", PrestolConfig.MAX_TRADERS.get());
       t.putInt("caravanCost", PrestolConfig.CARAVAN_COST.get() + PrestolConfig.PACK_ANIMAL_COST.get());
       t.putInt("animalCost", PrestolConfig.PACK_ANIMAL_COST.get());
@@ -767,7 +768,7 @@ public final class Trading {
       for (IColony c : Settlements.all()) {
          String key = Settlements.key(c);
          Realm owner = realms.byMember(key);
-         if (owner != null && owner.id().equals(realm.id()) && (Settlements.isOwner(player, c) || Realms.isRuler(realm, player))) {
+         if (owner != null && owner.id().equals(realm.id()) && (Settlements.isOwner(player, c) || Court.may(server, realm, player, Court.Office.TREASURER))) {
             CompoundTag m = new CompoundTag();
             m.putString("key", key);
             m.putString("name", c.getName());

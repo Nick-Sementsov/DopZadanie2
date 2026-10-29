@@ -13,6 +13,7 @@ import com.minecolonies.core.colony.jobs.JobArcherTraining;
 import com.minecolonies.core.colony.jobs.JobCombatTraining;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.compat.Hyw;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
@@ -480,8 +481,9 @@ public final class Army {
       if (Settlements.isManager(player, colony)) {
          return true;
       } else {
+         // the ruler and his marshal command every garrison of the realm
          Realm realm = RealmData.get(server).byMember(Settlements.key(colony));
-         return realm != null && Realms.isRuler(realm, player);
+         return realm != null && Court.may(server, realm, player, Court.Office.MARSHAL);
       }
    }
 

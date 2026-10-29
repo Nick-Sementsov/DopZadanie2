@@ -220,6 +220,7 @@ public final class Realms {
       data.remove(realm);
       Hyw.onRealmRemoved(server, realm);
       Wars.onRealmRemoved(server, realm);
+      Court.onRealmRemoved(server, realm);
       Treasury.onRealmRemoved(server, realm);
       if (announce != null) {
          tellAll(server, announce);

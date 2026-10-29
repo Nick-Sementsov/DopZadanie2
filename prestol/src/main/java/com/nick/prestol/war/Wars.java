@@ -5,6 +5,8 @@ import com.minecolonies.api.colony.permissions.ColonyPlayer;
 import com.minecolonies.api.colony.permissions.IPermissions;
 import com.minecolonies.api.colony.permissions.Rank;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.CourtData;
 import com.nick.prestol.realm.Holding;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
@@ -165,6 +167,11 @@ public final class Wars {
 
       for (Realm realm : data.all()) {
          Set<UUID> enemies = new HashSet<>();
+         // outlaws are hostile in the realm's settlements whatever the war setting
+         if (Court.on()) {
+            enemies.addAll(CourtData.get(server).outlawsOf(realm.id()));
+         }
+
          if (on) {
             for (RealmData.War w : data.wars()) {
                if (w.involves(realm.id())) {

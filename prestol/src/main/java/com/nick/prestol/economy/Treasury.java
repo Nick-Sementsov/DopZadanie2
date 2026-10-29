@@ -3,6 +3,7 @@ package com.nick.prestol.economy;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.util.ResearchConstants;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
 import com.nick.prestol.army.ArmyData;
 import com.nick.prestol.realm.Holding;
 import com.nick.prestol.realm.Realm;
@@ -64,8 +65,8 @@ public final class Treasury {
                   return Realms.Result.yes(Msg.good("ok.deposit", Coins.fmt(n), Coins.fmt(eco.balance(realm.id()))));
                }
                case "withdraw": {
-                  if (!Realms.isRuler(realm, player)) {
-                     return Realms.Result.no(Msg.bad("err.not_ruler"));
+                  if (!Court.may(server, realm, player, Court.Office.TREASURER)) {
+                     return Realms.Result.no(Msg.bad("err.not_treasurer"));
                   }
 
                   long n = parse(w, 2);
@@ -83,8 +84,8 @@ public final class Treasury {
                   Tax t = w.length > 2 ? Tax.byId(w[2]) : null;
                   if (t == null) {
                      return Realms.Result.no(Msg.bad("err.unknown"));
-                  } else if (!Realms.isRuler(realm, player)) {
-                     return Realms.Result.no(Msg.bad("err.not_ruler"));
+                  } else if (!Court.may(server, realm, player, Court.Office.TREASURER)) {
+                     return Realms.Result.no(Msg.bad("err.not_treasurer"));
                   }
 
                   eco.tax.put(realm.id(), t);
@@ -94,8 +95,8 @@ public final class Treasury {
                }
                case "duty": {
                   long d = parse(w, 2);
-                  if (!Realms.isRuler(realm, player)) {
-                     return Realms.Result.no(Msg.bad("err.not_ruler"));
+                  if (!Court.may(server, realm, player, Court.Office.TREASURER)) {
+                     return Realms.Result.no(Msg.bad("err.not_treasurer"));
                   } else if (d < 0L || d > 50L) {
                      return Realms.Result.no(Msg.bad("err.unknown"));
                   }
