@@ -25,6 +25,8 @@ import com.nick.prestol.realm.RealmTicker;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
+import com.nick.prestol.war.Camps;
+import com.nick.prestol.war.WarBlocks;
 import com.nick.prestol.war.WarData;
 import com.nick.prestol.war.Wars;
 import com.nick.prestol.work.CrewMaterials;
@@ -66,6 +68,7 @@ public class Prestol {
       modBus.addListener(this::onSetup);
       PrestolHuts.register(modBus);
       TradeEntities.register(modBus);
+      WarBlocks.register(modBus);
       MinecraftForge.EVENT_BUS.register(this);
       MinecraftForge.EVENT_BUS.register(new RealmTicker());
       MinecraftForge.EVENT_BUS.register(new MapSync.Events());
@@ -73,6 +76,7 @@ public class Prestol {
       MinecraftForge.EVENT_BUS.register(Army.class);
       MinecraftForge.EVENT_BUS.register(Guide.class);
       MinecraftForge.EVENT_BUS.register(TradeWorld.class);
+      MinecraftForge.EVENT_BUS.register(Camps.class);
       if (ModList.get().isLoaded("hundred_years_war")) {
          MinecraftForge.EVENT_BUS.register(HywRules.class);
          modBus.addListener(HywRules::onTabs);
@@ -138,6 +142,7 @@ public class Prestol {
    @SubscribeEvent
    public void onServerStopped(ServerStoppedEvent event) {
       Sieges.clear();
+      Camps.clear();
       Conquest.clear();
       Realms.forgetMissing();
       Decrees.clear();
@@ -156,6 +161,7 @@ public class Prestol {
          switch (t) {
             case 0:
                run("sieges", () -> Sieges.tick(server));
+               run("camps", () -> Camps.tick(server));
             case 1:
             case 3:
             case 5:

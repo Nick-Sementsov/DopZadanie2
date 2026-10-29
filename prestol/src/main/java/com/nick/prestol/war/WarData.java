@@ -6,7 +6,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
- * Keeps running sieges, the victors' pending choices and locked loot chests across restarts.
+ * Keeps running sieges, siege camps, the victors' pending choices and locked loot chests across restarts.
  * The live state stays in {@link Sieges} and {@link Conquest}; this only writes it out with the world.
  */
 public final class WarData extends SavedData {
@@ -14,6 +14,7 @@ public final class WarData extends SavedData {
    private ListTag sieges = new ListTag();
    private ListTag pending = new ListTag();
    private ListTag loot = new ListTag();
+   private ListTag camps = new ListTag();
 
    public static WarData get(MinecraftServer server) {
       return server.overworld().getDataStorage().computeIfAbsent(WarData::load, WarData::new, NAME);
@@ -24,7 +25,9 @@ public final class WarData extends SavedData {
       WarData data = get(server);
       Sieges.restore(data.sieges);
       Conquest.restore(data.pending, data.loot);
+      Camps.restore(data.camps);
       data.sieges = new ListTag();
+      data.camps = new ListTag();
       data.pending = new ListTag();
       data.loot = new ListTag();
    }
@@ -40,6 +43,7 @@ public final class WarData extends SavedData {
       tag.put("sieges", Sieges.saveAll());
       tag.put("pending", Conquest.savePending());
       tag.put("loot", Conquest.saveLoot());
+      tag.put("camps", Camps.saveAll());
       return tag;
    }
 
@@ -48,6 +52,7 @@ public final class WarData extends SavedData {
       d.sieges = tag.getList("sieges", 10);
       d.pending = tag.getList("pending", 10);
       d.loot = tag.getList("loot", 10);
+      d.camps = tag.getList("camps", 10);
       return d;
    }
 }

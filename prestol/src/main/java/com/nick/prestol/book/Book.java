@@ -25,6 +25,7 @@ import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.realm.Tier;
 import com.nick.prestol.util.Msg;
+import com.nick.prestol.war.Camps;
 import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
 import com.nick.prestol.war.Wars;
@@ -281,6 +282,7 @@ public final class Book {
          }
 
          tag.put("realm", r);
+         tag.put("camps", Camps.describe(server, mine));
       }
 
       ListTag free = new ListTag();

@@ -180,7 +180,13 @@ public final class Sieges {
          s.absent++;
       }
 
-      if (s.absent >= (Integer)PrestolConfig.SIEGE_GRACE_SECONDS.get()) {
+      // a camp before the walls keeps the siege up while the army rests in it
+      int grace = PrestolConfig.SIEGE_GRACE_SECONDS.get();
+      if (s.kind == Sieges.Kind.SIEGE && s.attackerRealm != null && Camps.besieging(s.attackerRealm, s.key)) {
+         grace = Math.max(grace, PrestolConfig.CAMP_HOLD_SECONDS.get());
+      }
+
+      if (s.absent >= grace) {
          Realms.tellAll(server, Msg.info(s.kind == Sieges.Kind.REVOLT ? "revolt.failed" : "siege.lifted", colony.getName()));
          Realms.chronicle(
             server,

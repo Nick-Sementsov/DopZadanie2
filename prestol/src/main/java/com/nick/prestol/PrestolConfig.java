@@ -40,6 +40,9 @@ public final class PrestolConfig {
    public static final IntValue HOLD_SECONDS;
    public static final IntValue REVOLT_HOLD_SECONDS;
    public static final IntValue SIEGE_GRACE_SECONDS;
+   public static final IntValue CAMP_RANGE;
+   public static final IntValue CAMP_HOLD_SECONDS;
+   public static final BooleanValue SIEGE_ENGINES_AT_WAR_ONLY;
    public static final BooleanValue DEFENDER_ONLINE;
    public static final BooleanValue CAPITAL_LAST;
    public static final BooleanValue HOSTILE_RANK;
@@ -199,6 +202,18 @@ public final class PrestolConfig {
             "Если у ратуши никого из осаждающих, осада снимается через столько секунд. / A siege with no attacker near ends after this many seconds."
          )
          .defineInRange("abandonAfterSeconds", 30, 1, 3600);
+      CAMP_RANGE = b.comment(
+            "Осадный лагерь (походный шатёр) ставят во время войны не дальше стольких блоков от вражеской ратуши (0 — лагерей нет). / Siege camp range from the enemy town hall (0 = no camps)."
+         )
+         .defineInRange("campRange", 96, 0, 512);
+      CAMP_HOLD_SECONDS = b.comment(
+            "Пока стоит лагерь, осада без осаждающих у ратуши держится столько секунд. / With a camp, a siege survives this long with nobody at the town hall."
+         )
+         .defineInRange("campHoldSeconds", 600, 1, 86400);
+      SIEGE_ENGINES_AT_WAR_ONLY = b.comment(
+            "Осадные орудия «Столетней войны» ломают блоки только в дикой земле и в поселениях врага во время войны. / HYW siege engines break blocks only in the wild and in enemy settlements at war."
+         )
+         .define("siegeEnginesOnlyAtWar", true);
       DEFENDER_ONLINE = b.comment(
             "Осаду можно начать, только если хозяин или офицер поселения в игре. / A siege only starts while the owner or an officer is online."
          )

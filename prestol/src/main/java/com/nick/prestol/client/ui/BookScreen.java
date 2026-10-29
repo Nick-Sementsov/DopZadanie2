@@ -1000,7 +1000,8 @@ public class BookScreen extends Screen {
       }
 
       int sieges = list(state, "sieges").size();
-      int listH = 224 - y - (sieges > 0 ? 18 + sieges * 20 : 0);
+      List<CompoundTag> camps = list(state, "camps");
+      int listH = 224 - y - (sieges > 0 ? 18 + sieges * 20 : 0) - (camps.isEmpty() ? 0 : 16 + camps.size() * 10);
       int off = this.beginScroll(g, "realms", 28, y, 158, Math.max(30, listH));
       int yy = y - off;
 
@@ -1034,6 +1035,20 @@ public class BookScreen extends Screen {
          }
       }
 
+      if (!camps.isEmpty()) {
+         int cy = 224 - camps.size() * 10 - 14;
+         cy = this.sub(g, Ink.tr("camps"), 28, cy);
+
+         for (CompoundTag c : camps) {
+            boolean own = c.getBoolean("mine");
+            Component t = own
+               ? Ink.tr("camp_own", c.getString("target"), c.getInt("x"), c.getInt("z"))
+               : Ink.tr("camp_enemy", c.getString("realm"), c.getString("target"), c.getInt("x"), c.getInt("z"));
+            Ink.text(g, Ink.clip(t, Ink.F_SMALL, 158), Ink.F_SMALL, 28, cy, own ? -13673956 : -7464176);
+            cy += 10;
+         }
+      }
+
       CompoundTag rx = this.selRealm == null ? null : this.realmById(this.selRealm);
       if (rx == null) {
          this.line(g, Ink.tr("war_rules"), 214, 54, 158, -9544893);
@@ -1051,7 +1066,8 @@ public class BookScreen extends Screen {
          } else if (st.equals("war")) {
             int in = rx.getInt("warIn");
             ry = this.line(g, in > 0 ? Ink.tr("mobilizing", Ink.time(in)) : Ink.tr("war_on"), 214, ry, 158, -7464176);
-            ry = this.small(g, Ink.tr("siege_rules"), 214, ry, 158, -9544893) + 4;
+            ry = this.small(g, Ink.tr("siege_rules"), 214, ry, 158, -9544893) + 2;
+            ry = this.small(g, Ink.tr("camp_hint"), 214, ry, 158, -9544893) + 4;
             if (rx.getBoolean("peaceFromThem")) {
                ry = this.small(g, Ink.tr("they_offer_peace"), 214, ry, 158, -13673956);
             }

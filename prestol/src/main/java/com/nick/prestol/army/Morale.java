@@ -11,6 +11,7 @@ import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
+import com.nick.prestol.war.Camps;
 import com.nick.prestol.war.Sieges;
 import com.nick.prestol.war.Wars;
 import java.util.ArrayList;
@@ -141,6 +142,16 @@ public final class Morale {
       }
    }
 
+   /** A blow to (or a lift of) a soldier's spirit from outside the battle around him: it can break him. */
+   public static void shock(Entity unit, double delta) {
+      if (on() && shake(unit, delta, unit.level().getGameTime(), true) && unit instanceof OwnableEntity own) {
+         MinecraftServer server = unit.getServer();
+         if (server != null) {
+            tell(server, own.getOwnerUUID(), Msg.bad("army.routed", 1));
+         }
+      }
+   }
+
    /** Moves a soldier's spirit by {@code delta}; true when it breaks in battle and he flees. */
    private static boolean shake(Entity unit, double delta, long now, boolean battle) {
       double m = Mth.clamp(get(unit) + delta, 0.0, 100.0);
@@ -169,8 +180,16 @@ public final class Morale {
       }
 
       Realm mine = cx.realm(owner);
-      Realm land = cx.landRealm(level, unit);
+      IColony here = cx.colonyAt(level, unit);
+      Realm land = here == null ? null : cx.realms.byMember(Settlements.key(here));
       if (land != null && mine != null && (land == mine || Wars.allied(land, mine))) {
+         m += 10.0;
+         // defenders with an enemy camp before their walls
+         if (land == mine && Camps.encircled(Settlements.key(here), mine.id())) {
+            m -= 15.0;
+         }
+      } else if (mine != null && Camps.near(level, unit.blockPosition(), mine.id()) != null) {
+         // the camp is a piece of home
          m += 10.0;
       } else if (land != null && mine != null && Wars.atWar(cx.realms, land, mine)) {
          m -= 10.0;
@@ -420,10 +439,9 @@ public final class Morale {
          }
       }
 
-      Realm landRealm(ServerLevel level, Entity unit) {
+      IColony colonyAt(ServerLevel level, Entity unit) {
          int id = Territory.ownerAt(level, unit.getBlockX() >> 4, unit.getBlockZ() >> 4);
-         IColony c = id <= 0 ? null : IColonyManager.getInstance().getColonyByWorld(id, level);
-         return c == null ? null : this.realms.byMember(Settlements.key(c));
+         return id <= 0 ? null : IColonyManager.getInstance().getColonyByWorld(id, level);
       }
    }
 }

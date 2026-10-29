@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "prestol:block/siege_camp" },
+    "facing=east": { "model": "prestol:block/siege_camp", "y": 90 },
+    "facing=south": { "model": "prestol:block/siege_camp", "y": 180 },
+    "facing=west": { "model": "prestol:block/siege_camp", "y": 270 }
+  }
+}

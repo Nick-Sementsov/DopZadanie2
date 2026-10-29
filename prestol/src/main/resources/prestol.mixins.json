@@ -28,7 +28,9 @@
     "hyw.SharedPathAccess",
     "hyw.GroupPathSkipMixin",
     "hyw.SpoilerClientCheckMixin",
-    "hyw.RoutTargetMixin"
+    "hyw.RoutTargetMixin",
+    "hyw.SiegeBreakMixin",
+    "hyw.RamBreakMixin"
   ],
   "client": [
     "GuiMapMixin",

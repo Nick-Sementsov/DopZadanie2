@@ -9,6 +9,7 @@ import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
+import com.nick.prestol.war.Camps;
 import com.nick.prestol.war.Sieges;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +35,8 @@ import net.minecraftforge.items.wrapper.PlayerMainInvWrapper;
 
 /**
  * Provisions: every soldier of a player carries a food bar (0-100) that empties in {@code army.provisionDays}
- * game days. It is refilled with ordinary food from the colony (warehouse, town hall, his tower), from the
- * supply points of Hundred Years War, or from the pack of the commander he follows. A hungry soldier is weak,
+ * game days. It is refilled with ordinary food from the colony (warehouse, town hall, his tower), from the chests
+ * of his realm's siege camp, from the supply points of Hundred Years War, or from the pack of the commander he follows. A hungry soldier is weak,
  * and one who starves too long deserts; a recruit goes back home to his colony.
  */
 public final class Provisions {
@@ -128,6 +129,12 @@ public final class Provisions {
          IColony here = colonyAt(level, unit);
          if (here != null && friendly(server, realms, here, owner)) {
             stores.addAll(Supplies.stores(here, null));
+         }
+
+         Realm realm = Sieges.realmOfPlayer(server, realms, owner);
+         Camps.Camp camp = realm == null ? null : Camps.near(level, unit.blockPosition(), realm.id());
+         if (camp != null) {
+            stores.addAll(Camps.stores(level, camp));
          }
       }
 

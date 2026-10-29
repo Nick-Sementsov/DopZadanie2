@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " B ",
+    "WWW",
+    "S S"
+  ],
+  "key": {
+    "B": { "tag": "minecraft:banners" },
+    "W": { "tag": "minecraft:wool" },
+    "S": { "item": "minecraft:stick" }
+  },
+  "result": { "item": "prestol:siege_camp" }
+}

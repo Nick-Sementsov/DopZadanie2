@@ -11,6 +11,7 @@ import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
+import com.nick.prestol.war.Camps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,13 @@ public final class Trading {
 
       if (!own && there != null && realms.war(trader.realm, there.id()) != null) {
          trader.note(json(Msg.bad("trade.at_war", colony.getName())));
+         return;
+      }
+
+      Camps.Camp siege = Camps.blockade(realms, key, trader.realm);
+      if (siege != null) {
+         Realm besieger = realms.byId(siege.realm());
+         trader.note(json(Msg.bad("trade.blockaded", colony.getName(), besieger == null ? "?" : besieger.name())));
          return;
       }
 
