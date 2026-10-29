@@ -155,6 +155,11 @@ public class BookScreen extends Screen {
       return hasRealm() && realm().getBoolean("ruler");
    }
 
+   /** The ruler or his chancellor: invitations and applications. */
+   private static boolean chancellor() {
+      return hasRealm() && realm().getBoolean("chancellor");
+   }
+
    private static List<CompoundTag> list(CompoundTag tag, String key) {
       List<CompoundTag> out = new ArrayList<>();
       ListTag l = tag.getList(key, 10);
@@ -647,7 +652,7 @@ public class BookScreen extends Screen {
          yy += 13;
       }
 
-      if (ruler() && !free.isEmpty()) {
+      if (chancellor() && !free.isEmpty()) {
          yy += 4;
          Ink.text(g, Ink.tr("free_settlements"), Ink.F_BOLD, 28, yy, -7464176);
          yy += 12;
@@ -662,7 +667,7 @@ public class BookScreen extends Screen {
          }
       }
 
-      if (ruler()) {
+      if (chancellor()) {
          List<CompoundTag> apps = list(realm(), "applications");
          if (!apps.isEmpty()) {
             yy += 4;

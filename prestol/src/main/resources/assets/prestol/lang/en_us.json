@@ -468,6 +468,8 @@
   "prestol.court.office.treasurer": "treasurer",
   "prestol.court.office.treasurer.desc": "Keeps the treasury, taxes, duties and traders.",
   "prestol.court.outlawed": "%s is outlawed in \"%s\" (%4$s). Price on his head: %3$s coins.",
+  "prestol.court.outlawed_free": "%s is outlawed in \"%s\" (%s).",
+  "prestol.court.office_lost": "%s, an outlaw, loses his office at court.",
   "prestol.court.pardoned": "%s is pardoned in \"%s\".",
   "prestol.court.reason.decree": "by decree",
   "prestol.court.reason.robbery": "for robbery",

@@ -178,8 +178,16 @@ public final class Court {
          o.until = Math.max(o.until, until);
       }
 
+      // an outlaw holds no office of the realm that outlawed him
+      if (court.offices(realm.id()).values().removeIf(player::equals)) {
+         Realms.tell(server, realm, Msg.info("court.office_lost", name));
+      }
+
       court.setDirty();
-      Component msg = Msg.war("court.outlawed", name, realm.name(), Coins.fmt(o.bounty), Component.translatable("prestol.court.reason." + reason));
+      Component why = Component.translatable("prestol.court.reason." + reason);
+      Component msg = o.bounty > 0L
+         ? Msg.war("court.outlawed", name, realm.name(), Coins.fmt(o.bounty), why)
+         : Msg.war("court.outlawed_free", name, realm.name(), why);
       Realms.tellAll(server, msg);
       Realms.chronicle(server, "outlaw", List.of(name, realm.name()), realm);
       Wars.applyHostility(server, RealmData.get(server));

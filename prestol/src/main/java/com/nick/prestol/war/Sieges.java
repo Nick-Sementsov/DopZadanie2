@@ -371,24 +371,7 @@ public final class Sieges {
    }
 
    public static Realm realmOfPlayer(MinecraftServer server, RealmData data, UUID player) {
-      ServerPlayer online = server.getPlayerList().getPlayer(player);
-      if (online != null) {
-         return Realms.realmOf(server, online);
-      } else {
-         Realm r = data.byRuler(player);
-         if (r != null) {
-            return r;
-         } else {
-            for (IColony c : Settlements.ownedBy(player)) {
-               Realm m = data.byMember(Settlements.key(c));
-               if (m != null) {
-                  return m;
-               }
-            }
-
-            return null;
-         }
-      }
+      return Realms.realmOf(server, player);
    }
 
    private static boolean inRealm(MinecraftServer server, RealmData data, UUID player, UUID realm) {

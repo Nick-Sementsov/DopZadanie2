@@ -468,6 +468,8 @@
   "prestol.court.office.treasurer": "казначей",
   "prestol.court.office.treasurer.desc": "Ведает казной, налогами, пошлинами и торговцами.",
   "prestol.court.outlawed": "%s объявлен вне закона в «%s» (%4$s). Награда за голову: %3$s мон.",
+  "prestol.court.outlawed_free": "%s объявлен вне закона в «%s» (%s).",
+  "prestol.court.office_lost": "%s, объявленный вне закона, лишён должности при дворе.",
   "prestol.court.pardoned": "%s помилован в «%s».",
   "prestol.court.reason.decree": "указом",
   "prestol.court.reason.robbery": "за разбой",

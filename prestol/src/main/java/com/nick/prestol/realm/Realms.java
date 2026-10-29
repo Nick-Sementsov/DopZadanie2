@@ -44,12 +44,17 @@ public final class Realms {
    }
 
    public static Realm realmOf(MinecraftServer server, ServerPlayer player) {
+      return realmOf(server, player.getUUID());
+   }
+
+   /** The realm a player serves, online or not: the one he rules, holds a settlement of or manages one for. */
+   public static Realm realmOf(MinecraftServer server, UUID player) {
       RealmData data = RealmData.get(server);
-      Realm r = data.byRuler(player.getUUID());
+      Realm r = data.byRuler(player);
       if (r != null) {
          return r;
       } else {
-         for (IColony c : Settlements.ownedBy(player.getUUID())) {
+         for (IColony c : Settlements.ownedBy(player)) {
             Realm m = realmOf(data, c);
             if (m != null) {
                return m;

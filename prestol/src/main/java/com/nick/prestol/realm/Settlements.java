@@ -131,12 +131,16 @@ public final class Settlements {
       return player.getUUID().equals(owner(colony));
    }
 
-   public static boolean isManager(ServerPlayer player, IColony colony) {
+   public static boolean isManager(UUID player, IColony colony) {
       try {
          return colony.getPermissions().getRank(player).isColonyManager();
       } catch (RuntimeException var3) {
          return false;
       }
+   }
+
+   public static boolean isManager(ServerPlayer player, IColony colony) {
+      return isManager(player.getUUID(), colony);
    }
 
    public static boolean isMember(ServerPlayer player, IColony colony) {
