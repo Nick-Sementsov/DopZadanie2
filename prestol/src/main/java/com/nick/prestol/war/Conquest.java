@@ -164,6 +164,7 @@ public final class Conquest {
          String victorName = victorRealm == null ? p.victorName() : victorRealm.name();
          if (choice == Conquest.Choice.SACK) {
             int stacks = sack(server, colony, p.realm());
+            Weariness.add(server, loser, 10.0);
             data.setDirty();
             Realms.tellAll(server, Msg.war("conquest.sacked", colony.getName(), victorName, stacks));
             Realms.chronicle(server, "sacked", List.of(colony.getName(), victorName), victorRealm, loser);
@@ -198,6 +199,7 @@ public final class Conquest {
                }
 
                data.setDirty();
+               Weariness.settlementChanged(server, loser, victorRealm);
                Wars.applyHostility(server, data);
                Realms.changed(server);
                String said = treaty ? "ceded" : (choice == Conquest.Choice.ENSLAVE ? "enslaved" : "taken");

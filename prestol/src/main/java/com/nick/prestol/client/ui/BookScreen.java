@@ -995,6 +995,14 @@ public class BookScreen extends Screen {
       for (CompoundTag r : list(state, "realms")) {
          if (!"self".equals(r.getString("stance"))) {
             others.add(r);
+         } else if (r.getInt("weariness") > 0) {
+            // our own weariness: the people's patience with the war
+            int w = r.getInt("weariness");
+            Component label = Ink.tr("weariness_ours", w);
+            Ink.text(g, label, Ink.F_SMALL, 28, y, w >= 50 ? -7464176 : -9544893);
+            Ink.bar(g, 120, y + 2, 66, 5, w / 100.0F, w >= 80 ? -6669790 : (w >= 50 ? -4684245 : -9532870));
+            this.tip(28, y - 1, 158, 10, Ink.tr("weariness_tip"));
+            y += 12;
          }
       }
 
@@ -1068,6 +1076,12 @@ public class BookScreen extends Screen {
             this.line(g, Ink.tr("no_realm_no_war"), 214, ry, 158, -9544893);
          } else if (st.equals("war")) {
             int in = rx.getInt("warIn");
+            if (rx.getInt("weariness") > 0) {
+               Component tired = Ink.tr("weariness_theirs", rx.getInt("weariness"));
+               Ink.text(g, tired, Ink.F_SMALL, 372 - Ink.width(tired, Ink.F_SMALL), ry + 2, -9544893);
+               this.tip(372 - Ink.width(tired, Ink.F_SMALL), ry, Ink.width(tired, Ink.F_SMALL), 11, Ink.tr("weariness_tip"));
+            }
+
             ry = this.line(g, in > 0 ? Ink.tr("mobilizing", Ink.time(in)) : Ink.tr("war_on"), 214, ry, 158, -7464176);
             if (!ruler()) {
                ry = this.small(g, Ink.tr("siege_rules"), 214, ry, 158, -9544893) + 2;

@@ -43,6 +43,7 @@ public final class PrestolConfig {
    public static final IntValue CAMP_RANGE;
    public static final IntValue CAMP_HOLD_SECONDS;
    public static final BooleanValue SIEGE_ENGINES_AT_WAR_ONLY;
+   public static final IntValue WEARINESS_HAPPINESS;
    public static final BooleanValue DEFENDER_ONLINE;
    public static final BooleanValue CAPITAL_LAST;
    public static final BooleanValue HOSTILE_RANK;
@@ -217,6 +218,10 @@ public final class PrestolConfig {
             "Осадные орудия «Столетней войны» ломают блоки только в дикой земле и в поселениях врага во время войны. / HYW siege engines break blocks only in the wild and in enemy settlements at war."
          )
          .define("siegeEnginesOnlyAtWar", true);
+      WEARINESS_HAPPINESS = b.comment(
+            "Усталость от войны: на сколько процентов падает довольство жителей державы при полной усталости (0 — выключено). / War weariness: happiness lost at full weariness, percent (0 = off)."
+         )
+         .defineInRange("wearinessHappiness", 30, 0, 100);
       DEFENDER_ONLINE = b.comment(
             "Осаду можно начать, только если хозяин или офицер поселения в игре. / A siege only starts while the owner or an officer is online."
          )

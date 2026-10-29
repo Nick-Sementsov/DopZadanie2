@@ -30,6 +30,7 @@ import com.nick.prestol.realm.Court;
 import com.nick.prestol.war.WarBlocks;
 import com.nick.prestol.war.Treaties;
 import com.nick.prestol.war.WarData;
+import com.nick.prestol.war.Weariness;
 import com.nick.prestol.war.Wars;
 import com.nick.prestol.work.CrewMaterials;
 import com.nick.prestol.work.Crews;
@@ -147,6 +148,7 @@ public class Prestol {
       Sieges.clear();
       Camps.clear();
       Treaties.clear();
+      Weariness.clear();
       Conquest.clear();
       Realms.forgetMissing();
       Decrees.clear();
@@ -166,6 +168,7 @@ public class Prestol {
             case 0:
                run("sieges", () -> Sieges.tick(server));
                run("camps", () -> Camps.tick(server));
+               run("weariness", () -> Weariness.tick(server));
             case 1:
             case 3:
             case 5:

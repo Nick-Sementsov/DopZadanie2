@@ -17,6 +17,7 @@ public final class WarData extends SavedData {
    private ListTag loot = new ListTag();
    private ListTag camps = new ListTag();
    private CompoundTag treaties = new CompoundTag();
+   private CompoundTag weariness = new CompoundTag();
 
    public static WarData get(MinecraftServer server) {
       return server.overworld().getDataStorage().computeIfAbsent(WarData::load, WarData::new, NAME);
@@ -29,8 +30,10 @@ public final class WarData extends SavedData {
       Conquest.restore(data.pending, data.loot);
       Camps.restore(data.camps);
       Treaties.restore(data.treaties);
+      Weariness.restore(data.weariness);
       data.sieges = new ListTag();
       data.treaties = new CompoundTag();
+      data.weariness = new CompoundTag();
       data.camps = new ListTag();
       data.pending = new ListTag();
       data.loot = new ListTag();
@@ -49,6 +52,7 @@ public final class WarData extends SavedData {
       tag.put("loot", Conquest.saveLoot());
       tag.put("camps", Camps.saveAll());
       tag.put("treaties", Treaties.save());
+      tag.put("weariness", Weariness.save());
       return tag;
    }
 
@@ -59,6 +63,7 @@ public final class WarData extends SavedData {
       d.loot = tag.getList("loot", 10);
       d.camps = tag.getList("camps", 10);
       d.treaties = tag.getCompound("treaties");
+      d.weariness = tag.getCompound("weariness");
       return d;
    }
 }

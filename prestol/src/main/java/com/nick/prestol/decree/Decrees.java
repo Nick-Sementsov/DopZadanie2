@@ -1,6 +1,7 @@
 package com.nick.prestol.decree;
 
 import com.nick.prestol.economy.Treasury;
+import com.nick.prestol.war.Weariness;
 
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.IGlobalResearchTree;
@@ -198,8 +199,8 @@ public final class Decrees {
          }
       }
 
-      if (Treasury.on()) {
-         // the tax rate changes happiness in every settlement of every realm
+      if (Treasury.on() || Weariness.any()) {
+         // the tax rate and war weariness change happiness in every settlement of every realm
          for (Realm r : realms.all()) {
             keys.addAll(r.members());
          }
@@ -257,6 +258,7 @@ public final class Decrees {
       }
 
       Treasury.addEffects(server, key, out);
+      Weariness.addEffects(server, key, out);
       return out;
    }
 

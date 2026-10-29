@@ -36,7 +36,7 @@ final class GuideChapters {
       chapter(
          "war", Items.IRON_SWORD, null,
          p("1", "mobilizeMinutes"), p("2", "siegeRadius", "holdMinutes"), pIf("defenderOnline", "3"), pIf("capitalLast", "4"),
-         p("5", "lootMinutes", "slaveDeath", "immunityDays"), p("6", "truceDays"), p("7", "revoltDays", "revoltHappiness", "revoltHoldMinutes"), pIf("hyw", "8")
+         p("5", "lootMinutes", "slaveDeath", "immunityDays"), p("6", "truceDays"), p("7", "revoltDays", "revoltHappiness", "revoltHoldMinutes"), pIf("hyw", "8"), pIf("weariness", "9", "wearinessHappiness")
       ),
       chapter("treaty", Items.WRITABLE_BOOK, null, p("1"), p("2"), pIf("economy", "3")),
       chapter("camps", Items.CAMPFIRE, "camps", p("1", "campRange"), p("2", "campHoldMinutes"), p("3"), pIf("enginesAtWar", "4")),

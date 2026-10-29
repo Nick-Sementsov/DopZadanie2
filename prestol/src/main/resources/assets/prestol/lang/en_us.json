@@ -361,6 +361,9 @@
   "prestol.book.war_rules": "Pick a realm on the left: alliance, war, peace.",
   "prestol.book.wars_and_sieges": "Wars and sieges",
   "prestol.book.we_offered_terms": "Our offer: %s.",
+  "prestol.book.weariness_ours": "Our war weariness: %s%%",
+  "prestol.book.weariness_theirs": "their weariness %s%%",
+  "prestol.book.weariness_tip": "Every day of war, every fallen soldier and every settlement lost wears the people down; a settlement taken cheers them. Weariness lowers happiness in every settlement of the realm and wears off in peace.",
   "prestol.book.withdraw_block": "1 block",
   "prestol.book.withdraw_blocks": "9 blocks",
   "prestol.book.withdraw_ingot": "1 ingot",
@@ -613,6 +616,7 @@
   "prestol.guide.war.6": "Peace needs the consent of both sides and is followed by a truce of %s game days.",
   "prestol.guide.war.7": "The former owner of a taken settlement may raise a revolution after %1$s game days if its happiness is below %2$s: he must hold the town hall for %3$s min.",
   "prestol.guide.war.8": "A Hundred Years War captain gives orders within 512 blocks and loaded land. The war elephant walks over uneven ground and breaks through leaves.",
+  "prestol.guide.war.9": "A long war wears the people down: every day of fighting, every fallen soldier and every settlement lost adds weariness, a settlement taken takes some away. At full weariness citizens are %1$s%% less happy. In peace weariness wears off within days.",
   "prestol.guide.welcome": "Welcome! Realms rule here: settlements grow, realms go to war and armies are raised from citizens. Press %s to open the Realm Book and read its Guide.",
   "prestol.land.foreign": "Part of the selection is someone else's land.",
   "prestol.land.given": "Chunks given up: %s (kept: %s).",
@@ -844,6 +848,7 @@
   "prestol.war.already": "You are already at war with «%s».",
   "prestol.war.cede_last": "\"%s\" is the last settlement of \"%s\" and cannot be ceded.",
   "prestol.war.declared": "«%s» declares war on «%s»! Sieges may begin in %s min.",
+  "prestol.war.exhausted": "The realm is worn out by war (%s%%): happiness is falling, time to think of peace.",
   "prestol.war.none": "There is no war with «%s».",
   "prestol.war.peace": "Peace: «%s» and «%s».",
   "prestol.war.peace_offered": "«%s» asks for peace — answer in the book (F7).",
@@ -853,5 +858,6 @@
   "prestol.war.tribute_set": "By the peace treaty \"%s\" pays \"%s\" a tribute of %s coins a day for %s days.",
   "prestol.war.tribute_short": "The treasury fell short of the tribute to \"%s\": %s coins unpaid. One more such day and the treaty is broken.",
   "prestol.war.tribute_short_them": "\"%s\" paid %s coins less tribute than due.",
-  "prestol.war.truce": "Truce with «%s» until day %s."
+  "prestol.war.truce": "Truce with «%s» until day %s.",
+  "prestol.war.weary": "The people are weary of war (%s%%): the settlements grumble."
 }

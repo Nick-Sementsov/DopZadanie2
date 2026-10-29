@@ -109,6 +109,8 @@ public final class Guide {
       r.putBoolean("enginesAtWar", Hyw.present() && PrestolConfig.SIEGE_ENGINES_AT_WAR_ONLY.get());
       r.putBoolean("court", Court.on());
       r.putInt("outlawDays", PrestolConfig.OUTLAW_DAYS.get());
+      r.putBoolean("weariness", PrestolConfig.WEARINESS_HAPPINESS.get() > 0);
+      r.putInt("wearinessHappiness", PrestolConfig.WEARINESS_HAPPINESS.get());
       return r;
    }
 

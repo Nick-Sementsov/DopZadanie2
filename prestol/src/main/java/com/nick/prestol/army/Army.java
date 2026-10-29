@@ -22,6 +22,7 @@ import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
 import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
+import com.nick.prestol.war.Weariness;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -767,6 +768,7 @@ public final class Army {
    @SubscribeEvent
    public static void onDeath(LivingDeathEvent event) {
       Morale.onDeath(event);
+      Weariness.onDeath(event);
       Entity e = event.getEntity();
       String tag = e.getPersistentData().getString("prestol_army");
       MinecraftServer server = e.getServer();

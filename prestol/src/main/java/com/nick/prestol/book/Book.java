@@ -31,6 +31,7 @@ import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
 import com.nick.prestol.war.Treaties;
 import com.nick.prestol.war.Wars;
+import com.nick.prestol.war.Weariness;
 import com.nick.prestol.work.Seasons;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -345,6 +346,7 @@ public final class Book {
             t.putBoolean("peaceFromUs", data.hasOffer("peace", mine.id(), rx.id()));
             if (war != null) {
                Treaties.describeFor(server, mine, rx, t);
+               t.putInt("weariness", (int)Math.round(Weariness.of(rx.id())));
             }
 
             long truce = data.truceUntil(mine.id(), rx.id());
@@ -353,6 +355,7 @@ public final class Book {
             }
          } else if (rx == mine) {
             t.putString("stance", "self");
+            t.putInt("weariness", (int)Math.round(Weariness.of(rx.id())));
          }
 
          realms.add(t);
