@@ -4,6 +4,13 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.economy.Coins;
+import com.nick.prestol.economy.EconomyData;
+import com.nick.prestol.economy.Treasury;
+import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.Realm;
+import com.nick.prestol.realm.RealmData;
+import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
 import java.util.Iterator;
@@ -57,7 +64,13 @@ public final class Mercenaries {
       } else {
          int size = squad(colony);
          int price = size * (Integer)PrestolConfig.MERCENARY_GOLD.get();
-         if (!player.isCreative() && gold(player) < price) {
+         // the realm's officers hire on the treasury (an ingot is 9 coins); anyone else, or an empty treasury, pays in gold
+         Realm realm = RealmData.get(server).byMember(Settlements.key(colony));
+         EconomyData eco = Treasury.on() && realm != null ? EconomyData.get(server) : null;
+         boolean treasury = eco != null
+            && (Court.may(server, realm, player, Court.Office.MARSHAL) || Court.may(server, realm, player, Court.Office.TREASURER))
+            && eco.balance(realm.id()) >= (long)price * 9L;
+         if (!player.isCreative() && !treasury && gold(player) < price) {
             player.sendSystemMessage(Msg.bad("mercenary.no_gold", price, size));
          } else {
             IBuilding hall = (IBuilding)colony.getServerBuildingManager().getTownHall();
@@ -84,13 +97,21 @@ public final class Mercenaries {
             if (came == 0) {
                player.sendSystemMessage(Msg.bad("army.need.spawn"));
             } else {
-               if (!player.isCreative()) {
-                  take(player, came * (Integer)PrestolConfig.MERCENARY_GOLD.get());
+               int paid = came * (Integer)PrestolConfig.MERCENARY_GOLD.get();
+               if (treasury) {
+                  eco.take(realm.id(), (long)paid * 9L);
+                  eco.log(realm.id(), Realms.day(Realms.now(server)), "mercenaries", -(long)paid * 9L, colony.getName(), String.valueOf(came));
+                  player.sendSystemMessage(Msg.good("mercenary.hired_treasury", came, Coins.fmt((long)paid * 9L), PrestolConfig.MERCENARY_MINUTES.get()));
+               } else {
+                  if (!player.isCreative()) {
+                     take(player, paid);
+                  }
+
+                  player.sendSystemMessage(Msg.good("mercenary.hired", came, paid, PrestolConfig.MERCENARY_MINUTES.get()));
                }
 
                data.setDirty();
                colony.usedMercenaries();
-               player.sendSystemMessage(Msg.good("mercenary.hired", came, came * (Integer)PrestolConfig.MERCENARY_GOLD.get(), PrestolConfig.MERCENARY_MINUTES.get()));
             }
          }
       }
