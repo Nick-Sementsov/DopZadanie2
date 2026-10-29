@@ -1022,8 +1022,10 @@ public class BookScreen extends Screen {
          FlagArt.draw(g, rx.getString("flag"), banner(rx), 28, yy + 1, 18, 12, false);
          Ink.text(g, Ink.clip(Component.literal(rx.getString("name")), Ink.F_BODY, 88), Ink.F_BODY, 50, yy + 3, -13951730);
          String st = rx.getString("stance");
-         Component w = Ink.tr("stance." + (st.isEmpty() ? "neutral" : st));
-         Ink.text(g, w, Ink.F_SMALL, 186 - Ink.width(w, Ink.F_SMALL), yy + 4, st.equals("war") ? -7464176 : (st.equals("ally") ? -13673956 : -9544893));
+         String bond = rx.getString("bond");
+         Component w = bond.isEmpty() ? Ink.tr("stance." + (st.isEmpty() ? "neutral" : st)) : Ink.tr("bond_" + bond);
+         int wc = !bond.isEmpty() ? -4684245 : (st.equals("war") ? -7464176 : (st.equals("ally") ? -13673956 : -9544893));
+         Ink.text(g, w, Ink.F_SMALL, 186 - Ink.width(w, Ink.F_SMALL), yy + 4, wc);
          yy += 17;
       }
 
@@ -1065,12 +1067,19 @@ public class BookScreen extends Screen {
          this.line(g, Ink.tr("war_rules"), 214, 54, 158, -9544893);
       } else {
          int ry = this.heading(g, Component.literal(rx.getString("name")), 214, 24, 158);
-         FlagArt.draw(g, rx.getString("flag"), banner(rx), 332, ry, 40, 26, false);
-         ry = this.small(g, Component.translatable(rx.getString("rank")), 214, ry, 114, -9544893);
-         ry = this.small(g, Ink.tr("ruler", rx.getString("rulerName")), 214, ry, 114, -13951730);
-         ry = this.small(g, Ink.tr("capital", rx.getString("capital")), 214, ry, 114, -13951730);
-         ry = this.small(g, Ink.tr("population", rx.getInt("population")), 214, ry, 158, -13951730) + 4;
          String st = rx.getString("stance");
+         if (st.equals("war") && ruler()) {
+            this.tip(214, 24, 158, ry - 24, Component.translatable(rx.getString("rank")).copy().append(" · ")
+               .append(Ink.tr("ruler", rx.getString("rulerName"))).append(" · ").append(Ink.tr("capital", rx.getString("capital")))
+               .append(" · ").append(Ink.tr("population", rx.getInt("population"))));
+         } else {
+            FlagArt.draw(g, rx.getString("flag"), banner(rx), 332, ry, 40, 26, false);
+            ry = this.small(g, Component.translatable(rx.getString("rank")), 214, ry, 114, -9544893);
+            ry = this.small(g, Ink.tr("ruler", rx.getString("rulerName")), 214, ry, 114, -13951730);
+            ry = this.small(g, Ink.tr("capital", rx.getString("capital")), 214, ry, 114, -13951730);
+            ry = this.small(g, Ink.tr("population", rx.getInt("population")), 214, ry, 158, -13951730) + 4;
+         }
+
          String id = this.selRealm;
          if (!hasRealm()) {
             this.line(g, Ink.tr("no_realm_no_war"), 214, ry, 158, -9544893);
@@ -1108,16 +1117,22 @@ public class BookScreen extends Screen {
                this.tip(214, ry, 158, 15, Ink.tr("treaty_tribute_tip"));
                ry += 17;
                this.button(g, Ink.tr(this.treatyTheyPay ? "treaty_they_pay_btn" : "treaty_we_pay_btn"), 214, ry, 78, perDay > 0, () -> this.treatyTheyPay = !this.treatyTheyPay);
+               int fealty = Math.floorMod(this.treatyFealty, 3);
+               boolean fealtyOn = state.getCompound("rules").getBoolean("fealty") || state.getCompound("rules").isEmpty();
+               this.button(g, Ink.tr("treaty_fealty_" + fealty), 294, ry, 78, fealtyOn, () -> this.treatyFealty++);
+               this.tip(294, ry, 78, 15, Ink.tr("treaty_fealty_tip", rx.getInt("fealtyShare")));
+               ry += 17;
                List<CompoundTag> cede = list(rx, "cede");
                int ci = Math.floorMod(this.treatyCede, cede.size() + 1) - 1;
                CompoundTag pick = ci < 0 ? null : cede.get(ci);
-               Component what = pick == null ? Ink.tr("treaty_no_cede") : Component.literal(pick.getString("name"));
-               this.button(g, Component.literal("◀"), 294, ry, 14, !cede.isEmpty(), () -> this.treatyCede--);
-               Ink.centered(g, Ink.clip(what, Ink.F_SMALL, 46), Ink.F_SMALL, 333, ry + 4, pick == null ? -9544893 : (pick.getBoolean("ours") ? -7464176 : -13673956));
+               Component what = pick == null ? Ink.tr("treaty_no_cede") : Ink.tr(pick.getBoolean("ours") ? "treaty_we_cede_tip" : "treaty_they_cede_tip", pick.getString("name"));
+               this.button(g, Component.literal("◀"), 214, ry, 14, !cede.isEmpty(), () -> this.treatyCede--);
+               Ink.centered(g, Ink.clip(what, Ink.F_SMALL, 126), Ink.F_SMALL, 293, ry + 4, pick == null ? -9544893 : (pick.getBoolean("ours") ? -7464176 : -13673956));
                this.button(g, Component.literal("▶"), 358, ry, 14, !cede.isEmpty(), () -> this.treatyCede++);
-               this.tip(294, ry, 78, 15, pick == null ? Ink.tr("treaty_cede_tip") : Ink.tr(pick.getBoolean("ours") ? "treaty_we_cede_tip" : "treaty_they_cede_tip", pick.getString("name")));
+               this.tip(214, ry, 158, 15, Ink.tr("treaty_cede_tip"));
                String cedeKey = pick == null ? "-" : pick.getString("key");
                String payer = this.treatyTheyPay ? "them" : "us";
+               String sworn = fealty == 1 ? "them" : (fealty == 2 ? "us" : "-");
                this.sealButton(
                   g,
                   rx.getBoolean("peaceFromUs") ? Ink.tr("change_terms") : Ink.tr("offer_peace"),
@@ -1125,12 +1140,24 @@ public class BookScreen extends Screen {
                   204,
                   3963438,
                   true,
-                  () -> order("treaty " + id + " " + perDay + " " + days + " " + payer + " " + cedeKey)
+                  () -> order("treaty " + id + " " + perDay + " " + days + " " + payer + " " + cedeKey + " " + sworn)
                );
+            }
+         } else if (rx.getString("bond").equals("vassal")) {
+            ry = this.line(g, Ink.tr("bond_vassal_text", rx.getInt("fealtyShare")), 214, ry, 158, -13673956);
+            if (ruler()) {
+               this.dangerous(g, "release" + id, Ink.tr("fealty_release"), 214, 208, 110, true, () -> order("fealty release " + id));
+            }
+         } else if (rx.getString("bond").equals("liege")) {
+            ry = this.line(g, Ink.tr("bond_liege_text", rx.getInt("fealtyShare")), 214, ry, 158, -4684245);
+            if (ruler()) {
+               ry = this.small(g, Ink.tr("fealty_break_note"), 214, ry + 2, 158, -9544893);
+               this.dangerous(g, "break" + id, Ink.tr("fealty_break"), 214, 208, 140, true, () -> order("fealty break"));
             }
          } else if (st.equals("ally")) {
             ry = this.line(g, Ink.tr("allied"), 214, ry, 158, -13673956);
             if (ruler()) {
+               ry = this.fealtyOffers(g, rx, id, ry);
                this.dangerous(g, "unally" + id, Ink.tr("break_alliance"), 214, 208, 110, true, () -> order("unally " + id));
             }
          } else {
@@ -1145,6 +1172,7 @@ public class BookScreen extends Screen {
             if (!ruler()) {
                this.small(g, Ink.tr("not_ruler_note"), 214, 206, 158, -9544893);
             } else {
+               ry = this.fealtyOffers(g, rx, id, ry);
                this.sealButton(
                   g,
                   rx.getBoolean("allyFromThem") ? Ink.tr("accept_alliance") : (rx.getBoolean("allyFromUs") ? Ink.tr("alliance_sent") : Ink.tr("offer_alliance")),
@@ -1165,6 +1193,31 @@ public class BookScreen extends Screen {
                });
             }
          }
+      }
+   }
+
+   /** Oaths of fealty between us and {@code rx}: what they offer us, and the two buttons to offer or demand one. */
+   private int fealtyOffers(GuiGraphics g, CompoundTag rx, String id, int ry) {
+      if (!rx.contains("canSwear")) {
+         return ry;
+      } else {
+         int share = rx.getInt("fealtyShare");
+         if (rx.getBoolean("swearFromThem")) {
+            ry = this.small(g, Ink.tr("fealty_they_swear", share), 214, ry, 158, -13673956);
+         }
+
+         if (rx.getBoolean("demandFromThem")) {
+            ry = this.small(g, Ink.tr("fealty_they_demand", share), 214, ry, 158, -7464176);
+         }
+
+         int by = Math.min(Math.max(ry + 2, 150), 158);
+         boolean swear = rx.getBoolean("canSwear") && (!rx.getBoolean("swearFromUs") || rx.getBoolean("demandFromThem"));
+         boolean demand = rx.getBoolean("canDemand") && (!rx.getBoolean("demandFromUs") || rx.getBoolean("swearFromThem"));
+         this.dangerous(g, "swear" + id, Ink.tr(rx.getBoolean("swearFromUs") ? "fealty_swear_sent" : "fealty_swear"), 214, by, 78, swear, () -> order("fealty swear " + id));
+         this.tip(214, by, 78, 15, Ink.tr("fealty_swear_tip", share));
+         this.button(g, Ink.tr(rx.getBoolean("demandFromUs") ? "fealty_demand_sent" : "fealty_demand"), 294, by, 78, demand, () -> order("fealty demand " + id));
+         this.tip(294, by, 78, 15, Ink.tr("fealty_demand_tip", share));
+         return by + 18;
       }
    }
 
@@ -1421,6 +1474,7 @@ public class BookScreen extends Screen {
    private int treatyDays = 2;
    private boolean treatyTheyPay = true;
    private int treatyCede;
+   private int treatyFealty;
 
    /** Peace terms the server sent as text, or "no terms". */
    private static Component terms(CompoundTag rx, String key) {
@@ -1619,6 +1673,12 @@ public class BookScreen extends Screen {
 
       if (tributes.size() > 2) {
          y = this.small(g, Ink.tr("treasury_tribute_more", tributes.size() - 2), 28, y, 158, -9544893);
+      }
+
+      if (t.contains("liege")) {
+         y = this.small(g, Ink.tr("treasury_liege", t.getString("liege"), t.getInt("fealtyShare")), 28, y, 158, -7464176);
+      } else if (t.getInt("vassals") > 0) {
+         y = this.small(g, Ink.tr("treasury_vassals", t.getInt("vassals"), t.getInt("fealtyShare")), 28, y, 158, -13673956);
       }
 
       y = this.sub(g, Ink.tr("treasury_tax"), 28, y + 4);

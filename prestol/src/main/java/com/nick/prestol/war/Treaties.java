@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.economy.Coins;
 import com.nick.prestol.economy.EconomyData;
 import com.nick.prestol.economy.Treasury;
+import com.nick.prestol.realm.Fealty;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
@@ -25,7 +26,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Peace on terms. A ruler at war offers peace with a tribute (so many coins a day for so many days, paid by either
- * side) and the cession of a settlement (his own or the enemy's); the other ruler accepts those terms or answers with
+ * side), the cession of a settlement (his own or the enemy's) and fealty (one realm becomes the other's vassal); the
+ * other ruler accepts those terms or answers with
  * his own. A tribute is paid every game day from treasury to treasury; two days unpaid in a row break the treaty and
  * the truce with it.
  */
@@ -44,7 +46,10 @@ public final class Treaties {
       return from + "|" + to;
    }
 
-   /** {@code treaty <realm> <coins a day> <days> <us|them> <settlement|->}: offers peace on these terms. */
+   /**
+    * {@code treaty <realm> <coins a day> <days> <us|them> <settlement|-> [them|us|-]}: offers peace on these terms;
+    * the last word makes the other realm (them) or one's own (us) a vassal.
+    */
    public static Realms.Result offer(MinecraftServer server, ServerPlayer player, String[] w) {
       RealmData data = RealmData.get(server);
       Realm me = data.byRuler(player.getUUID());
@@ -60,6 +65,7 @@ public final class Treaties {
          int days = (int)num(w[3]);
          boolean theyPay = w[4].equals("them");
          String cede = w[5].equals("-") ? "" : w[5];
+         int fealty = w.length > 6 ? (w[6].equals("them") ? 1 : (w[6].equals("us") ? 2 : 0)) : 0;
          if (perDay < 0L || perDay > MAX_PER_DAY || perDay > 0L && (days < 1 || days > MAX_DAYS)) {
             return Realms.Result.no(Msg.bad("err.unknown"));
          } else if (perDay > 0L && !Treasury.on()) {
@@ -73,7 +79,16 @@ public final class Treaties {
                }
             }
 
-            Treaties.Terms terms = new Treaties.Terms(perDay, perDay > 0L ? days : 0, theyPay, cede, theyCede);
+            if (fealty != 0) {
+               Realm lord = fealty == 1 ? me : them;
+               Realm vassal = fealty == 1 ? them : me;
+               String why = Fealty.on() ? Fealty.refusal(server, lord, vassal) : "err.court_off";
+               if (why != null) {
+                  return Realms.Result.no(Msg.bad(why, vassal.name(), lord.name()));
+               }
+            }
+
+            Treaties.Terms terms = new Treaties.Terms(perDay, perDay > 0L ? days : 0, theyPay, cede, theyCede, fealty);
             OFFERS.put(pair(me.id(), them.id()), terms);
             data.setOffer("peace", me.id(), them.id(), true);
             Realms.tell(server, them, Msg.info("war.treaty_offered", me.name(), describe(server, terms, false, me.name())));
@@ -117,6 +132,14 @@ public final class Treaties {
             IColony c = Settlements.byKey(t.cede);
             if (c != null && cessionRefused(data, from, t.cede) == null) {
                Conquest.cede(server, c, to);
+            }
+         }
+
+         if (t.fealty != 0 && Fealty.on()) {
+            Realm lord = t.fealty == 1 ? offerer : acceptor;
+            Realm vassal = t.fealty == 1 ? acceptor : offerer;
+            if (Fealty.refusal(server, lord, vassal) == null) {
+               Fealty.bind(server, lord, vassal);
             }
          }
       }
@@ -196,7 +219,17 @@ public final class Treaties {
          out.append(Msg.t(readerCedes ? "treaty.we_cede" : "treaty.they_cede", c == null ? "?" : c.getName()));
       }
 
-      if (t.perDay <= 0L && t.cede.isEmpty()) {
+      if (t.fealty != 0) {
+         // fealty 1: the realm the offer went to becomes the offerer's vassal
+         boolean readerSwears = (t.fealty == 1) != ours;
+         if (t.perDay > 0L || !t.cede.isEmpty()) {
+            out.append("; ");
+         }
+
+         out.append(Msg.t(readerSwears ? "treaty.we_vassal" : "treaty.they_vassal"));
+      }
+
+      if (t.perDay <= 0L && t.cede.isEmpty() && t.fealty == 0) {
          out.append(Msg.t("treaty.plain"));
       }
 
@@ -312,7 +345,7 @@ public final class Treaties {
    }
 
    /** Terms from the offerer's side: {@code theyPay} and {@code theyCede} are about the realm the offer goes to. */
-   record Terms(long perDay, int days, boolean theyPay, String cede, boolean theyCede) {
+   record Terms(long perDay, int days, boolean theyPay, String cede, boolean theyCede, int fealty) {
       CompoundTag save() {
          CompoundTag t = new CompoundTag();
          t.putLong("perDay", this.perDay);
@@ -320,11 +353,12 @@ public final class Treaties {
          t.putBoolean("theyPay", this.theyPay);
          t.putString("cede", this.cede);
          t.putBoolean("theyCede", this.theyCede);
+         t.putInt("fealty", this.fealty);
          return t;
       }
 
       static Treaties.Terms load(CompoundTag t) {
-         return new Treaties.Terms(t.getLong("perDay"), t.getInt("days"), t.getBoolean("theyPay"), t.getString("cede"), t.getBoolean("theyCede"));
+         return new Treaties.Terms(t.getLong("perDay"), t.getInt("days"), t.getBoolean("theyPay"), t.getString("cede"), t.getBoolean("theyCede"), t.getInt("fealty"));
       }
    }
 

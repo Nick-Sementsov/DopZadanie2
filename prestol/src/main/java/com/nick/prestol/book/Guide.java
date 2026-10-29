@@ -3,6 +3,7 @@ package com.nick.prestol.book;
 import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.Fealty;
 import com.nick.prestol.war.Camps;
 import com.nick.prestol.trade.Trading;
 import com.nick.prestol.economy.Treasury;
@@ -109,6 +110,8 @@ public final class Guide {
       r.putBoolean("enginesAtWar", Hyw.present() && PrestolConfig.SIEGE_ENGINES_AT_WAR_ONLY.get());
       r.putBoolean("court", Court.on());
       r.putInt("outlawDays", PrestolConfig.OUTLAW_DAYS.get());
+      r.putBoolean("fealty", Fealty.on());
+      r.putInt("fealtyShare", PrestolConfig.FEALTY_SHARE.get());
       r.putBoolean("weariness", PrestolConfig.WEARINESS_HAPPINESS.get() > 0);
       r.putInt("wearinessHappiness", PrestolConfig.WEARINESS_HAPPINESS.get());
       return r;

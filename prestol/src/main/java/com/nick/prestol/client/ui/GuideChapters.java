@@ -39,6 +39,7 @@ final class GuideChapters {
          p("5", "lootMinutes", "slaveDeath", "immunityDays"), p("6", "truceDays"), p("7", "revoltDays", "revoltHappiness", "revoltHoldMinutes"), pIf("hyw", "8"), pIf("weariness", "9", "wearinessHappiness")
       ),
       chapter("treaty", Items.WRITABLE_BOOK, null, p("1"), p("2"), pIf("economy", "3")),
+      chapter("fealty", Items.GOLDEN_HELMET, "fealty", p("1"), p("2", "fealtyShare"), p("3")),
       chapter("camps", Items.CAMPFIRE, "camps", p("1", "campRange"), p("2", "campHoldMinutes"), p("3"), pIf("enginesAtWar", "4")),
       chapter("treasury", Items.GOLD_NUGGET, "economy", p("1"), p("2", "taxLow", "taxNormal", "taxHigh"), p("3", "soldierPay"), p("4")),
       chapter(

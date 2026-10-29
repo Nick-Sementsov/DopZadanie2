@@ -221,6 +221,7 @@ public final class Realms {
       Hyw.onRealmRemoved(server, realm);
       Wars.onRealmRemoved(server, realm);
       Court.onRealmRemoved(server, realm);
+      Fealty.onRealmRemoved(server, realm);
       Treasury.onRealmRemoved(server, realm);
       if (announce != null) {
          tellAll(server, announce);

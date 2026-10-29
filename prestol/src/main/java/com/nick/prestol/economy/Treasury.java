@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.util.ResearchConstants;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.Fealty;
 import com.nick.prestol.war.Treaties;
 import com.nick.prestol.army.ArmyData;
 import com.nick.prestol.realm.Holding;
@@ -155,6 +156,7 @@ public final class Treasury {
                if (income > 0L) {
                   eco.give(r.id(), income);
                   eco.log(r.id(), day, "tax", income, tax.id());
+                  Fealty.payShare(server, eco, r, income, day);
                }
 
                int soldiers = army.soldiersOf(r.members());
@@ -232,6 +234,19 @@ public final class Treasury {
       t.putBoolean("ruler", ruler);
       t.putInt("unpaid", eco.unpaidDays(realm.id()));
       t.put("tributes", Treaties.tributesOf(server, realm));
+      if (Fealty.on()) {
+         Realm liege = Fealty.suzerainOf(server, realm);
+         if (liege != null) {
+            t.putString("liege", liege.name());
+         }
+
+         int vassals = Fealty.vassalsOf(server, realm).size();
+         if (vassals > 0) {
+            t.putInt("vassals", vassals);
+         }
+
+         t.putInt("fealtyShare", PrestolConfig.FEALTY_SHARE.get());
+      }
       long income = 0L;
 
       for (String key : realm.members()) {

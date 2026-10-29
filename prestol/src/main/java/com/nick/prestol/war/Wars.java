@@ -8,11 +8,13 @@ import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
 import com.nick.prestol.realm.CourtData;
 import com.nick.prestol.realm.Holding;
+import com.nick.prestol.realm.Fealty;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
 import com.nick.prestol.util.Msg;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -54,33 +56,84 @@ public final class Wars {
       } else if (them != null && them != me) {
          if (data.war(me.id(), them.id()) != null) {
             return Realms.Result.no(Msg.bad("war.already", them.name()));
+         } else if (Fealty.suzerainOf(server, me) != null) {
+            // a vassal fights its lord's wars, not its own
+            return Realms.Result.no(Msg.bad("fealty.vassal_no_war", Fealty.suzerainOf(server, me).name()));
+         } else if (Fealty.bound(server, me, them)) {
+            return Realms.Result.no(Msg.bad("fealty.bound_no_war", them.name()));
          } else {
             long now = Realms.now(server);
             long truce = data.truceUntil(me.id(), them.id());
             if (truce > now) {
                return Realms.Result.no(Msg.bad("war.truce", them.name(), Realms.day(truce)));
             } else {
-               me.allies().remove(them.id());
-               them.allies().remove(me.id());
-               data.setOffer("ally", me.id(), them.id(), false);
-               data.setOffer("ally", them.id(), me.id(), false);
-               long active = now + (long)((Integer)PrestolConfig.MOBILIZE_MINUTES.get()).intValue() * 1200L;
-               data.addWar(new RealmData.War(me.id(), them.id(), now, active));
-               Realms.tellAll(server, Msg.war("war.declared", me.name(), them.name(), PrestolConfig.MOBILIZE_MINUTES.get()));
-
-               for (ServerPlayer p : Realms.online(server, them)) {
-                  p.level().playSound(null, p.blockPosition(), (SoundEvent)SoundEvents.RAID_HORN.value(), SoundSource.NEUTRAL, 2.0F, 1.0F);
-               }
-
-               Realms.chronicle(server, "war_declared", List.of(me.name(), them.name()), me, them);
-               Realms.changed(server);
-               applyHostility(server, data);
+               begin(server, data, me, them);
                return Realms.Result.yes(Msg.good("ok.war", them.name()));
             }
          }
       } else {
          return Realms.Result.no(Msg.bad("err.no_realm"));
       }
+   }
+
+   /**
+    * War between {@code me} and {@code them}. The attacker's vassals march with it; the defender's vassals, and its
+    * suzerain with that suzerain's other vassals, come to its defence.
+    */
+   public static void begin(MinecraftServer server, RealmData data, Realm me, Realm them) {
+      long now = Realms.now(server);
+      long active = now + (long)((Integer)PrestolConfig.MOBILIZE_MINUTES.get()).intValue() * 1200L;
+      List<Realm> attack = new ArrayList<>();
+      attack.add(me);
+      attack.addAll(Fealty.vassalsOf(server, me));
+      List<Realm> defend = new ArrayList<>();
+      defend.add(them);
+      defend.addAll(Fealty.vassalsOf(server, them));
+      Realm liege = Fealty.suzerainOf(server, them);
+      if (liege != null && liege != me) {
+         defend.add(liege);
+
+         for (Realm v : Fealty.vassalsOf(server, liege)) {
+            if (v != them && v != me) {
+               defend.add(v);
+            }
+         }
+      }
+
+      for (Realm a : attack) {
+         for (Realm d : defend) {
+            if (a != d && data.war(a.id(), d.id()) == null) {
+               a.allies().remove(d.id());
+               d.allies().remove(a.id());
+               data.setOffer("ally", a.id(), d.id(), false);
+               data.setOffer("ally", d.id(), a.id(), false);
+               data.addWar(new RealmData.War(a.id(), d.id(), now, active));
+            }
+         }
+      }
+
+      Realms.tellAll(server, Msg.war("war.declared", me.name(), them.name(), PrestolConfig.MOBILIZE_MINUTES.get()));
+      for (Realm a : attack) {
+         if (a != me) {
+            Realms.tellAll(server, Msg.war("fealty.called", a.name(), me.name(), them.name()));
+         }
+      }
+
+      for (Realm d : defend) {
+         if (d != them) {
+            Realms.tellAll(server, Msg.war("fealty.defends", d.name(), them.name()));
+         }
+      }
+
+      for (Realm d : defend) {
+         for (ServerPlayer p : Realms.online(server, d)) {
+            p.level().playSound(null, p.blockPosition(), (SoundEvent)SoundEvents.RAID_HORN.value(), SoundSource.NEUTRAL, 2.0F, 1.0F);
+         }
+      }
+
+      Realms.chronicle(server, "war_declared", List.of(me.name(), them.name()), me, them);
+      Realms.changed(server);
+      applyHostility(server, data);
    }
 
    public static Realms.Result peace(MinecraftServer server, ServerPlayer player, UUID targetId) {
@@ -111,6 +164,21 @@ public final class Wars {
 
    public static void makePeace(MinecraftServer server, RealmData data, RealmData.War w) {
       data.endWar(w);
+      // a lord's peace is his vassals' peace with the same enemy
+      Realm sideA = data.byId(w.attacker());
+      Realm sideB = data.byId(w.defender());
+      for (Realm va : Fealty.vassalsOf(server, sideA)) {
+         endAlso(server, data, va, sideB);
+      }
+
+      for (Realm vb : Fealty.vassalsOf(server, sideB)) {
+         endAlso(server, data, sideA, vb);
+
+         for (Realm va : Fealty.vassalsOf(server, sideA)) {
+            endAlso(server, data, va, vb);
+         }
+      }
+
       data.setOffer("peace", w.attacker(), w.defender(), false);
       data.setOffer("peace", w.defender(), w.attacker(), false);
       Treaties.forgetOffers(w.attacker(), w.defender());
@@ -126,6 +194,19 @@ public final class Wars {
       Realms.changed(server);
    }
 
+   private static void endAlso(MinecraftServer server, RealmData data, Realm a, Realm b) {
+      RealmData.War x = a == null || b == null ? null : data.war(a.id(), b.id());
+      if (x != null) {
+         data.endWar(x);
+         data.setOffer("peace", a.id(), b.id(), false);
+         data.setOffer("peace", b.id(), a.id(), false);
+         Treaties.forgetOffers(a.id(), b.id());
+         data.setTruce(a.id(), b.id(), Realms.now(server) + (long)((Integer)PrestolConfig.TRUCE_DAYS.get()).intValue() * 24000L);
+         Sieges.endBetween(server, a.id(), b.id());
+         Realms.tellAll(server, Msg.good("war.peace", a.name(), b.name()));
+      }
+   }
+
    public static Realms.Result alliance(MinecraftServer server, ServerPlayer player, UUID targetId, boolean make) {
       RealmData data = RealmData.get(server);
       Realm me = ruled(server, player);
@@ -134,6 +215,8 @@ public final class Wars {
          return Realms.Result.no(Msg.bad("err.not_ruler"));
       } else if (them == null || them == me) {
          return Realms.Result.no(Msg.bad("err.no_realm"));
+      } else if (!make && Fealty.bound(server, me, them)) {
+         return Realms.Result.no(Msg.bad("fealty.bound_ally", them.name()));
       } else if (!make) {
          boolean had = me.allies().remove(them.id()) | them.allies().remove(me.id());
          data.setOffer("ally", me.id(), them.id(), false);

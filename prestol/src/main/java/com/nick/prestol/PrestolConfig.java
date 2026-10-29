@@ -103,6 +103,8 @@ public final class PrestolConfig {
    public static final BooleanValue COURT;
    public static final IntValue OUTLAW_DAYS;
    public static final BooleanValue TITLES_IN_NAMES;
+   public static final BooleanValue FEALTY;
+   public static final IntValue FEALTY_SHARE;
    public static final IntValue CARAVAN_COST;
    public static final IntValue PACK_ANIMAL_COST;
    public static final IntValue SHIP_COST;
@@ -399,6 +401,10 @@ public final class PrestolConfig {
          .defineInRange("outlawDays", 7, 1, 1000);
       TITLES_IN_NAMES = b.comment("Показывать титул перед именем в чате и списке игроков. / Show titles before names in chat and the player list.")
          .define("titlesInNames", true);
+      FEALTY = b.comment("Вассалитет: держава присягает другой, платит долю налогов и воюет её войны. / Vassalage between realms.")
+         .define("fealty", true);
+      FEALTY_SHARE = b.comment("Какую долю дневных налогов вассал отдаёт сюзерену, %. / Share of a vassal's daily taxes paid to its suzerain, percent.")
+         .defineInRange("fealtyShare", 20, 0, 90);
       b.pop();
       b.push("trade");
       TRADE = b.comment("Караваны и корабли, рынки поселений, торговля между державами. / Caravans, ships, settlement markets, trade between realms.")

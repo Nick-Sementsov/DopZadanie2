@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
+import com.nick.prestol.realm.Fealty;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.decree.DecreeData;
 import com.nick.prestol.decree.DecreeType;
@@ -184,6 +185,8 @@ public final class Book {
                return Court.order(server, player, w);
             case "treaty":
                return Treaties.offer(server, player, w);
+            case "fealty":
+               return Fealty.order(server, player, w);
             case "treasury":
                return Treasury.order(server, player, w);
             case "trade":
@@ -344,6 +347,25 @@ public final class Book {
             t.putBoolean("allyFromUs", data.hasOffer("ally", mine.id(), rx.id()));
             t.putBoolean("peaceFromThem", data.hasOffer("peace", rx.id(), mine.id()));
             t.putBoolean("peaceFromUs", data.hasOffer("peace", mine.id(), rx.id()));
+            if (Fealty.on()) {
+               if (Fealty.suzerainOf(server, rx) == mine) {
+                  t.putString("bond", "vassal");
+               } else if (Fealty.suzerainOf(server, mine) == rx) {
+                  t.putString("bond", "liege");
+               }
+
+               t.putBoolean("swearFromThem", data.hasOffer("swear", rx.id(), mine.id()));
+               t.putBoolean("demandFromThem", data.hasOffer("demand", rx.id(), mine.id()));
+               t.putBoolean("swearFromUs", data.hasOffer("swear", mine.id(), rx.id()));
+               t.putBoolean("demandFromUs", data.hasOffer("demand", mine.id(), rx.id()));
+               // what an oath between us would run into, from either side
+               String asLord = Fealty.refusal(server, mine, rx);
+               String asVassal = Fealty.refusal(server, rx, mine);
+               t.putBoolean("canDemand", asLord == null);
+               t.putBoolean("canSwear", asVassal == null);
+               t.putInt("fealtyShare", PrestolConfig.FEALTY_SHARE.get());
+            }
+
             if (war != null) {
                Treaties.describeFor(server, mine, rx, t);
                t.putInt("weariness", (int)Math.round(Weariness.of(rx.id())));
