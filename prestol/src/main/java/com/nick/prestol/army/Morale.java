@@ -69,6 +69,10 @@ public final class Morale {
    private static final double LORD_NEAR = 24.0;
    private static final int UNPAID_DESERT_DAYS = 3;
    private static final double DESERT_BELOW = 15.0;
+   /** A comrade falling in a band of up to {@link #LOSS_BAND} men costs the others this much spirit; in a bigger one, less. */
+   private static final double LOSS_SHOCK = 10.0;
+   private static final double LOSS_BAND = 6.0;
+   private static final double KILL_CHEER = 3.0;
    private static final UUID MELEE = UUID.fromString("7d0f0b8e-5a5c-4f43-9f2e-3a1d9c6e1a11");
    private static final UUID RANGED = UUID.fromString("7d0f0b8e-5a5c-4f43-9f2e-3a1d9c6e1a12");
 
@@ -285,8 +289,25 @@ public final class Morale {
          long now = level.getGameTime();
          LivingEntity killer = dead.getLastHurtByMob();
          Map<UUID, Integer> fled = new HashMap<>();
+         List<LivingEntity> around = level.getEntitiesOfClass(LivingEntity.class, dead.getBoundingBox().inflate(range), x -> x != dead && Hyw.eater(x));
+         // a loss weighs by the share of the band it takes: one of six is a blow, one of sixty is a scratch
+         int comrades = 0;
+         int foes = 0;
 
-         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, dead.getBoundingBox().inflate(range), x -> x != dead && Hyw.eater(x))) {
+         for (LivingEntity e : around) {
+            if (e.distanceTo(dead) <= NEAR) {
+               if (cx.sameSide(((OwnableEntity)e).getOwnerUUID(), side)) {
+                  comrades++;
+               } else {
+                  foes++;
+               }
+            }
+         }
+
+         double blow = Math.min(LOSS_SHOCK, LOSS_SHOCK * LOSS_BAND / Math.max(1, comrades + 1));
+         double cheer = Math.min(KILL_CHEER, KILL_CHEER * LOSS_BAND / Math.max(1, foes));
+
+         for (LivingEntity e : around) {
             UUID owner = ((OwnableEntity)e).getOwnerUUID();
             double delta = 0.0;
             if (lord && side.equals(owner)) {
@@ -294,9 +315,9 @@ public final class Morale {
             } else if (!lord && cx.sameSide(owner, side) && e.distanceTo(dead) <= NEAR) {
                // veterans have seen it before
                double steady = Math.min(0.5, 0.06 * Math.max(0, Hyw.rank(e) - 1));
-               delta = -10.0 * (1.0 - steady);
+               delta = -blow * (1.0 - steady);
             } else if (!lord && e.distanceTo(dead) <= NEAR && killer != null && friendOf(cx, killer, owner)) {
-               delta = 3.0;
+               delta = cheer;
             }
 
             if (delta != 0.0 && shake(e, delta, now, true)) {

@@ -681,7 +681,7 @@ public final class TradeWorld {
       }
    }
 
-   /** A pack mule of a caravan is killed: its chest falls to the ground, and off the trader's books. */
+   /** A pack mule of a caravan is killed: its chest falls to the ground, and off the trader's books; its killer is a robber. */
    @SubscribeEvent
    public static void onDeath(LivingDeathEvent event) {
       if (event.getEntity() instanceof AbstractChestedHorse mule && mule.getTags().contains(TAG) && mule.level() instanceof ServerLevel level) {
@@ -699,6 +699,11 @@ public final class TradeWorld {
 
                if (slots > 0) {
                   lost(level.getServer(), t, Msg.bad("trade.mule_killed", t.name, slots));
+               }
+
+               // killing a pack mule for its load is robbery all the same
+               if (event.getSource().getEntity() instanceof ServerPlayer robber) {
+                  Court.robbed(level.getServer(), t.realm, robber);
                }
             }
          }
