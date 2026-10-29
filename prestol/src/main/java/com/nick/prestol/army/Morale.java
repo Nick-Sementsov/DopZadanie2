@@ -5,6 +5,7 @@ import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.compat.Hyw;
 import com.nick.prestol.economy.EconomyData;
+import com.nick.prestol.flag.Flags;
 import com.nick.prestol.economy.Treasury;
 import com.nick.prestol.land.Territory;
 import com.nick.prestol.realm.Realm;
@@ -73,6 +74,8 @@ public final class Morale {
    private static final double LOSS_SHOCK = 10.0;
    private static final double LOSS_BAND = 6.0;
    private static final double KILL_CHEER = 3.0;
+   /** The lift of fighting within {@link #LORD_NEAR} blocks of a man carrying the realm's standard. */
+   private static final double STANDARD = 10.0;
    private static final UUID MELEE = UUID.fromString("7d0f0b8e-5a5c-4f43-9f2e-3a1d9c6e1a11");
    private static final UUID RANGED = UUID.fromString("7d0f0b8e-5a5c-4f43-9f2e-3a1d9c6e1a12");
 
@@ -202,6 +205,11 @@ public final class Morale {
       ServerPlayer lord = cx.server.getPlayerList().getPlayer(owner);
       if (lord != null && lord.isAlive() && lord.level() == level && lord.distanceTo(unit) <= LORD_NEAR) {
          m += 10.0;
+      }
+
+      // the realm's standard carried into the field
+      if (mine != null && cx.underStandard(level, unit, mine)) {
+         m += STANDARD;
       }
 
       m += Math.min(10.0, 2.0 * Math.max(0, Hyw.rank(unit) - 1));
@@ -458,6 +466,30 @@ public final class Morale {
 
             return this.eco.unpaidDays(r.id());
          }
+      }
+
+      private Map<ServerLevel, List<ServerPlayer>> bearers;
+
+      /** Whether a man of {@code realm} carries its standard near {@code unit}. */
+      boolean underStandard(ServerLevel level, Entity unit, Realm realm) {
+         if (this.bearers == null) {
+            this.bearers = new HashMap<>();
+
+            for (ServerPlayer p : this.server.getPlayerList().getPlayers()) {
+               if (p.isAlive() && !p.isSpectator() && (Flags.standardOf(p.getMainHandItem()) != null || Flags.standardOf(p.getOffhandItem()) != null)) {
+                  this.bearers.computeIfAbsent(p.serverLevel(), l -> new ArrayList<>()).add(p);
+               }
+            }
+         }
+
+         for (ServerPlayer p : this.bearers.getOrDefault(level, List.of())) {
+            boolean ours = realm.id().equals(Flags.standardOf(p.getMainHandItem())) || realm.id().equals(Flags.standardOf(p.getOffhandItem()));
+            if (ours && p.distanceTo(unit) <= LORD_NEAR && this.realm(p.getUUID()) == realm) {
+               return true;
+            }
+         }
+
+         return false;
       }
 
       IColony colonyAt(ServerLevel level, Entity unit) {

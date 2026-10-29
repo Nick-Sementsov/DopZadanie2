@@ -4,6 +4,7 @@ import com.nick.prestol.map.Colors;
 import com.nick.prestol.realm.Realm;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
@@ -124,6 +125,9 @@ public final class Flags {
       }
    }
 
+   /** The tag that tells a realm's own standard from any banner with the same colours. */
+   public static final String STANDARD_REALM = "PrestolRealm";
+
    public static ItemStack standard(MinecraftServer server, Realm realm) {
       if (betsy()) {
          String id = imageFor(server, realm, false);
@@ -131,13 +135,20 @@ public final class Flags {
          if (item != null && ForgeRegistries.ITEMS.containsKey(FLAG_STANDARD) && !id.isEmpty()) {
             ItemStack st = new ItemStack(item);
             st.getOrCreateTag().putString("FlagId", id);
+            st.getOrCreateTag().putUUID(STANDARD_REALM, realm.id());
             st.setHoverName(Component.translatable("prestol.flag.standard_name", new Object[]{realm.name()}));
             return st;
          }
       }
 
       ItemStack b = banner(layers(realm));
+      b.getOrCreateTag().putUUID(STANDARD_REALM, realm.id());
       b.setHoverName(Component.translatable("prestol.flag.standard_name", new Object[]{realm.name()}));
       return b;
+   }
+
+   /** The realm whose standard {@code stack} is, or null. */
+   public static UUID standardOf(ItemStack stack) {
+      return !stack.isEmpty() && stack.getTag() != null && stack.getTag().hasUUID(STANDARD_REALM) ? stack.getTag().getUUID(STANDARD_REALM) : null;
    }
 }

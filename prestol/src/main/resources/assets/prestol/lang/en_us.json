@@ -567,7 +567,7 @@
   "prestol.guide.morale": "Morale",
   "prestol.guide.morale.1": "Every soldier has a spirit from 0 to 100: look at one of yours to see it over the hotbar, and find it for each tower on the Army page. It drifts towards what his situation deserves: food, pay, own or enemy land, his lord nearby, experience and the odds in battle. It falls faster than it rises.",
   "prestol.guide.morale.2": "A soldier at 80 or more hits harder, below 40 softer. If his spirit drops below %1$s in battle he flees from the foes, keeps out of fights and holds no ground in a siege for half a minute, then rallies.",
-  "prestol.guide.morale.3": "A comrade falling nearby shakes the spirit (veterans stand firmer), a foe falling lifts it. The death of their lord is a heavy blow. Keep your army fed, in numbers and under your banner.",
+  "prestol.guide.morale.3": "A comrade falling nearby shakes the spirit (veterans stand firmer), a foe falling lifts it. The death of their lord is a heavy blow. Keep your army fed, in numbers and under your banner: the realm's standard (the book gives it on the Banner page) carried by one of your men nearby lifts the soldiers' spirit.",
   "prestol.guide.morale.4": "A garrison left unpaid for days loses heart and scatters: the recruits go home as citizens.",
   "prestol.guide.provisions": "Provisions",
   "prestol.guide.provisions.1": "Every soldier carries provisions, 0 to 100%%. A full stock lasts %s game days. Soldiers do not need Hundred Years War supply: they eat ordinary food.",
