@@ -2,6 +2,11 @@ package com.nick.prestol.book;
 
 import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.PrestolConfig;
+import com.nick.prestol.realm.Court;
+import com.nick.prestol.war.Camps;
+import com.nick.prestol.trade.Trading;
+import com.nick.prestol.economy.Treasury;
+import com.nick.prestol.army.Morale;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.army.Conscripts;
 import com.nick.prestol.army.Mercenaries;
@@ -83,6 +88,27 @@ public final class Guide {
       r.putBoolean("paintings", Flags.paintings());
       r.putBoolean("brewery", PrestolHuts.BREWERY);
       r.putBoolean("vinery", PrestolHuts.VINERY);
+      r.putBoolean("economy", Treasury.on());
+      r.putInt("taxLow", PrestolConfig.TAX_LOW.get());
+      r.putInt("taxNormal", PrestolConfig.TAX_NORMAL.get());
+      r.putInt("taxHigh", PrestolConfig.TAX_HIGH.get());
+      r.putInt("soldierPay", PrestolConfig.SOLDIER_PAY.get());
+      r.putBoolean("trade", Trading.on());
+      r.putInt("caravanCost", PrestolConfig.CARAVAN_COST.get());
+      r.putInt("muleCost", PrestolConfig.PACK_ANIMAL_COST.get());
+      r.putInt("shipCost", PrestolConfig.SHIP_COST.get());
+      r.putInt("maxTraders", PrestolConfig.MAX_TRADERS.get());
+      r.putInt("dwellSeconds", PrestolConfig.DWELL_SECONDS.get());
+      r.putInt("robberyChance", PrestolConfig.ROBBERY_CHANCE.get());
+      r.putInt("escortCost", PrestolConfig.ESCORT_COST.get());
+      r.putBoolean("morale", Morale.on());
+      r.putInt("routBelow", PrestolConfig.ROUT_BELOW.get());
+      r.putBoolean("camps", Camps.on());
+      r.putInt("campRange", PrestolConfig.CAMP_RANGE.get());
+      r.putInt("campHoldMinutes", Math.max(1, PrestolConfig.CAMP_HOLD_SECONDS.get() / 60));
+      r.putBoolean("enginesAtWar", Hyw.present() && PrestolConfig.SIEGE_ENGINES_AT_WAR_ONLY.get());
+      r.putBoolean("court", Court.on());
+      r.putInt("outlawDays", PrestolConfig.OUTLAW_DAYS.get());
       return r;
    }
 

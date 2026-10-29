@@ -32,11 +32,19 @@ final class GuideChapters {
       ),
       chapter("militia", Items.STONE_SWORD, "militia|mercenaries", pIf("militia", "1", "militiaCitizens"), pIf("mercenaries", "2", "mercenaryGold", "mercenaryMinutes")),
       chapter("provisions", Items.BREAD, "provisions", p("1", "provisionDays"), p("2"), p("3", "desertDays")),
+      chapter("morale", Items.GOAT_HORN, "morale", p("1"), p("2", "routBelow"), p("3"), pIf("economy", "4")),
       chapter(
          "war", Items.IRON_SWORD, null,
          p("1", "mobilizeMinutes"), p("2", "siegeRadius", "holdMinutes"), pIf("defenderOnline", "3"), pIf("capitalLast", "4"),
          p("5", "lootMinutes", "slaveDeath", "immunityDays"), p("6", "truceDays"), p("7", "revoltDays", "revoltHappiness", "revoltHoldMinutes"), pIf("hyw", "8")
       ),
+      chapter("camps", Items.CAMPFIRE, "camps", p("1", "campRange"), p("2", "campHoldMinutes"), p("3"), pIf("enginesAtWar", "4")),
+      chapter("treasury", Items.GOLD_NUGGET, "economy", p("1"), p("2", "taxLow", "taxNormal", "taxHigh"), p("3", "soldierPay"), p("4")),
+      chapter(
+         "trade", Items.CHEST_MINECART, "trade",
+         p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("3"), p("4", "dwellSeconds"), p("5", "robberyChance", "escortCost")
+      ),
+      chapter("court", Items.NAME_TAG, "court", p("1"), p("2"), p("3", "outlawDays"), p("4")),
       chapter("banner", Items.RED_BANNER, null, p("1", "standardWool"), pIf("paintings", "2"), pIf("paintings", "3")),
       chapter("drinks", Items.HONEY_BOTTLE, "brewery|vinery", p("1"), p("2"), p("3"))
    );
