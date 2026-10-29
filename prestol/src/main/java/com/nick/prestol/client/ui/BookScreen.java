@@ -1069,21 +1069,49 @@ public class BookScreen extends Screen {
          } else if (st.equals("war")) {
             int in = rx.getInt("warIn");
             ry = this.line(g, in > 0 ? Ink.tr("mobilizing", Ink.time(in)) : Ink.tr("war_on"), 214, ry, 158, -7464176);
-            ry = this.small(g, Ink.tr("siege_rules"), 214, ry, 158, -9544893) + 2;
-            ry = this.small(g, Ink.tr("camp_hint"), 214, ry, 158, -9544893) + 4;
-            if (rx.getBoolean("peaceFromThem")) {
-               ry = this.small(g, Ink.tr("they_offer_peace"), 214, ry, 158, -13673956);
-            }
+            if (!ruler()) {
+               ry = this.small(g, Ink.tr("siege_rules"), 214, ry, 158, -9544893) + 2;
+               ry = this.small(g, Ink.tr("camp_hint"), 214, ry, 158, -9544893) + 4;
+               if (rx.getBoolean("peaceFromThem")) {
+                  ry = this.small(g, Ink.tr("they_offer_terms", terms(rx, "theirTerms")), 214, ry, 158, -13673956);
+               }
+            } else {
+               // a ruler needs the room for the terms: the rules of the siege are under the mouse
+               this.tip(214, ry - 12, 158, 12, Ink.tr("siege_rules").copy().append(" ").append(Ink.tr("camp_hint")));
+               if (rx.getBoolean("peaceFromThem")) {
+                  ry = this.small(g, Ink.tr("they_offer_terms", terms(rx, "theirTerms")), 214, ry, 158, -13673956) + 1;
+                  this.button(g, Ink.tr("accept_terms"), 214, ry, 90, true, () -> order("peace " + id));
+                  ry += 18;
+               } else if (rx.getBoolean("peaceFromUs")) {
+                  ry = this.small(g, Ink.tr("we_offered_terms", terms(rx, "ourTerms")), 214, ry, 158, -9544893) + 2;
+               }
 
-            if (ruler()) {
+               ry = this.sub(g, Ink.tr("treaty_terms"), 214, ry + 2);
+               int perDay = TRIBUTE[Math.floorMod(this.treatyAmount, TRIBUTE.length)];
+               int days = TRIBUTE_DAYS[Math.floorMod(this.treatyDays, TRIBUTE_DAYS.length)];
+               this.stepper(g, 214, ry, Ink.tr("treaty_per_day", perDay), 78, () -> this.treatyAmount = step(TRIBUTE, this.treatyAmount, -1), () -> this.treatyAmount = step(TRIBUTE, this.treatyAmount, 1));
+               this.stepper(g, 294, ry, Ink.tr("treaty_days", days), 78, () -> this.treatyDays = step(TRIBUTE_DAYS, this.treatyDays, -1), () -> this.treatyDays = step(TRIBUTE_DAYS, this.treatyDays, 1));
+               this.tip(214, ry, 158, 15, Ink.tr("treaty_tribute_tip"));
+               ry += 17;
+               this.button(g, Ink.tr(this.treatyTheyPay ? "treaty_they_pay_btn" : "treaty_we_pay_btn"), 214, ry, 78, perDay > 0, () -> this.treatyTheyPay = !this.treatyTheyPay);
+               List<CompoundTag> cede = list(rx, "cede");
+               int ci = Math.floorMod(this.treatyCede, cede.size() + 1) - 1;
+               CompoundTag pick = ci < 0 ? null : cede.get(ci);
+               Component what = pick == null ? Ink.tr("treaty_no_cede") : Component.literal(pick.getString("name"));
+               this.button(g, Component.literal("◀"), 294, ry, 14, !cede.isEmpty(), () -> this.treatyCede--);
+               Ink.centered(g, Ink.clip(what, Ink.F_SMALL, 46), Ink.F_SMALL, 333, ry + 4, pick == null ? -9544893 : (pick.getBoolean("ours") ? -7464176 : -13673956));
+               this.button(g, Component.literal("▶"), 358, ry, 14, !cede.isEmpty(), () -> this.treatyCede++);
+               this.tip(294, ry, 78, 15, pick == null ? Ink.tr("treaty_cede_tip") : Ink.tr(pick.getBoolean("ours") ? "treaty_we_cede_tip" : "treaty_they_cede_tip", pick.getString("name")));
+               String cedeKey = pick == null ? "-" : pick.getString("key");
+               String payer = this.treatyTheyPay ? "them" : "us";
                this.sealButton(
                   g,
-                  rx.getBoolean("peaceFromThem") ? Ink.tr("accept_peace") : (rx.getBoolean("peaceFromUs") ? Ink.tr("peace_sent") : Ink.tr("offer_peace")),
+                  rx.getBoolean("peaceFromUs") ? Ink.tr("change_terms") : Ink.tr("offer_peace"),
                   214,
                   204,
                   3963438,
-                  !rx.getBoolean("peaceFromUs") || rx.getBoolean("peaceFromThem"),
-                  () -> order("peace " + id)
+                  true,
+                  () -> order("treaty " + id + " " + perDay + " " + days + " " + payer + " " + cedeKey)
                );
             }
          } else if (st.equals("ally")) {
@@ -1373,6 +1401,27 @@ public class BookScreen extends Screen {
    }
 
    private static final int[] BOUNTIES = {0, 9, 27, 45, 81, 162, 243, 405, 729};
+   private static final int[] TRIBUTE = {0, 9, 18, 27, 45, 81, 162, 324};
+   private static final int[] TRIBUTE_DAYS = {3, 5, 7, 14, 30};
+   private int treatyAmount;
+   private int treatyDays = 2;
+   private boolean treatyTheyPay = true;
+   private int treatyCede;
+
+   /** Peace terms the server sent as text, or "no terms". */
+   private static Component terms(CompoundTag rx, String key) {
+      if (rx.contains(key)) {
+         try {
+            Component c = Serializer.fromJson(rx.getString(key));
+            if (c != null) {
+               return c;
+            }
+         } catch (RuntimeException var3) {
+         }
+      }
+
+      return Component.translatable("prestol.treaty.plain");
+   }
 
    private static String capitalize(String s) {
       return s.isEmpty() ? s : s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
@@ -1543,6 +1592,19 @@ public class BookScreen extends Screen {
       y = this.small(g, Ink.tr("treasury_net", (income - pay >= 0L ? "+" : "") + coins(income - pay)), 28, y, 158, -13951730);
       if (t.getInt("unpaid") > 0) {
          y = this.small(g, Ink.tr("treasury_unpaid", t.getInt("unpaid")), 28, y + 1, 158, -7464176);
+      }
+
+      List<CompoundTag> tributes = list(t, "tributes");
+
+      for (int i = 0; i < Math.min(2, tributes.size()); i++) {
+         CompoundTag tr = tributes.get(i);
+         boolean pays = tr.getBoolean("pays");
+         Component line = Ink.tr(pays ? "treasury_tribute_out" : "treasury_tribute_in", tr.getString("realm"), coins(tr.getLong("perDay")), tr.getInt("days"));
+         y = this.small(g, Ink.clip(line, Ink.F_SMALL, 158), 28, y, 158, pays ? -7464176 : -13673956);
+      }
+
+      if (tributes.size() > 2) {
+         y = this.small(g, Ink.tr("treasury_tribute_more", tributes.size() - 2), 28, y, 158, -9544893);
       }
 
       y = this.sub(g, Ink.tr("treasury_tax"), 28, y + 4);

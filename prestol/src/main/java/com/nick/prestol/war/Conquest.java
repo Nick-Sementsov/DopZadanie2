@@ -140,7 +140,18 @@ public final class Conquest {
       }
    }
 
+   /** A settlement handed over by a peace treaty: it passes to the receiving realm's ruler as if taken and kept. */
+   public static void cede(MinecraftServer server, IColony colony, Realm to) {
+      String key = Settlements.key(colony);
+      PENDING.remove(key);
+      apply(server, new Conquest.Pending(key, to.ruler(), Owners.nameOf(server, to.ruler(), colony.getPermissions()), to.id(), 0L), Conquest.Choice.KEEP, true);
+   }
+
    private static void apply(MinecraftServer server, Conquest.Pending p, Conquest.Choice choice) {
+      apply(server, p, choice, false);
+   }
+
+   private static void apply(MinecraftServer server, Conquest.Pending p, Conquest.Choice choice, boolean treaty) {
       PENDING.remove(p.key());
       IColony colony = Settlements.byKey(p.key());
       if (colony != null) {
@@ -189,8 +200,9 @@ public final class Conquest {
                data.setDirty();
                Wars.applyHostility(server, data);
                Realms.changed(server);
-               Realms.tellAll(server, Msg.war(choice == Conquest.Choice.ENSLAVE ? "conquest.enslaved" : "conquest.kept", colony.getName(), victorName));
-               Realms.chronicle(server, choice == Conquest.Choice.ENSLAVE ? "enslaved" : "taken", List.of(colony.getName(), victorName), victorRealm, loser);
+               String said = treaty ? "ceded" : (choice == Conquest.Choice.ENSLAVE ? "enslaved" : "taken");
+               Realms.tellAll(server, Msg.war(treaty ? "conquest.ceded" : (choice == Conquest.Choice.ENSLAVE ? "conquest.enslaved" : "conquest.kept"), colony.getName(), victorName));
+               Realms.chronicle(server, said, List.of(colony.getName(), victorName), victorRealm, loser);
             }
          }
       }

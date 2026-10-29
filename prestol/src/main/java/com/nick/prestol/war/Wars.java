@@ -96,9 +96,12 @@ public final class Wars {
          if (w == null) {
             return Realms.Result.no(Msg.bad("war.none", them.name()));
          } else if (data.hasOffer("peace", them.id(), me.id())) {
+            // accepting their offer means accepting their terms
+            Treaties.execute(server, them, me);
             makePeace(server, data, w);
             return Realms.Result.yes(Msg.good("ok.peace", them.name()));
          } else {
+            Treaties.plain(me.id(), them.id());
             data.setOffer("peace", me.id(), them.id(), true);
             Realms.tell(server, them, Msg.info("war.peace_offered", me.name()));
             return Realms.Result.yes(Msg.good("ok.peace_offered", them.name()));
@@ -110,6 +113,7 @@ public final class Wars {
       data.endWar(w);
       data.setOffer("peace", w.attacker(), w.defender(), false);
       data.setOffer("peace", w.defender(), w.attacker(), false);
+      Treaties.forgetOffers(w.attacker(), w.defender());
       data.setTruce(w.attacker(), w.defender(), Realms.now(server) + (long)((Integer)PrestolConfig.TRUCE_DAYS.get()).intValue() * 24000L);
       Realm a = data.byId(w.attacker());
       Realm b = data.byId(w.defender());

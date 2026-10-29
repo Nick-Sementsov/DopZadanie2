@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.util.ResearchConstants;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
+import com.nick.prestol.war.Treaties;
 import com.nick.prestol.army.ArmyData;
 import com.nick.prestol.realm.Holding;
 import com.nick.prestol.realm.Realm;
@@ -180,6 +181,8 @@ public final class Treasury {
                }
             }
 
+            Treaties.payDay(server, day);
+
             for (UUID id : new HashSet<>(eco.coins.keySet())) {
                if (!alive.contains(id)) {
                   eco.forget(id);
@@ -228,6 +231,7 @@ public final class Treasury {
       t.putInt("duty", eco.duty(realm.id()));
       t.putBoolean("ruler", ruler);
       t.putInt("unpaid", eco.unpaidDays(realm.id()));
+      t.put("tributes", Treaties.tributesOf(server, realm));
       long income = 0L;
 
       for (String key : realm.members()) {

@@ -28,6 +28,7 @@ import com.nick.prestol.war.Sieges;
 import com.nick.prestol.war.Camps;
 import com.nick.prestol.realm.Court;
 import com.nick.prestol.war.WarBlocks;
+import com.nick.prestol.war.Treaties;
 import com.nick.prestol.war.WarData;
 import com.nick.prestol.war.Wars;
 import com.nick.prestol.work.CrewMaterials;
@@ -145,6 +146,7 @@ public class Prestol {
    public void onServerStopped(ServerStoppedEvent event) {
       Sieges.clear();
       Camps.clear();
+      Treaties.clear();
       Conquest.clear();
       Realms.forgetMissing();
       Decrees.clear();

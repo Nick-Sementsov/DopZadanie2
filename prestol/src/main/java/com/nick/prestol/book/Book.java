@@ -29,6 +29,7 @@ import com.nick.prestol.util.Msg;
 import com.nick.prestol.war.Camps;
 import com.nick.prestol.war.Conquest;
 import com.nick.prestol.war.Sieges;
+import com.nick.prestol.war.Treaties;
 import com.nick.prestol.war.Wars;
 import com.nick.prestol.work.Seasons;
 import java.util.ArrayList;
@@ -180,6 +181,8 @@ public final class Book {
                return w.length >= 3 ? Army.order(server, player, w[1], w[2]) : Realms.Result.no(Msg.bad("err.unknown"));
             case "court":
                return Court.order(server, player, w);
+            case "treaty":
+               return Treaties.offer(server, player, w);
             case "treasury":
                return Treasury.order(server, player, w);
             case "trade":
@@ -340,6 +343,10 @@ public final class Book {
             t.putBoolean("allyFromUs", data.hasOffer("ally", mine.id(), rx.id()));
             t.putBoolean("peaceFromThem", data.hasOffer("peace", rx.id(), mine.id()));
             t.putBoolean("peaceFromUs", data.hasOffer("peace", mine.id(), rx.id()));
+            if (war != null) {
+               Treaties.describeFor(server, mine, rx, t);
+            }
+
             long truce = data.truceUntil(mine.id(), rx.id());
             if (truce > now) {
                t.putLong("truceDay", Realms.day(truce));
