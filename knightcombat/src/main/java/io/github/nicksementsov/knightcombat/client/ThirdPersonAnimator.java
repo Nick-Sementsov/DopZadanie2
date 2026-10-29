@@ -1,9 +1,11 @@
 package io.github.nicksementsov.knightcombat.client;
 
+import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
+import io.github.nicksementsov.knightcombat.combat.Lances;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
@@ -48,6 +50,8 @@ public final class ThirdPersonAnimator {
     // The player being drawn: weapons taken out of their hands and the blade and edge directions of their pose (model space).
     private static Player posed;
     private static WeaponStats posedStats;
+    /** The player being drawn holds a lance (drawn like a weapon, but not one of the melee rules). */
+    private static boolean posedLance;
     private static int hiddenSlot;
     private static ItemStack hiddenMain = ItemStack.EMPTY;
     private static ItemStack hiddenOff = ItemStack.EMPTY;
@@ -71,6 +75,10 @@ public final class ThirdPersonAnimator {
         restore();
         Player player = event.getEntity();
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
+        boolean lance = weapon == null && CombatConfig.mountedCharges() && Lances.isLance(player.getMainHandItem());
+        if (lance) {
+            weapon = Lances.RENDER;
+        }
         if (armPose == null || weapon == null || player.isUsingItem() && !Shields.raisedInOffHand(player) || player.isSleeping() || player.isFallFlying()
                 || player.isVisuallySwimming() || player.isSpectator()) {
             return;
@@ -85,6 +93,7 @@ public final class ThirdPersonAnimator {
         Inventory inventory = player.getInventory();
         posed = player;
         posedStats = weapon;
+        posedLance = lance;
         hiddenSlot = inventory.selected;
         if (HeldModel.measurable(inventory.items.get(hiddenSlot))) {
             hiddenMain = inventory.items.get(hiddenSlot);
@@ -207,7 +216,7 @@ public final class ThirdPersonAnimator {
         float walkMain = main.xRot;
         float walkOff = off.xRot;
         FighterAnim anim = ClientCombat.anim(player);
-        ThirdPersonPose pose = ThirdPersonPoses.current(anim, weapon.grip(), partialTick);
+        ThirdPersonPose pose = ThirdPersonPoses.current(anim, weapon.grip(), posedLance, partialTick);
         // Struck: the body twists away from the blow, the head snaps back, the shoulders are driven back.
         float flinch = anim != null ? anim.flinch(partialTick) : 0;
         float flinchSide = anim != null ? anim.hurtSide : 0;
@@ -233,7 +242,10 @@ public final class ThirdPersonAnimator {
 
         // A raised shield: Minecraft has already posed that arm (it poses the arm of the item in use first).
         boolean shieldUp = Shields.raisedInOffHand(player);
-        if (weapon.grip().twoHanded() && (anim == null || anim.phase != Phase.THROW)) {
+        // A thrown weapon and a couched spear are held in one hand; the other holds the reins.
+        boolean oneHand = anim != null && (anim.phase == Phase.THROW || anim.phase == Phase.COUCH
+                || anim.phase == Phase.RECOVERY && anim.has(CombatState.LANCE));
+        if (weapon.grip().twoHanded() && !oneHand) {
             reachForGrip(main, off, weapon.grip(), left);
         } else if (Shields.isShield(player.getOffhandItem())) {
             if (!shieldUp) {

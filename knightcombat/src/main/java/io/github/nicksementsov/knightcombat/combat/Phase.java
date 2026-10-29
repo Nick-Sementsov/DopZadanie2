@@ -20,7 +20,9 @@ public enum Phase {
     /** Drawing the weapon back to throw it; it leaves the hand at the end. */
     THROW,
     /** A quick step aside, back or forward, out of the way of a blow. */
-    DODGE;
+    DODGE,
+    /** A rider holding a lance or spear couched under the arm, ready to strike with the speed of the mount. */
+    COUCH;
 
     private static final Phase[] VALUES = values();
 

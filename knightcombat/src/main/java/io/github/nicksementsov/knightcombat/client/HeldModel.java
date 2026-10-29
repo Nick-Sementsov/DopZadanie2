@@ -2,7 +2,9 @@ package io.github.nicksementsov.knightcombat.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
@@ -39,7 +41,8 @@ final class HeldModel {
         }
     }
 
-    private record Key(Item item, ItemDisplayContext context) {
+    /** The model is part of the key: some items switch models (a lance of Epic Knights raised or lowered). */
+    private record Key(Item item, BakedModel model, ItemDisplayContext context) {
     }
 
     private static final Map<Key, Axes> CACHE = new HashMap<>();
@@ -49,7 +52,7 @@ final class HeldModel {
 
     /** Axes of the item held in the given context (third person right or left hand). Render thread only. */
     static Axes axes(ItemStack stack, ItemDisplayContext context) {
-        return CACHE.computeIfAbsent(new Key(stack.getItem(), context), key -> measure(stack, context));
+        return CACHE.computeIfAbsent(new Key(stack.getItem(), model(stack), context), key -> measure(stack, context));
     }
 
     /**
@@ -57,8 +60,21 @@ final class HeldModel {
      * of some mods) are left to Minecraft, which draws them in the hand the usual way.
      */
     static boolean measurable(ItemStack stack) {
+        return !model(stack).isCustomRenderer();
+    }
+
+    /**
+     * Draws the item with the model its axes are measured on. Minecraft would pick the model for the holder, and
+     * some models change with the holder: a lance of Epic Knights is drawn raised or lowered by the rider's choice.
+     */
+    static void render(ItemStack stack, ItemDisplayContext context, boolean left, PoseStack poseStack, MultiBufferSource buffers, int light) {
+        Minecraft.getInstance().getItemRenderer().render(stack, context, left, poseStack, buffers, light, OverlayTexture.NO_OVERLAY, model(stack));
+    }
+
+    /** Without a holder: the model of a weapon at rest, not the one some mods show while it is used. */
+    private static BakedModel model(ItemStack stack) {
         Minecraft mc = Minecraft.getInstance();
-        return !mc.getItemRenderer().getModel(stack, mc.level, null, 0).isCustomRenderer();
+        return mc.getItemRenderer().getModel(stack, mc.level, null, 0);
     }
 
     /** Models change when resource packs are reloaded. */
@@ -69,8 +85,7 @@ final class HeldModel {
     private static Axes measure(ItemStack stack, ItemDisplayContext context) {
         Minecraft mc = Minecraft.getInstance();
         boolean left = context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
-        // Without a holder: the model of a weapon at rest, not the one some mods show while it is used.
-        BakedModel model = mc.getItemRenderer().getModel(stack, mc.level, null, 0);
+        BakedModel model = model(stack);
         PoseStack poseStack = new PoseStack();
         model = ForgeHooksClient.handleCameraTransforms(poseStack, model, context, left);
         poseStack.translate(-0.5f, -0.5f, -0.5f);

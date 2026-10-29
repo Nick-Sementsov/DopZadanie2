@@ -18,7 +18,9 @@ public enum CombatAction {
     DODGE_BACK,
     DODGE_LEFT,
     DODGE_RIGHT,
-    DODGE_FORWARD;
+    DODGE_FORWARD,
+    COUCH_START,
+    COUCH_STOP;
 
     private static final CombatAction[] VALUES = values();
 

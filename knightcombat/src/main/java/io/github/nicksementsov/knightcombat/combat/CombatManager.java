@@ -13,6 +13,7 @@ import io.github.nicksementsov.knightcombat.network.StaminaPacket;
 import io.github.nicksementsov.knightcombat.entity.ThrownWeapon;
 import io.github.nicksementsov.knightcombat.registry.ModSounds;
 import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -41,6 +42,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -79,6 +81,8 @@ public final class CombatManager {
     private static final UUID SLOW_ID = UUID.fromString("5b0f7c9e-2f4e-4d8a-9c1e-6a8b1f0e3d21");
     /** Extra width of hit boxes: weapons are wider than a ray. */
     private static final double HIT_MARGIN = 0.2;
+    /** How far behind the front of a mount its rider may sit, in blocks: a lance is followed that far for riders. */
+    private static final double RIDER_DEPTH = 1.5;
     /** Set while the mod itself damages an entity, so its own hits are not treated as blockable vanilla damage. */
     private static boolean applyingHit;
     /** Set while a thrown weapon damages an entity: it can be blocked, and a knight it hits cries out. */
@@ -124,6 +128,16 @@ public final class CombatManager {
                 case DODGE_LEFT -> dodgeInput(player, s, CombatState.DODGE_LEFT, now);
                 case DODGE_RIGHT -> dodgeInput(player, s, CombatState.DODGE_RIGHT, now);
                 case DODGE_FORWARD -> dodgeInput(player, s, CombatState.DODGE_FORWARD, now);
+                case COUCH_START -> {
+                    s.couchHeld = true;
+                    couchInput(player, s);
+                }
+                case COUCH_STOP -> {
+                    s.couchHeld = false;
+                    if (s.phase == Phase.COUCH) {
+                        s.set(Phase.IDLE, 0);
+                    }
+                }
                 default -> {
                 }
             }
@@ -422,6 +436,25 @@ public final class CombatManager {
         }
     }
 
+    /** Lowers the lance under the arm, if the rider is free to. */
+    private static void couchInput(ServerPlayer player, CombatState s) {
+        boolean free = s.phase == Phase.IDLE || s.phase == Phase.BLOCK || s.phase == Phase.RECOVERY && canBlockFromRecovery(s);
+        if (free && Lances.canCouch(player)) {
+            startCouch(player, s);
+        }
+    }
+
+    private static void startCouch(ServerPlayer player, CombatState s) {
+        s.weapon = Weapons.of(player.getMainHandItem());
+        s.weaponItem = player.getMainHandItem().getItem();
+        s.flags = 0;
+        s.queued = null;
+        s.breakChain();
+        lowerShield(player);
+        s.set(Phase.COUCH, 0);
+        playSound(player, ModSounds.COUCH.get(), 0.6f, 0.95f + player.getRandom().nextFloat() * 0.1f);
+    }
+
     private static void cryInput(ServerPlayer player, CombatState s, long now) {
         if (s.phase != Phase.IDLE && s.phase != Phase.BLOCK || now < s.cryReadyAt) {
             return;
@@ -473,6 +506,10 @@ public final class CombatManager {
         }
         s.lastHeld = heldItem;
         s.heldKnown = true;
+        trackMount(player, s);
+        if (CombatConfig.mountedCharges() && EpicKnights.isLance(heldItem)) {
+            raiseLance(player.getMainHandItem());
+        }
         boolean weaponPhase = s.phase == Phase.WINDUP || s.phase == Phase.RELEASE || s.phase == Phase.THROW
                 || s.phase == Phase.BLOCK && !s.has(CombatState.SHIELD);
         if (weaponPhase && (held == null || heldItem != s.weaponItem)) {
@@ -503,6 +540,7 @@ public final class CombatManager {
                     finishPhase(player, s, now);
                 }
             }
+            case COUCH -> couchTick(player, s, now);
             case RELEASE -> releaseTick(player, s, now);
             case RECOVERY, STAGGER -> {
                 if (++s.phaseTicks >= s.phaseLength) {
@@ -530,6 +568,10 @@ public final class CombatManager {
         }
 
         updateShield(player, s, now);
+        // A couch key that is still held lowers the lance again as soon as the rider is free (after a strike, after mounting).
+        if (s.couchHeld && s.phase != Phase.COUCH) {
+            couchInput(player, s);
+        }
         // A block key that is still held raises the guard as soon as the fighter is free again.
         if (s.blockHeld && held != null && canWeaponBlock(player)
                 && (s.phase == Phase.IDLE && now >= s.blockReadyAt || s.phase == Phase.RECOVERY && canBlockFromRecovery(s))) {
@@ -1104,6 +1146,201 @@ public final class CombatManager {
         player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getEyeY() + 0.2, player.getZ(), 6, 0.3, 0.1, 0.3, 0.02);
         feedback(player, Feedback.BATTLE_CRY);
         impact(player, Impact.CRY, player, null, player.getEyePosition(), 0);
+    }
+
+    // ---------------------------------------------------------------- mounted charges
+
+    private static void trackMount(ServerPlayer player, CombatState s) {
+        Entity mount = player.getVehicle();
+        s.mount.track(mount != null ? mount.position() : null);
+    }
+
+    /**
+     * Epic Knights strikes with its lances on its own when they are lowered; the lance is kept raised for Epic Knights
+     * so that only the charges of this mod strike.
+     */
+    private static void raiseLance(ItemStack stack) {
+        if (stack.getTag() == null || stack.getTag().getInt("raised") != 1) {
+            stack.getOrCreateTag().putInt("raised", 1);
+        }
+    }
+
+    /** The direction a couched lance points: where the rider looks, a little lower, but never far up or down. */
+    private static Vec3 lanceDirection(ServerPlayer player) {
+        float pitch = Mth.clamp(player.getXRot() + CombatRules.LANCE_DIP, -15, 30) * Mth.DEG_TO_RAD;
+        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        return new Vec3(-Mth.sin(yaw) * Mth.cos(pitch), -Mth.sin(pitch), Mth.cos(yaw) * Mth.cos(pitch));
+    }
+
+    /** Speed of the mount along the lance, in blocks per tick: running sideways or backwards does not drive it in. */
+    private static float chargeSpeed(ServerPlayer player, CombatState s) {
+        return s.mount.speedAlong(player.getYRot() * Mth.DEG_TO_RAD);
+    }
+
+    private static void couchTick(ServerPlayer player, CombatState s, long now) {
+        if (!s.couchHeld || !Lances.canCouch(player) || player.getMainHandItem().getItem() != s.weaponItem) {
+            s.flags = 0;
+            s.set(Phase.IDLE, 0);
+            return;
+        }
+        float power = Lances.power(chargeSpeed(player, s));
+        if (power > 0 && now >= s.couchReadyAt) {
+            lanceSweep(player, s, power, now);
+        }
+    }
+
+    /** Traces the couched lance from under the rider's arm; the first creature on it is struck, a wall throws it up. */
+    private static void lanceSweep(ServerPlayer player, CombatState s, float power, long now) {
+        ServerLevel level = player.serverLevel();
+        Vec3 dir = lanceDirection(player);
+        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        Vec3 from = player.getEyePosition().add(-Mth.cos(yaw) * 0.3, -0.55, -Mth.sin(yaw) * 0.3);
+        float reach = Lances.reach(player.getMainHandItem());
+        Vec3 to = from.add(dir.scale(reach));
+        // The rider of a horse in the way sits further than its head: the lance is followed a little further for riders.
+        Vec3 far = from.add(dir.scale(reach + RIDER_DEPTH));
+        BlockHitResult blockHit = level.clip(new ClipContext(from, far, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        double wall = blockHit.getType() == HitResult.Type.MISS ? reach + RIDER_DEPTH : from.distanceTo(blockHit.getLocation());
+        double limit = Math.min(wall, reach);
+        Entity best = null;
+        Vec3 bestPoint = null;
+        for (Entity entity : level.getEntities(player, new AABB(from, to).inflate(1), e -> canTarget(player, e))) {
+            Optional<Vec3> point = lanceBox(entity).clip(from, to);
+            if (point.isPresent() && from.distanceTo(point.get()) <= limit) {
+                limit = from.distanceTo(point.get());
+                best = entity;
+                bestPoint = point.get();
+            }
+        }
+        // A lance that goes over the neck of a horse into its rider strikes the rider.
+        if (best != null) {
+            for (Entity rider : best.getPassengers()) {
+                Optional<Vec3> point = canTarget(player, rider) ? lanceBox(rider).clip(from, far) : Optional.empty();
+                if (point.isPresent() && from.distanceTo(point.get()) <= wall) {
+                    best = rider;
+                    bestPoint = point.get();
+                    break;
+                }
+            }
+        }
+        if (best != null) {
+            lanceHit(player, s, best, bestPoint, dir, power, now);
+        } else if (blockHit.getType() == HitResult.Type.BLOCK && wall <= reach && blockHit.getDirection().getAxis().isHorizontal() && power >= 0.3f) {
+            // Rammed into a wall: the lance is thrown up.
+            Vec3 point = blockHit.getLocation();
+            level.playSound(null, point.x, point.y, point.z, ModSounds.WALL.get(), SoundSource.PLAYERS, 1.0f, 0.8f + player.getRandom().nextFloat() * 0.2f);
+            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level.getBlockState(blockHit.getBlockPos())),
+                    point.x, point.y, point.z, 12, 0.1, 0.1, 0.1, 0.15);
+            feedback(player, Feedback.WALL);
+            impact(player, Impact.WALL, player, null, point, 1);
+            lanceRecoil(s, now);
+        }
+    }
+
+    /** What a lance passing close by catches: the lance head is a hand wide, and a man is struck from head to knee. */
+    private static AABB lanceBox(Entity entity) {
+        return entity.getBoundingBox().inflate(0.3, 0.45, 0.3);
+    }
+
+    /**
+     * The couched lance strikes {@code target}: damage, knockback and the chance of throwing a rider out of the saddle
+     * grow with the speed of the charge. A raised guard (a shield best) takes the blow at a great cost in stamina.
+     */
+    private static void lanceHit(ServerPlayer player, CombatState s, Entity target, Vec3 point, Vec3 dir, float power, long now) {
+        ServerLevel level = player.serverLevel();
+        ItemStack lance = player.getMainHandItem();
+        LivingEntity living = target instanceof LivingEntity le ? le
+                : target instanceof PartEntity<?> part && part.getParent() instanceof LivingEntity parent ? parent : null;
+        lanceRecoil(s, now);
+        if (target instanceof ServerPlayer defender) {
+            CombatState d = state(defender);
+            updateShield(defender, d, now);
+            if (d.guarding() && facing(defender, player.getEyePosition(), guardAngle(defender, d))) {
+                boolean shield = d.phase == Phase.BLOCK && d.has(CombatState.SHIELD) && Shields.raised(defender);
+                float cost = CombatRules.LANCE_DRAIN * (0.4f + 0.6f * power) * (shield ? 2 * Shields.size(defender.getUseItem()).blockCost : 1);
+                d.spend(cost, now);
+                d.blockLanded = true;
+                d.syncState = true;
+                if (shield) {
+                    defender.getUseItem().hurtAndBreak(2 + Mth.floor(3 * power), defender, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
+                }
+                if (d.stamina > 0) {
+                    clash(player, point, shield ? ModSounds.SHIELD_BLOCK.get() : ModSounds.BLOCK.get(), 0.85f, 8);
+                    push(defender, player, 0.4f + 0.8f * power);
+                    lanceUnhorse(defender, power);
+                    feedback(defender, Feedback.BLOCKED);
+                    feedback(player, Feedback.GOT_BLOCKED);
+                    impact(player, Impact.BLOCK, player, defender, point, 1);
+                    lance.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+                    return;
+                }
+                // The guard gives way under the lance.
+                if (shield && Shields.raised(defender)) {
+                    defender.disableShield(true);
+                }
+                stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
+                feedback(defender, Feedback.GUARD_BROKEN);
+                feedback(player, Feedback.BROKE_GUARD);
+            }
+        }
+        float damage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE)
+                * Mth.lerp(power, CombatRules.LANCE_SLOW, CombatRules.LANCE_FAST);
+        damage += EnchantmentHelper.getDamageBonus(lance, living != null ? living.getMobType() : MobType.UNDEFINED);
+        damage = Math.min(CombatRules.LANCE_MAX_DAMAGE, damage) * CombatConfig.damageMultiplier();
+        float healthBefore = living != null ? living.getHealth() : 0;
+        int wornBefore = lance.getDamageValue();
+        target.invulnerableTime = 0;
+        boolean hurt;
+        applyingHit = true;
+        try {
+            hurt = target.hurt(player.damageSources().playerAttack(player), damage);
+        } finally {
+            applyingHit = false;
+        }
+        // Epic Knights takes the blow of its lances over and deals it again in its own name, so the first one "fails".
+        hurt |= living != null && living.getHealth() < healthBefore;
+        if (!hurt) {
+            return;
+        }
+        if (living != null) {
+            // Skewered and thrown along the charge.
+            living.knockback(0.5f + 1.1f * power, -dir.x, -dir.z);
+            living.setDeltaMovement(living.getDeltaMovement().add(0, 0.15 * power, 0));
+            living.hurtMarked = true;
+            lanceUnhorse(living, power);
+            EnchantmentHelper.doPostHurtEffects(living, player);
+            player.awardStat(Stats.DAMAGE_DEALT, Math.round((healthBefore - living.getHealth()) * 10));
+        }
+        EnchantmentHelper.doPostDamageEffects(player, target);
+        player.setLastHurtMob(target);
+        boolean killed = living != null && living.isDeadOrDying();
+        level.playSound(null, point.x, point.y, point.z, ModSounds.LANCE_HIT.get(), SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.15f);
+        hitSounds(level, living, point, killed, player.getRandom().nextFloat());
+        level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, 10 + Math.round(10 * power), 0.2, 0.2, 0.2, 0.4);
+        level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.STICK)), point.x, point.y, point.z,
+                4 + Math.round(8 * power), 0.15, 0.15, 0.15, 0.15);
+        // A lance of Epic Knights is worn by Epic Knights itself.
+        if (lance.getDamageValue() == wornBefore) {
+            lance.hurtAndBreak(1 + Math.round(2 * power), player, p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+        }
+        player.causeFoodExhaustion(0.2f);
+        yell(player, s, 0.5f + 0.5f * power);
+        feedback(player, Feedback.HIT);
+        impact(player, killed ? Impact.KILL : Impact.HIT, player, target, point, 1);
+    }
+
+    /** A strong enough blow throws a rider out of the saddle. */
+    private static void lanceUnhorse(LivingEntity target, float power) {
+        if (target.isPassenger() && power >= CombatRules.LANCE_DISMOUNT) {
+            target.stopRiding();
+        }
+    }
+
+    /** The lance that struck is thrown up by the blow and cannot strike again for a moment. */
+    private static void lanceRecoil(CombatState s, long now) {
+        s.couchReadyAt = now + CombatRules.LANCE_COOLDOWN;
+        s.flags = CombatState.LANCE;
+        s.set(Phase.RECOVERY, CombatRules.LANCE_RECOIL);
     }
 
     // ---------------------------------------------------------------- thrown weapons

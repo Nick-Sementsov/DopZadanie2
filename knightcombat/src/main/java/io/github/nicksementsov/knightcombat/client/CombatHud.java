@@ -5,6 +5,8 @@ import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackStats;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.Combo;
+import io.github.nicksementsov.knightcombat.combat.Lances;
+import io.github.nicksementsov.knightcombat.combat.WeaponKind;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
@@ -152,6 +154,9 @@ public final class CombatHud {
         if (weapon != null && firstPerson && own != null && own.phase() == Phase.WINDUP && own.has(CombatState.HEAVY)) {
             drawCharge(graphics, cx, cy, own.progress(partialTick));
         }
+        if (own != null && own.phase() == Phase.COUCH) {
+            drawLanceCharge(graphics, cx, cy + 27, ClientCombat.chargePower(), ClientCombat.ticks() + partialTick);
+        }
 
         if ((weapon != null || CombatConfig.shields() && !Shields.carried(player).isEmpty()) && CombatConfig.STAMINA_BAR.get()) {
             drawStamina(graphics, cx, cy + 12, ticks, partialTick);
@@ -263,6 +268,27 @@ public final class CombatHud {
         }
     }
 
+    /**
+     * The force of a couched lance: three chevrons under the crosshair light up as the mount speeds up, gold at a
+     * full gallop, where they pulse.
+     */
+    private static void drawLanceCharge(GuiGraphics graphics, int cx, int y, float power, float time) {
+        for (int k = 0; k < 3; k++) {
+            float lit = Mth.clamp(power * 3 - k, 0, 1);
+            int alpha = (int) (90 + 165 * lit);
+            int color = power >= 0.99f ? 0xE9C46A : lit > 0 ? 0xFFFFFF : 0x808080;
+            if (power >= 0.99f) {
+                alpha = (int) (alpha * (0.75f + 0.25f * Mth.sin(time * 0.6f)));
+            }
+            int x = cx - 10 + k * 7;
+            for (int i = 0; i < 4; i++) {
+                // A chevron pointing ahead: two short diagonal strokes.
+                graphics.fill(x + i, y + i, x + i + 2, y + i + 1, alpha << 24 | color);
+                graphics.fill(x + i, y + 6 - i, x + i + 2, y + 7 - i, alpha << 24 | color);
+            }
+        }
+    }
+
     /** The name of a finisher, in gold: it pops up large above the crosshair, settles and fades. */
     private static void drawCombo(GuiGraphics graphics, Font font, Combo combo, int cx, int cy, float age) {
         Component text = Component.translatable("hud.knightcombat.combo." + combo.name().toLowerCase(Locale.ROOT));
@@ -299,6 +325,9 @@ public final class CombatHud {
         }
         WeaponStats weapon = Weapons.of(event.getItemStack());
         if (weapon == null) {
+            if (CombatConfig.mountedCharges() && Lances.isLance(event.getItemStack())) {
+                lanceTooltip(event.getToolTip());
+            }
             return;
         }
         List<Component> lines = event.getToolTip();
@@ -322,6 +351,10 @@ public final class CombatHud {
         if (weapon.breaksShields()) {
             lines.add(Component.translatable("tooltip.knightcombat.breaks_shields").withStyle(ChatFormatting.BLUE));
         }
+        if (weapon.kind() == WeaponKind.SPEAR && CombatConfig.mountedCharges()) {
+            lines.add(Component.translatable("tooltip.knightcombat.lance.couch", Minecraft.getInstance().options.keyUse.getTranslatedKeyMessage())
+                    .withStyle(ChatFormatting.BLUE));
+        }
         if (Screen.hasShiftDown()) {
             Options options = Minecraft.getInstance().options;
             lines.add(controls("slash", options.keyAttack.getTranslatedKeyMessage()));
@@ -338,6 +371,14 @@ public final class CombatHud {
         } else {
             lines.add(Component.translatable("tooltip.knightcombat.controls_hint").withStyle(ChatFormatting.DARK_GRAY));
         }
+    }
+
+    /** A lance is for charges on horseback. */
+    private static void lanceTooltip(List<Component> lines) {
+        lines.add(Component.translatable("tooltip.knightcombat.lance").withStyle(ChatFormatting.GOLD));
+        lines.add(Component.translatable("tooltip.knightcombat.lance.couch", Minecraft.getInstance().options.keyUse.getTranslatedKeyMessage())
+                .withStyle(ChatFormatting.DARK_GREEN));
+        lines.add(Component.translatable("tooltip.knightcombat.lance.dismount").withStyle(ChatFormatting.DARK_GREEN));
     }
 
     /** How a shield blocks: its size, how much of the front it covers, how long it parries and what a blow costs. */

@@ -7,6 +7,7 @@ import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
+import io.github.nicksementsov.knightcombat.combat.Lances;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
@@ -48,6 +49,7 @@ public final class FirstPersonAnimator {
     private static final float MAX_LENGTH_ONE = 1.15f;
     private static final float MAX_LENGTH_TWO = 1.5f;
     private static final float MAX_LENGTH_POLEARM = 2.3f;
+    private static final float MAX_LENGTH_LANCE = 4.5f;
     /** Where the arms come from, beyond the lower corner of the view (right arm; the left one is mirrored). */
     private static final Vector3f SHOULDER = new Vector3f(0.95f, -0.95f, 0.1f);
     /** The arms are drawn a little slimmer than the model's, so they frame the view without filling it. */
@@ -71,6 +73,10 @@ public final class FirstPersonAnimator {
             return;
         }
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
+        boolean lance = weapon == null && CombatConfig.mountedCharges() && Lances.isLance(player.getMainHandItem());
+        if (lance) {
+            weapon = Lances.RENDER;
+        }
         if (weapon == null || !HeldModel.measurable(player.getMainHandItem())) {
             return;
         }
@@ -85,7 +91,7 @@ public final class FirstPersonAnimator {
         ItemStack stack = event.getItemStack();
         float partialTick = event.getPartialTick();
         FighterAnim anim = ClientCombat.anim(player);
-        FirstPersonPose pose = FirstPersonPoses.current(anim, weapon.grip(), partialTick);
+        FirstPersonPose pose = FirstPersonPoses.current(anim, weapon.grip(), lance, partialTick);
         boolean left = player.getMainArm() == HumanoidArm.LEFT;
         ItemDisplayContext context = left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
         HeldModel.Axes axes = HeldModel.axes(stack, context);
@@ -104,7 +110,8 @@ public final class FirstPersonAnimator {
         int light = event.getPackedLight();
         if (CombatConfig.FIRST_PERSON_ARMS.get()) {
             renderArm(poseStack, buffers, light, player, !left, hand, blade);
-            if (weapon.twoHanded()) {
+            boolean couched = anim != null && (anim.phase() == Phase.COUCH || anim.phase() == Phase.RECOVERY && anim.has(CombatState.LANCE));
+            if (weapon.twoHanded() && !couched) {
                 float along = (weapon.grip() == Grip.POLEARM ? 0.42f : -0.17f) * scale;
                 Vector3f offHand = new Vector3f(blade).mul(along).add(hand);
                 renderArm(poseStack, buffers, light, player, left, offHand, blade);
@@ -115,8 +122,7 @@ public final class FirstPersonAnimator {
         poseStack.translate(hand.x, hand.y, hand.z);
         poseStack.mulPose(PoseMath.frame(axes.blade(), axes.edge(), blade, edge));
         poseStack.scale(scale, scale, scale);
-        Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer()
-                .renderItem(player, stack, context, left, poseStack, buffers, light);
+        HeldModel.render(stack, context, left, poseStack, buffers, light);
         poseStack.popPose();
 
         float[] range = CombatConfig.SWING_TRAILS.get() ? SwingTrail.range(anim, partialTick) : null;
@@ -180,7 +186,7 @@ public final class FirstPersonAnimator {
 
     /** As large as for other players, but long weapons are shortened a little so they do not fill the view. */
     private static float scale(WeaponStats weapon, HeldModel.Axes axes) {
-        float maxLength = switch (weapon.grip()) {
+        float maxLength = weapon == Lances.RENDER ? MAX_LENGTH_LANCE : switch (weapon.grip()) {
             case ONE_HANDED -> MAX_LENGTH_ONE;
             case TWO_HANDED -> MAX_LENGTH_TWO;
             case POLEARM -> MAX_LENGTH_POLEARM;

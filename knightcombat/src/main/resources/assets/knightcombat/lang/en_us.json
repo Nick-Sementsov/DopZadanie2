@@ -35,6 +35,9 @@
   "tooltip.knightcombat.shield.cover": " Covers %s° in front, parries for the first %s s",
   "tooltip.knightcombat.shield.cost": " A blow on it costs %s%% of the stamina",
   "tooltip.knightcombat.shield.breakers": "Axes, maces and halberds hit shields harder; a heavy blow knocks the shield aside",
+  "tooltip.knightcombat.lance": "Lance for charges on horseback",
+  "tooltip.knightcombat.lance.couch": " On horseback: %s lowers the lance; the faster the horse, the harder it strikes",
+  "tooltip.knightcombat.lance.dismount": " A blow at full gallop throws a rider out of the saddle",
   "tooltip.knightcombat.controls_hint": "Shift for controls",
   "tooltip.knightcombat.controls.slash": "%s: slash, again for a combo",
   "tooltip.knightcombat.controls.overhead": "Wheel up or %s: overhead",
@@ -92,5 +95,7 @@
   "subtitles.knightcombat.combat.effort": "Fighter strains",
   "subtitles.knightcombat.combat.body_fall": "Body falls",
   "subtitles.knightcombat.weapon.shield_block": "Blow on a shield",
-  "subtitles.knightcombat.combat.shield_bash": "Shield bash"
+  "subtitles.knightcombat.combat.shield_bash": "Shield bash",
+  "subtitles.knightcombat.weapon.lance_hit": "Lance strikes home",
+  "subtitles.knightcombat.weapon.couch": "Lance lowered"
 }

@@ -27,10 +27,10 @@ final class FirstPersonPoses {
     private FirstPersonPoses() {
     }
 
-    static FirstPersonPose current(FighterAnim anim, Grip grip, float partialTick) {
+    static FirstPersonPose current(FighterAnim anim, Grip grip, boolean lance, float partialTick) {
         float time = ClientCombat.ticks() + partialTick;
         if (anim == null) {
-            return breathe(guard(grip), time);
+            return breathe(lance ? lanceRaised() : guard(grip), time);
         }
         if (anim.fpVersion != anim.version) {
             anim.fpVersion = anim.version;
@@ -38,7 +38,7 @@ final class FirstPersonPoses {
         }
         float p = anim.progress(partialTick);
         float elapsed = anim.elapsed(partialTick);
-        FirstPersonPose target = target(anim, grip, p);
+        FirstPersonPose target = target(anim, grip, lance, p);
         float blend = switch (anim.phase) {
             case WINDUP -> Math.max(2, anim.length * 0.6f);
             case RELEASE -> 1.5f;
@@ -47,6 +47,7 @@ final class FirstPersonPoses {
             case IDLE -> 4;
             case KICK, CRY, THROW -> 3;
             case DODGE -> 1.5f;
+            case COUCH -> 5;
             case RECOVERY -> 0;
         };
         FirstPersonPose shown = blend > 0 && elapsed < blend && anim.fpFrom != null
@@ -63,11 +64,12 @@ final class FirstPersonPoses {
         return anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK ? breathe(shown, time) : shown;
     }
 
-    private static FirstPersonPose target(FighterAnim anim, Grip grip, float p) {
+    private static FirstPersonPose target(FighterAnim anim, Grip grip, boolean lance, float p) {
         boolean mirrored = anim.has(CombatState.MIRRORED);
         Combo combo = anim.combo;
         return switch (anim.phase) {
-            case IDLE -> guard(grip);
+            case IDLE -> lance ? lanceRaised() : guard(grip);
+            case COUCH -> couched();
             case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
             case WINDUP -> {
                 if (anim.has(CombatState.HEAVY)) {
@@ -79,6 +81,10 @@ final class FirstPersonPoses {
             }
             case RELEASE -> release(anim.attack, grip, mirrored, combo, p);
             case RECOVERY -> {
+                if (anim.has(CombatState.LANCE)) {
+                    float jolt = p < 0.2f ? smooth(p / 0.2f) : 1 - smooth((p - 0.2f) / 0.8f);
+                    yield FirstPersonPose.lerp(couched(), lanceThrownUp(), jolt);
+                }
                 FirstPersonPose from = anim.fpFrom != null ? anim.fpFrom : guard(grip);
                 FirstPersonPose back = FirstPersonPose.lerp(from, guard(grip), PoseMath.backOut(p));
                 if (!anim.has(CombatState.REBOUND) || anim.attack == AttackType.KICK) {
@@ -113,6 +119,25 @@ final class FirstPersonPoses {
             case THROW -> throwing(grip, p);
             case DODGE -> dodge(grip, anim.flags, p);
         };
+    }
+
+    /** A lance held upright at the right edge of the view, leaning a little forward. */
+    private static FirstPersonPose lanceRaised() {
+        return facing(0.78f, -0.62f, -1.0f, 0.12f, 1, -0.1f, TO_CAMERA, new Vector3f(0, 0, -1));
+    }
+
+    /** A couched lance: the hand low at the right, the lance running ahead into the middle of the view. */
+    private static FirstPersonPose couched() {
+        Vector3f hand = new Vector3f(0.34f, -0.42f, -0.5f);
+        Vector3f blade = new Vector3f(-0.1f, -0.3f, -6).sub(hand);
+        return facing(hand, blade, new Vector3f(0, 1, 0.1f), new Vector3f(0, 1, 0));
+    }
+
+    /** The lance just struck: its tip thrown up. */
+    private static FirstPersonPose lanceThrownUp() {
+        Vector3f hand = new Vector3f(0.38f, -0.34f, -0.48f);
+        Vector3f blade = new Vector3f(0, 2, -5).sub(hand);
+        return facing(hand, blade, new Vector3f(0, 1, 0.1f), new Vector3f(0, 1, 0));
     }
 
     /** Low at the side, point down: the weapon coming out of the scabbard. */

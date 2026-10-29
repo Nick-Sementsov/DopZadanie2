@@ -6,6 +6,8 @@ import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
+import io.github.nicksementsov.knightcombat.combat.Lances;
+import io.github.nicksementsov.knightcombat.combat.MountTracker;
 import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
@@ -20,6 +22,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -68,6 +71,10 @@ public final class ClientCombat {
     private static final int DOUBLE_TAP = 6;
     private static Combo comboShown = Combo.NONE;
     private static long comboAt = Long.MIN_VALUE / 2;
+    /** The use key holds a lance couched. */
+    private static boolean couching;
+    /** How fast the local player's mount runs, for the force of a couched lance (the client moves the mount itself). */
+    private static final MountTracker MOUNT = new MountTracker();
     private static boolean useWasDown;
     private static boolean blocking;
     private static long lastScrollAt = Long.MIN_VALUE / 2;
@@ -131,6 +138,15 @@ public final class ClientCombat {
         return comboAt;
     }
 
+    /** How hard a lance couched by the local player would strike now, 0 to 1, from the speed of the mount along the look. */
+    public static float chargePower() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || player.getVehicle() == null) {
+            return 0;
+        }
+        return Lances.power(MOUNT.speedAlong(player.getYRot() * Mth.DEG_TO_RAD));
+    }
+
     // ---------------------------------------------------------------- packets
 
     public static void onState(CombatStatePacket packet) {
@@ -186,6 +202,7 @@ public final class ClientCombat {
                     anim.advance(other, other == player);
                 }
             }
+            trackMount(player);
             // The own swing that just began its release (or a kick going out) carries the player forward.
             FighterAnim own = ANIMS.get(player.getId());
             Phase phase = own != null ? own.phase : Phase.IDLE;
@@ -201,6 +218,26 @@ public final class ClientCombat {
         boolean canFight = weapon != null && ready;
         // A shield alone is enough to kick (bash) and dodge.
         boolean canAct = ready && (weapon != null || !Shields.carried(player).isEmpty());
+        boolean useDown = mc.options.keyUse.isDown();
+
+        // On horseback the use key couches a lance or spear for a charge.
+        boolean canCouch = ready && Lances.canCouch(player);
+        if (canCouch && useDown && !couching) {
+            couching = true;
+            send(CombatAction.COUCH_START);
+            FighterAnim anim = animOf(player.getId());
+            if (anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK) {
+                anim.apply(Phase.COUCH, anim.attack, 0, Combo.NONE, 0, ticks);
+            }
+        }
+        if (couching && (!useDown || !canCouch)) {
+            couching = false;
+            send(CombatAction.COUCH_STOP);
+            FighterAnim anim = animOf(player.getId());
+            if (anim.phase == Phase.COUCH) {
+                anim.apply(Phase.IDLE, anim.attack, 0, Combo.NONE, 0, ticks);
+            }
+        }
 
         // An attack from behind a raised shield lowers it and strikes (Minecraft would swallow the click).
         if (canFight && Shields.raised(player) && consume(mc.options.keyAttack)) {
@@ -209,8 +246,7 @@ public final class ClientCombat {
         }
 
         // Blocking: the use key starts a block unless it was pressed while looking at a block (doors, chests...).
-        boolean useDown = mc.options.keyUse.isDown();
-        if (useDown && !useWasDown && canFight && canWeaponBlock(player, weapon) && !usesTarget(mc.hitResult)) {
+        if (useDown && !useWasDown && canFight && !canCouch && canWeaponBlock(player, weapon) && !usesTarget(mc.hitResult)) {
             blocking = true;
             send(CombatAction.BLOCK_START);
             FighterAnim anim = animOf(player.getId());
@@ -359,6 +395,14 @@ public final class ClientCombat {
         if (player == null || event.getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
+        if (event.isUseItem() && (Lances.canCouch(player)
+                || CombatConfig.mountedCharges() && player.isPassenger() && Lances.isLance(player.getMainHandItem()))) {
+            // In the saddle the use key couches the lance (and Epic Knights' own raising and lowering of lances is not
+            // used). On foot it goes on to the shield in the other hand.
+            event.setCanceled(true);
+            event.setSwingHand(false);
+            return;
+        }
         if (event.isUseItem() && CombatConfig.shields() && !Shields.carried(player).isEmpty() && busy(player)) {
             // No raising the shield in the middle of an attack, a kick, a throw or a dodge.
             event.setCanceled(true);
@@ -468,6 +512,11 @@ public final class ClientCombat {
         return weapon.twoHanded() || !Shields.isShield(player.getOffhandItem());
     }
 
+    /** Follows the mount of the local player, as the server does, for the force of a couched lance. */
+    private static void trackMount(LocalPlayer player) {
+        MOUNT.track(player.getVehicle() != null ? player.getVehicle().position() : null);
+    }
+
     /** Lowers a raised shield at once (the server would lower it a moment later anyway). */
     private static void lowerShield(LocalPlayer player) {
         Minecraft mc = Minecraft.getInstance();
@@ -526,6 +575,7 @@ public final class ClientCombat {
         stamina = -1;
         blocking = false;
         slashHeld = false;
+        couching = false;
         holdKey = null;
         comboShown = Combo.NONE;
         lastFeedback = null;

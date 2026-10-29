@@ -33,6 +33,8 @@ public final class CombatState {
     public static final int SHIELD = 8192;
     /** The kick is a blow with the shield. */
     public static final int SHIELD_BASH = 16384;
+    /** Recovery of a couched lance that struck something: it is thrown up by the blow. */
+    public static final int LANCE = 32768;
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
@@ -53,6 +55,11 @@ public final class CombatState {
     boolean blockHeld;
     /** The key of the last attack is still held. */
     boolean attackHeld;
+    /** The couch key is held: the lance is lowered whenever the rider is free. */
+    boolean couchHeld;
+    long couchReadyAt = Long.MIN_VALUE / 2;
+    /** How fast the mount runs, for the force of a couched lance. */
+    final MountTracker mount = new MountTracker();
     long blockPressedAt = Long.MIN_VALUE / 2;
     long parryUntil = Long.MIN_VALUE / 2;
     long riposteUntil = Long.MIN_VALUE / 2;
@@ -105,6 +112,7 @@ public final class CombatState {
     public float stamina() {
         return Math.max(stamina, 0);
     }
+
 
     boolean has(int flag) {
         return (flags & flag) != 0;

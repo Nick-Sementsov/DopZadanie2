@@ -752,5 +752,51 @@
         "volume": 0.95
       }
     ]
+  },
+  "weapon.lance_hit": {
+    "subtitle": "subtitles.knightcombat.weapon.lance_hit",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/lance_hit1",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "knightcombat:weapon/lance_hit2",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "knightcombat:weapon/lance_hit3",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "knightcombat:weapon/lance_hit4",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "weapon.couch": {
+    "subtitle": "subtitles.knightcombat.weapon.couch",
+    "sounds": [
+      {
+        "name": "knightcombat:weapon/couch1",
+        "volume": 0.55
+      },
+      {
+        "name": "knightcombat:weapon/couch2",
+        "volume": 0.55
+      },
+      {
+        "name": "knightcombat:weapon/couch3",
+        "volume": 0.55
+      },
+      {
+        "name": "knightcombat:weapon/couch4",
+        "volume": 0.55
+      }
+    ]
   }
 }

@@ -4,11 +4,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.entity.ThrownWeapon;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.InventoryMenu;
@@ -93,8 +91,7 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
         poseStack.translate(shift.x - anchor.x, shift.y - anchor.y, shift.z - anchor.z);
         poseStack.mulPose(rotation);
         poseStack.scale(scale, scale, scale);
-        Minecraft.getInstance().getItemRenderer().renderStatic(null, stack, CONTEXT, false, poseStack, buffers, entity.level(),
-                light, OverlayTexture.NO_OVERLAY, entity.getId());
+        HeldModel.render(stack, CONTEXT, false, poseStack, buffers, light);
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffers, light);
     }

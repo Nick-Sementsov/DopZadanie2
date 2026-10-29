@@ -68,6 +68,19 @@ public final class CombatRules {
     public static final int SHIELD_KNOCKED = 12;
     /** Ticks a knocked-aside shield cannot be raised (Minecraft's own axe disables it for 5 seconds). */
     public static final int SHIELD_KICKED_COOLDOWN = 60;
+    /** Damage of a couched lance as a multiple of the weapon's attack damage: at a trot and at a full gallop. */
+    public static final float LANCE_SLOW = 0.8f;
+    public static final float LANCE_FAST = 3.0f;
+    public static final float LANCE_MAX_DAMAGE = 40;
+    /** Stamina a guard loses to a lance at full gallop. */
+    public static final float LANCE_DRAIN = 60;
+    /** A lance strike this strong throws a rider out of the saddle. */
+    public static final float LANCE_DISMOUNT = 0.55f;
+    /** Ticks the lance is thrown up after it strikes, and before it can strike again. */
+    public static final int LANCE_RECOIL = 12;
+    public static final int LANCE_COOLDOWN = 18;
+    /** Degrees a couched lance dips below the rider's look: aimed at the head of a man on foot, it takes him in the chest. */
+    public static final float LANCE_DIP = 4;
 
     public static final float FEINT_COST = 10;
     public static final float MORPH_COST = 6;

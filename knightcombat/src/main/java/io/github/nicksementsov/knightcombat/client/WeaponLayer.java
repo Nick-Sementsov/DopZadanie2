@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -60,8 +59,7 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
         Quaternionf weaponRotation = PoseMath.frame(axes.blade(), axes.edge(), ThirdPersonAnimator.blade(), ThirdPersonAnimator.edge());
         poseStack.mulPose(armRotation.conjugate().mul(weaponRotation));
         poseStack.scale(scale, scale, scale);
-        Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer()
-                .renderItem(player, stack, context, left, poseStack, buffers, light);
+        HeldModel.render(stack, context, left, poseStack, buffers, light);
         poseStack.popPose();
 
         FighterAnim anim = ClientCombat.anim(player);

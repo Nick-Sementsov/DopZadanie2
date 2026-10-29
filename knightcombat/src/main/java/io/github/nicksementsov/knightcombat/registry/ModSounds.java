@@ -34,6 +34,8 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> BODY_FALL = register("combat.body_fall");
     public static final RegistryObject<SoundEvent> SHIELD_BLOCK = register("weapon.shield_block");
     public static final RegistryObject<SoundEvent> SHIELD_BASH = register("combat.shield_bash");
+    public static final RegistryObject<SoundEvent> LANCE_HIT = register("weapon.lance_hit");
+    public static final RegistryObject<SoundEvent> COUCH = register("weapon.couch");
 
     private ModSounds() {
     }

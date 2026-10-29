@@ -213,6 +213,16 @@ EVENTS = [
     Event("combat.shield_bash", "combat", "combat.shield_bash", 0.95,
           [clip("kenney", f"Audio/impactPunch_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
                 clip("kenney", f"Audio/impactWood_heavy_00{(i + 1) % 5}.ogg", gain=0.7)) for i in range(5)]),
+    # A lance driven home at a gallop: a heavy blow on the body, the shaft cracking and the shove of the horse behind it.
+    Event("weapon.lance_hit", "weapon", "weapon.lance_hit", 1.0,
+          [clip("fleshy", f"{name}.wav", 0.0, None, 0.9, 1.0, 0.0,
+                clip("kenney", f"Audio/impactWood_heavy_00{i}.ogg", gain=0.8),
+                clip("kenney", f"Audio/impactPunch_heavy_00{(i + 2) % 5}.ogg", gain=0.5))
+           for i, name in enumerate(("hammer-1a", "hammer-1b", "hammer-arm-2a", "hammer-arm-2b"))], attenuation=32),
+    # Lowering a lance: leather creaking and a buckle clinking.
+    Event("weapon.couch", "weapon", "weapon.couch", 0.55,
+          [clip("clashes", f"sheath-squeeze-0{i}.wav", 0.0, 0.6, 1.0, 1.0, 0.0,
+                clip("clashes", f"belt-buckle-0{j}.wav", gain=0.4, delay=0.05)) for i, j in ((1, 3), (4, 4), (6, 3), (7, 4))]),
 ]
 
 

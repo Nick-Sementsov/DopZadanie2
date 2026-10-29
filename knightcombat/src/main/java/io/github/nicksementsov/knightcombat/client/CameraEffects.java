@@ -131,6 +131,11 @@ public final class CameraEffects {
             return;
         }
         float factor = 1 + fovKick;
+        FighterAnim own = ClientCombat.anim(player);
+        if (own != null && own.phase() == Phase.COUCH) {
+            // A couched lance at a gallop: the view widens with the speed.
+            factor += 0.08f * ClientCombat.chargePower();
+        }
         FighterAnim anim = ClientCombat.anim(player);
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         if (anim != null && weapon != null && anim.phase() == Phase.WINDUP && anim.attack() != AttackType.KICK

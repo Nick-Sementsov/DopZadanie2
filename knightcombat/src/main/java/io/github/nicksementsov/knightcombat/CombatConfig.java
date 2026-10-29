@@ -26,6 +26,7 @@ public final class CombatConfig {
     private static final ForgeConfigSpec.BooleanValue WEAPON_THROWING;
     private static final ForgeConfigSpec.BooleanValue DODGES;
     private static final ForgeConfigSpec.BooleanValue SHIELDS;
+    private static final ForgeConfigSpec.BooleanValue MOUNTED_CHARGES;
 
     public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
     public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
@@ -87,6 +88,10 @@ public final class CombatConfig {
                 .comment("Shields (Minecraft's, Epic Knights' and other mods') follow the combat rules: a raised shield parries at first,",
                         "every blow on it costs stamina, heavy axe and mace blows knock it aside, and the kick key bashes with it")
                 .define("shields", true);
+        MOUNTED_CHARGES = server
+                .comment("Riders lower a lance (Epic Knights' tournament lances too) or a spear with the use key and strike with the speed of",
+                        "the mount: the faster, the harder, throwing riders out of the saddle. Epic Knights' own lance collisions are then off")
+                .define("mountedCharges", true);
         SERVER_SPEC = server.build();
 
         ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
@@ -204,6 +209,10 @@ public final class CombatConfig {
 
     public static boolean shields() {
         return get(SHIELDS, true);
+    }
+
+    public static boolean mountedCharges() {
+        return get(MOUNTED_CHARGES, true);
     }
 
     public static int battleCryCooldownTicks() {

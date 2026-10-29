@@ -35,6 +35,9 @@
   "tooltip.knightcombat.shield.cover": " Прикрывает %s° спереди, парирует первые %s с",
   "tooltip.knightcombat.shield.cost": " Удар по щиту стоит %s%% выносливости",
   "tooltip.knightcombat.shield.breakers": "Топоры, булавы и алебарды бьют по щиту сильнее, тяжёлым ударом выбивают его",
+  "tooltip.knightcombat.lance": "Копьё для тарана на коне",
+  "tooltip.knightcombat.lance.couch": " На коне: %s — опустить копьё, удар тем сильнее, чем быстрее конь",
+  "tooltip.knightcombat.lance.dismount": " Удар на полном скаку выбивает всадника из седла",
   "tooltip.knightcombat.controls_hint": "Shift — управление",
   "tooltip.knightcombat.controls.slash": "%s — удар сбоку, ещё раз — комбо",
   "tooltip.knightcombat.controls.overhead": "Колесо вверх или %s — удар сверху",
@@ -92,5 +95,7 @@
   "subtitles.knightcombat.combat.effort": "Боец напрягается",
   "subtitles.knightcombat.combat.body_fall": "Тело падает",
   "subtitles.knightcombat.weapon.shield_block": "Удар о щит",
-  "subtitles.knightcombat.combat.shield_bash": "Удар щитом"
+  "subtitles.knightcombat.combat.shield_bash": "Удар щитом",
+  "subtitles.knightcombat.weapon.lance_hit": "Удар копья с налёта",
+  "subtitles.knightcombat.weapon.couch": "Копьё опущено"
 }

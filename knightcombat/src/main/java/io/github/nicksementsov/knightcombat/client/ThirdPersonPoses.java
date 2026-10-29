@@ -26,11 +26,14 @@ final class ThirdPersonPoses {
     private ThirdPersonPoses() {
     }
 
-    /** The pose to show now, blended from the pose shown when the phase started. */
-    static ThirdPersonPose current(FighterAnim anim, Grip grip, float partialTick) {
+    /**
+     * The pose to show now, blended from the pose shown when the phase started. A {@code lance} is held upright
+     * when it is not couched.
+     */
+    static ThirdPersonPose current(FighterAnim anim, Grip grip, boolean lance, float partialTick) {
         float time = ClientCombat.ticks() + partialTick;
         if (anim == null) {
-            return breathe(guard(grip), time);
+            return breathe(lance ? lanceRaised() : guard(grip), time);
         }
         if (anim.tpVersion != anim.version) {
             anim.tpVersion = anim.version;
@@ -38,7 +41,7 @@ final class ThirdPersonPoses {
         }
         float p = anim.progress(partialTick);
         float elapsed = anim.elapsed(partialTick);
-        ThirdPersonPose target = target(anim, grip, p, time);
+        ThirdPersonPose target = target(anim, grip, lance, p, time);
         float blend = switch (anim.phase) {
             case WINDUP -> Math.max(2, anim.length * 0.6f);
             case RELEASE -> 1.5f;
@@ -47,6 +50,8 @@ final class ThirdPersonPoses {
             case IDLE -> 4;
             case KICK, CRY, THROW -> 3;
             case DODGE -> 1.5f;
+            // Lowering a lance takes a moment.
+            case COUCH -> 5;
             // Recoveries blend over their whole length, from wherever the attack ended or was stopped.
             case RECOVERY -> 0;
         };
@@ -64,11 +69,12 @@ final class ThirdPersonPoses {
         return anim.phase == Phase.IDLE || anim.phase == Phase.BLOCK ? breathe(shown, time) : shown;
     }
 
-    private static ThirdPersonPose target(FighterAnim anim, Grip grip, float p, float time) {
+    private static ThirdPersonPose target(FighterAnim anim, Grip grip, boolean lance, float p, float time) {
         boolean mirrored = anim.has(CombatState.MIRRORED);
         Combo combo = anim.combo;
         return switch (anim.phase) {
-            case IDLE -> guard(grip);
+            case IDLE -> lance ? lanceRaised() : guard(grip);
+            case COUCH -> couched();
             // Behind a raised shield the weapon stays ready to strike back.
             case BLOCK -> anim.has(CombatState.SHIELD) ? guard(grip) : block(grip);
             case WINDUP -> {
@@ -86,6 +92,11 @@ final class ThirdPersonPoses {
             }
             case RELEASE -> release(anim.attack, grip, mirrored, combo, p);
             case RECOVERY -> {
+                if (anim.has(CombatState.LANCE)) {
+                    // The lance struck: its tip is thrown up and the shoulder back, then it comes down again.
+                    float jolt = p < 0.2f ? smooth(p / 0.2f) : 1 - smooth((p - 0.2f) / 0.8f);
+                    yield ThirdPersonPose.lerp(couched(), lanceThrownUp(), jolt);
+                }
                 if (anim.attack == AttackType.KICK && anim.has(CombatState.SHIELD_BASH)) {
                     yield ThirdPersonPose.lerp(shieldBash(grip, 1), guard(grip), smooth(p));
                 }
@@ -145,6 +156,22 @@ final class ThirdPersonPoses {
         ThirdPersonPose pose = guard(grip);
         pose.bodyYaw += 0.45f * t;
         return pose.lean(0.15f * Math.max(0, t)).step(0.4f * t);
+    }
+
+    /** A lance held upright at the side, the other hand on the reins. */
+    static ThirdPersonPose lanceRaised() {
+        return pose(dir(0.3f, -0.75f, 0.45f), dir(0.04f, 1, 0.15f), dir(0, 0, 1), dir(-0.25f, -0.7f, 0.5f), 0.1f);
+    }
+
+    /** A couched lance: tucked under the arm, pointing ahead and a little across, the rider leaning into the charge. */
+    static ThirdPersonPose couched() {
+        return pose(dir(0.12f, -0.7f, 0.62f), dir(-0.1f, -0.03f, 1), dir(0, 1, 0), dir(-0.15f, -0.55f, 0.8f), 0.2f)
+                .lean(0.15f).head(0.05f);
+    }
+
+    private static ThirdPersonPose lanceThrownUp() {
+        return pose(dir(0.2f, -0.55f, 0.6f), dir(-0.05f, 0.6f, 0.8f), dir(0, 0.8f, -0.6f), dir(-0.15f, -0.55f, 0.8f), 0.4f)
+                .lean(-0.1f).head(-0.12f);
     }
 
     /** The arms shake a little with the strain of a heavy wind-up, more as it grows. */
