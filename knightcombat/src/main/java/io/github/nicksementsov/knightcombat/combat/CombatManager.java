@@ -13,8 +13,6 @@ import io.github.nicksementsov.knightcombat.network.StaminaPacket;
 import io.github.nicksementsov.knightcombat.entity.ThrownWeapon;
 import io.github.nicksementsov.knightcombat.registry.ModSounds;
 import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,7 +41,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -55,6 +52,7 @@ import net.minecraftforge.event.PlayLevelSoundEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -326,6 +324,7 @@ public final class CombatManager {
         s.set(Phase.DODGE, CombatRules.DODGE_LENGTH);
         s.dodgeReadyAt = now + CombatRules.DODGE_LENGTH + CombatRules.DODGE_COOLDOWN;
         playSound(player, ModSounds.DODGE.get(), 0.7f, 0.92f + player.getRandom().nextFloat() * 0.16f);
+        rattle(player, 0.6f);
     }
 
     private static void blockInput(ServerPlayer player, CombatState s, long now) {
@@ -428,6 +427,9 @@ public final class CombatManager {
         s.parryUntil = window > 0 ? now + window : Long.MIN_VALUE / 2;
         s.blockLanded = false;
         s.set(Phase.BLOCK, 0);
+        if (player.getTicksUsingItem() <= 2) {
+            playSound(player, ModSounds.SHIELD_RAISE.get(), 0.55f, 0.92f + player.getRandom().nextFloat() * 0.16f);
+        }
     }
 
     /** Lowers a raised shield: the fighter is about to do something else. */
@@ -585,6 +587,7 @@ public final class CombatManager {
         if (s.phase != Phase.BLOCK && now - s.lastStaminaUse >= CombatRules.REGEN_DELAY && s.stamina < max) {
             s.restore(CombatConfig.staminaRegenPerTick(), max);
         }
+        breathe(player, s, max, now);
         updateSlowness(player, s);
         sync(player, s);
     }
@@ -849,6 +852,7 @@ public final class CombatManager {
         if (d.stamina <= 0) {
             if (shield && Shields.raised(defender)) {
                 defender.disableShield(true);
+                splinter(attacker, point, 1.0f);
             }
             guardBroken(attacker, s, defender, d, point);
             return;
@@ -858,13 +862,19 @@ public final class CombatManager {
             return;
         }
         if (shield) {
-            clash(attacker, point, ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f, 2);
+            clash(attacker, point, ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f);
+            if (s.weapon.breaksShields()) {
+                // An axe or a mace bites into the boards.
+                splinter(attacker, point, 0.55f);
+            }
+        } else if (parry || s.attack == AttackType.STAB) {
+            // The blade turned aside slides along the other.
+            soundAt(attacker, point, ModSounds.SCRAPE.get(), parry ? 0.7f : 0.85f, 0.95f + attacker.getRandom().nextFloat() * 0.15f);
         }
         if (parry) {
             d.riposteUntil = now + CombatRules.RIPOSTE_WINDOW;
             rebound(s, attack.recovery() + CombatRules.REBOUND_PARRY);
-            clash(attacker, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f, shield ? 6 : 12);
-            glint(attacker, point);
+            clash(attacker, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f);
             // A parried blow throws the attacker back a step.
             push(attacker, defender, 0.3f);
             feedback(defender, Feedback.PARRIED);
@@ -874,7 +884,7 @@ public final class CombatManager {
             float weight = force(s);
             rebound(s, Math.max(4, attack.recovery() / 2 + CombatRules.REBOUND_BLOCK));
             if (!shield) {
-                clash(attacker, point, ModSounds.BLOCK.get(), 0.9f, 6);
+                clash(attacker, point, ModSounds.BLOCK.get(), 0.9f);
             }
             // Heavy blows drive the blocker back.
             push(defender, attacker, 0.1f + 0.25f * weight);
@@ -897,8 +907,8 @@ public final class CombatManager {
         d.phaseLength = Math.min(d.phaseLength, d.phaseTicks + CombatRules.COUNTER_REMAINING);
         d.syncState = true;
         rebound(s, attack.recovery() + CombatRules.REBOUND_PARRY);
-        clash(attacker, point, ModSounds.PARRY.get(), 1.1f, 12);
-        glint(attacker, point);
+        clash(attacker, point, ModSounds.PARRY.get(), 1.1f);
+        soundAt(attacker, point, ModSounds.SCRAPE.get(), 0.7f, 1.05f + attacker.getRandom().nextFloat() * 0.1f);
         push(attacker, defender, 0.3f);
         feedback(defender, Feedback.COUNTERED);
         feedback(attacker, Feedback.GOT_COUNTERED);
@@ -913,6 +923,7 @@ public final class CombatManager {
         attacker.level().playSound(null, defender.getX(), defender.getY(), defender.getZ(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.0f, 0.9f + attacker.getRandom().nextFloat() * 0.2f);
         if (s.weapon.breaksShields() || d.stamina <= 0) {
             defender.disableShield(true);
+            splinter(attacker, point, 0.9f);
         }
         if (d.stamina <= 0) {
             stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
@@ -934,7 +945,9 @@ public final class CombatManager {
         defender.disableShield(true);
         stagger(d, CombatRules.SHIELD_KNOCKED, 0);
         rebound(s, Math.max(3, attack.recovery() / 2));
-        clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f, 10);
+        clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f);
+        splinter(attacker, point, 1.0f);
+        rattle(defender, 0.8f);
         push(defender, attacker, 0.4f);
         feedback(defender, Feedback.GUARD_BROKEN);
         feedback(attacker, Feedback.BROKE_GUARD);
@@ -947,8 +960,8 @@ public final class CombatManager {
         s.queued = null;
         s.flags &= CombatState.MIRRORED;
         s.set(Phase.RECOVERY, Math.max(2, s.weapon.attack(s.attack).recovery() / 2));
-        clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f, 16);
-        glint(attacker, point);
+        clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f);
+        rattle(defender, 0.9f);
         // The broken guard knocks the defender off balance.
         push(defender, attacker, 0.45f);
         feedback(defender, Feedback.GUARD_BROKEN);
@@ -963,7 +976,6 @@ public final class CombatManager {
         level.playSound(null, point.x, point.y, point.z, ModSounds.WALL.get(), SoundSource.PLAYERS, 0.9f, 0.9f + player.getRandom().nextFloat() * 0.2f);
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level.getBlockState(hit.getBlockPos())),
                 point.x, point.y, point.z, 10, 0.05, 0.05, 0.05, 0.1);
-        level.sendParticles(ParticleTypes.ELECTRIC_SPARK, point.x, point.y, point.z, 4, 0.05, 0.05, 0.05, 0.3);
         feedback(player, Feedback.WALL);
         impact(player, Impact.WALL, player, null, point, s.weapon.weight());
     }
@@ -1074,6 +1086,10 @@ public final class CombatManager {
         level.playSound(null, point.x, point.y, point.z, heavy ? ModSounds.HIT_HEAVY.get() : ModSounds.HIT.get(), SoundSource.PLAYERS, 1.0f,
                 0.95f + player.getRandom().nextFloat() * 0.15f);
         hitSounds(level, living, point, killed, player.getRandom().nextFloat());
+        if (killed && living.getBbHeight() >= 1.2f && (s.weapon.breaksShields() || s.has(CombatState.HEAVY))) {
+            // Bones give under an axe, a mace or a heavy blow.
+            soundAt(player, point, ModSounds.CRUNCH.get(), 0.8f, 0.9f + player.getRandom().nextFloat() * 0.2f);
+        }
         if (killed) {
             level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, 14, 0.15, 0.15, 0.15, 0.45);
         }
@@ -1140,7 +1156,6 @@ public final class CombatManager {
         best.hurtMarked = true;
         player.level().playSound(null, best.getX(), best.getY(0.5), best.getZ(), bash ? ModSounds.SHIELD_BASH.get() : ModSounds.KICK.get(),
                 SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.2f);
-        player.serverLevel().sendParticles(ParticleTypes.POOF, best.getX(), best.getY(0.4), best.getZ(), 5, 0.2, 0.2, 0.2, 0.02);
         impact(player, Impact.KICK, player, best, best.position().add(0, best.getBbHeight() * 0.45, 0), 0.6f);
     }
 
@@ -1328,7 +1343,13 @@ public final class CombatManager {
                     defender.getUseItem().hurtAndBreak(2 + Mth.floor(3 * power), defender, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
                 }
                 if (d.stamina > 0) {
-                    clash(player, point, shield ? ModSounds.SHIELD_BLOCK.get() : ModSounds.BLOCK.get(), 0.85f, 8);
+                    clash(player, point, shield ? ModSounds.SHIELD_BLOCK.get() : ModSounds.BLOCK.get(), 0.85f);
+                    if (power >= CombatRules.LANCE_SPLINTERS) {
+                        soundAt(player, point, ModSounds.LANCE_SPLINTER.get(), 0.6f + 0.4f * power, 0.9f + player.getRandom().nextFloat() * 0.2f);
+                        if (shield) {
+                            splinter(player, point, 0.5f + 0.4f * power);
+                        }
+                    }
                     push(defender, player, 0.4f + 0.8f * power);
                     lanceUnhorse(defender, power);
                     feedback(defender, Feedback.BLOCKED);
@@ -1340,8 +1361,10 @@ public final class CombatManager {
                 // The guard gives way under the lance.
                 if (shield && Shields.raised(defender)) {
                     defender.disableShield(true);
+                    splinter(player, point, 1.0f);
                 }
                 stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
+                rattle(defender, 1.0f);
                 feedback(defender, Feedback.GUARD_BROKEN);
                 feedback(player, Feedback.BROKE_GUARD);
             }
@@ -1378,10 +1401,12 @@ public final class CombatManager {
         player.setLastHurtMob(target);
         boolean killed = living != null && living.isDeadOrDying();
         level.playSound(null, point.x, point.y, point.z, ModSounds.LANCE_HIT.get(), SoundSource.PLAYERS, 1.0f, 0.9f + player.getRandom().nextFloat() * 0.15f);
+        if (power >= CombatRules.LANCE_SPLINTERS) {
+            // The shaft cracks with the force of the charge.
+            soundAt(player, point, ModSounds.LANCE_SPLINTER.get(), 0.6f + 0.4f * power, 0.9f + player.getRandom().nextFloat() * 0.2f);
+        }
         hitSounds(level, living, point, killed, player.getRandom().nextFloat());
         level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, 10 + Math.round(10 * power), 0.2, 0.2, 0.2, 0.4);
-        level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.STICK)), point.x, point.y, point.z,
-                4 + Math.round(8 * power), 0.15, 0.15, 0.15, 0.15);
         // A lance of Epic Knights is worn by Epic Knights itself.
         if (lance.getDamageValue() == wornBefore) {
             lance.hurtAndBreak(1 + Math.round(2 * power), player, p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
@@ -1517,9 +1542,11 @@ public final class CombatManager {
             // Out of stamina: the guard breaks and the damage goes through.
             if (shield) {
                 player.disableShield(true);
+                splinter(player, point, 1.0f);
             }
             stagger(s, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
-            clash(player, point, ModSounds.GUARD_BREAK.get(), 1.0f, 16);
+            clash(player, point, ModSounds.GUARD_BREAK.get(), 1.0f);
+            rattle(player, 0.9f);
             feedback(player, Feedback.GUARD_BROKEN);
             impact(player, Impact.GUARD_BREAK, direct, player, point, 0.5f);
             return;
@@ -1527,20 +1554,20 @@ public final class CombatManager {
         event.setCanceled(true);
         if (shield) {
             shieldStack.hurtAndBreak(1 + Mth.floor(event.getAmount() / 3), player, p -> p.broadcastBreakEvent(p.getUsedItemHand()));
-            clash(player, point, ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f, 2);
+            // An arrow or a bolt thuds into the boards; a blow rings on them.
+            clash(player, point, projectile ? ModSounds.ARROW_SHIELD.get() : ModSounds.SHIELD_BLOCK.get(), parry ? 1.1f : 0.95f);
         }
         if (parry) {
             s.riposteUntil = now + CombatRules.RIPOSTE_WINDOW;
             if (direct instanceof LivingEntity mob) {
                 mob.knockback(0.8, player.getX() - mob.getX(), player.getZ() - mob.getZ());
             }
-            clash(player, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f, shield ? 6 : 12);
-            glint(player, point);
+            clash(player, point, ModSounds.PARRY.get(), shield ? 0.9f : 1.0f);
             feedback(player, Feedback.PARRIED);
             impact(player, Impact.PARRY, direct, player, point, 0.4f);
         } else {
             if (!shield) {
-                clash(player, point, ModSounds.BLOCK.get(), 0.9f, 6);
+                clash(player, point, ModSounds.BLOCK.get(), 0.9f);
             } else if (direct instanceof LivingEntity mob) {
                 // The shield shoves back what struck it.
                 mob.knockback(0.4, player.getX() - mob.getX(), player.getZ() - mob.getZ());
@@ -1679,17 +1706,50 @@ public final class CombatManager {
         entity.hurtMarked = true;
     }
 
-    /** A bright glint where blades meet on a parry or a broken guard. */
-    private static void glint(ServerPlayer player, Vec3 point) {
-        player.serverLevel().sendParticles(ParticleTypes.END_ROD, point.x, point.y, point.z, 5, 0.04, 0.04, 0.04, 0.06);
+    /** A worn-out fighter pants for breath until enough stamina comes back. */
+    private static void breathe(ServerPlayer player, CombatState s, float max, long now) {
+        if (s.stamina < max * CombatRules.WINDED) {
+            if (!s.winded) {
+                s.breathAt = now;
+            }
+            s.winded = true;
+        } else if (s.stamina > max * CombatRules.RECOVERED) {
+            s.winded = false;
+        }
+        if (s.winded && now >= s.breathAt && CombatConfig.attackYells()) {
+            playSound(player, ModSounds.EXHAUSTED.get(), 0.65f, 0.95f + player.getRandom().nextFloat() * 0.1f);
+            s.breathAt = now + CombatRules.BREATH_INTERVAL + player.getRandom().nextInt(20);
+        }
     }
 
-    /** Sound and sparks where two weapons meet. */
-    private static void clash(ServerPlayer player, Vec3 point, SoundEvent sound, float pitch, int sparks) {
-        ServerLevel level = player.serverLevel();
-        level.playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, 1.0f, pitch + player.getRandom().nextFloat() * 0.1f);
-        ParticleOptions spark = ParticleTypes.ELECTRIC_SPARK;
-        level.sendParticles(spark, point.x, point.y, point.z, sparks, 0.08, 0.08, 0.08, 0.4);
-        level.sendParticles(ParticleTypes.CRIT, point.x, point.y, point.z, sparks / 2, 0.05, 0.05, 0.05, 0.3);
+    /** Lands after a fall: mail and plate clank. */
+    @SubscribeEvent
+    public static void onFall(LivingFallEvent event) {
+        if (!event.getEntity().level().isClientSide && event.getDistance() >= 3.5f) {
+            rattle(event.getEntity(), Math.min(1, event.getDistance() / 8));
+        }
+    }
+
+    /** Mail and plate rattle when their wearer is shaken; leather and cloth make no sound. */
+    private static void rattle(LivingEntity entity, float volume) {
+        int metal = Armor.metalPieces(entity);
+        if (metal >= 2) {
+            entity.level().playSound(null, entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ(), ModSounds.ARMOR_RATTLE.get(),
+                    SoundSource.PLAYERS, volume * (0.5f + metal * 0.125f), 0.92f + entity.getRandom().nextFloat() * 0.16f);
+        }
+    }
+
+    /** A shield cracks: the sound of splitting boards and splinters flying. */
+    private static void splinter(ServerPlayer player, Vec3 point, float volume) {
+        soundAt(player, point, ModSounds.SHIELD_SPLINTER.get(), volume, 0.9f + player.getRandom().nextFloat() * 0.2f);
+    }
+
+    private static void soundAt(ServerPlayer player, Vec3 point, SoundEvent sound, float volume, float pitch) {
+        player.serverLevel().playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, volume, pitch);
+    }
+
+    /** The sound where two weapons meet (the sparks are made by the clients, from the impact). */
+    private static void clash(ServerPlayer player, Vec3 point, SoundEvent sound, float pitch) {
+        player.serverLevel().playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, 1.0f, pitch + player.getRandom().nextFloat() * 0.1f);
     }
 }

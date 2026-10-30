@@ -12,6 +12,12 @@ Sources:
 - "Battlecry" by spookymodem, CC-BY 3.0: https://opengameart.org/content/battlecry
 - "Male Grunt/Yelling sounds" by HaelDB, CC0 1.0: https://opengameart.org/content/male-gruntyelling-sounds
 - "grunts of male death and pain" by thebardofblasphemy, CC0 1.0: https://opengameart.org/content/grunts-male-death-and-pain
+- "10 Impact/Shield Blocks" by StarNinjas, CC0 1.0: https://opengameart.org/content/10-impactshield-blocks
+- "35 wooden cracks/hits/destructions" by qubodup (Independent.nu Ljudbank), CC0 1.0: https://opengameart.org/content/35-wooden-crackshitsdestructions
+- "5 break, crunch impacts" by qubodup (Independent.nu Ljudbank), CC0 1.0: https://opengameart.org/content/5-break-crunch-impacts
+- "75 CC0 breaking / falling / hit sfx" by rubberduck, CC0 1.0: https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx
+- "Breathing Tired" by mikeask, CC0 1.0: https://opengameart.org/content/breathing-tired
+- "Footsteps Leather, Cloth, Armor" by HaelDB, CC0 1.0: https://opengameart.org/content/footsteps-leather-cloth-armor
 
 CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
 CC-BY 3.0: https://creativecommons.org/licenses/by/3.0/

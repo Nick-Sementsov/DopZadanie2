@@ -18,8 +18,8 @@ import net.minecraft.world.phys.Vec3;
 /**
  * What a fight feels like on this client. Every blow the server reports stops the swing that struck for an instant
  * (hit-stop), makes the fighter who was struck flinch away from it, shakes and knocks the camera of the players
- * involved (and a little of those standing near) and flashes the edges of their screens. The local player's own
- * attacks carry them a step forward.
+ * involved (and a little of those standing near) and flashes the edges of their screens, and throws up sparks, blood
+ * and splinters ({@link CombatParticles}). The local player's own attacks carry them a step forward.
  */
 public final class CombatFx {
     /** Players further away than this do not feel a blow. */
@@ -40,6 +40,7 @@ public final class CombatFx {
         Entity victim = packet.victim() >= 0 ? level.getEntity(packet.victim()) : null;
         Vec3 point = new Vec3(packet.x(), packet.y(), packet.z());
         float weight = packet.weight();
+        CombatParticles.onImpact(level, impact, attacker, victim, point, weight);
 
         if (CombatConfig.HIT_STOP.get() && attacker instanceof Player) {
             float stop = switch (impact) {

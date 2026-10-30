@@ -3,6 +3,7 @@ package io.github.nicksementsov.knightcombat;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.network.CombatNetwork;
 import io.github.nicksementsov.knightcombat.registry.ModEntities;
+import io.github.nicksementsov.knightcombat.registry.ModParticles;
 import io.github.nicksementsov.knightcombat.registry.ModSounds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -25,6 +26,7 @@ public final class KnightCombat {
         IEventBus modBus = context.getModEventBus();
         ModSounds.SOUNDS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
+        ModParticles.PARTICLES.register(modBus);
         modBus.addListener(this::commonSetup);
         // Which items are weapons depends on the server settings, which clients receive when they join.
         modBus.addListener((ModConfigEvent.Loading event) -> Weapons.clearCache());

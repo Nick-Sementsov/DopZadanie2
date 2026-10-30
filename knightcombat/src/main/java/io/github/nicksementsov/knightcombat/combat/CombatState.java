@@ -72,6 +72,10 @@ public final class CombatState {
     long dodgeReadyAt = Long.MIN_VALUE / 2;
     long kickFollowUntil = Long.MIN_VALUE / 2;
     long lastStaminaUse = Long.MIN_VALUE / 2;
+    /** When a worn-out fighter next pants for breath. */
+    long breathAt = Long.MIN_VALUE / 2;
+    /** Whether the fighter ran out of breath and has not got it back yet. */
+    boolean winded;
     /** Whether the current block caught anything; an empty block is followed by a short pause. */
     boolean blockLanded;
 

@@ -76,6 +76,8 @@ public final class CombatRules {
     public static final float LANCE_DRAIN = 60;
     /** A lance strike this strong throws a rider out of the saddle. */
     public static final float LANCE_DISMOUNT = 0.55f;
+    /** A lance strike this strong cracks the shaft (and the shield it meets). */
+    public static final float LANCE_SPLINTERS = 0.6f;
     /** Ticks the lance is thrown up after it strikes, and before it can strike again. */
     public static final int LANCE_RECOIL = 12;
     public static final int LANCE_COOLDOWN = 18;
@@ -100,6 +102,10 @@ public final class CombatRules {
     public static final float THROW_COST = 12;
     /** Ticks without spending stamina before it starts to come back. */
     public static final int REGEN_DELAY = 20;
+    /** Share of the stamina below which a fighter is out of breath, above which they have got it back, and the ticks between two gasps. */
+    public static final float WINDED = 0.15f;
+    public static final float RECOVERED = 0.45f;
+    public static final int BREATH_INTERVAL = 40;
 
     /** Half-angle of the cone in front of a fighter that a block covers, in degrees. */
     public static final float BLOCK_HALF_ANGLE = 75;

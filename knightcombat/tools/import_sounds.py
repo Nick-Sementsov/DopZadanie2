@@ -61,6 +61,19 @@ PACKS = {
                   "https://opengameart.org/content/male-gruntyelling-sounds", [OGA + "yelling%20sounds.zip"]),
     "pain": Pack("grunts of male death and pain", "thebardofblasphemy", "CC0 1.0",
                  "https://opengameart.org/content/grunts-male-death-and-pain", [OGA + "death%20pain%20grunts.wav"]),
+    "shieldblocks": Pack("10 Impact/Shield Blocks", "StarNinjas", "CC0 1.0",
+                         "https://opengameart.org/content/10-impactshield-blocks", [OGA + "impact_-_starninjas.zip"]),
+    "woodcracks": Pack("35 wooden cracks/hits/destructions", "qubodup (Independent.nu Ljudbank)", "CC0 1.0",
+                       "https://opengameart.org/content/35-wooden-crackshitsdestructions",
+                       [OGA + "independent_nu_ljudbank-wood_crack_hit_destruction.7z"]),
+    "crunch": Pack("5 break, crunch impacts", "qubodup (Independent.nu Ljudbank)", "CC0 1.0",
+                   "https://opengameart.org/content/5-break-crunch-impacts", [OGA + "independent_nu_ljudbank-break_crunch_impact.7z"]),
+    "breaking": Pack("75 CC0 breaking / falling / hit sfx", "rubberduck", "CC0 1.0",
+                     "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx", [OGA + "sfx_breaking_and_falling.zip"]),
+    "breath": Pack("Breathing Tired", "mikeask", "CC0 1.0",
+                   "https://opengameart.org/content/breathing-tired", [OGA + "breathing%20tired.wav"]),
+    "footsteps": Pack("Footsteps Leather, Cloth, Armor", "HaelDB", "CC0 1.0",
+                      "https://opengameart.org/content/footsteps-leather-cloth-armor", [OGA + "footsteps.zip"]),
 }
 
 
@@ -201,14 +214,17 @@ EVENTS = [
     # A body in armour hitting the ground a moment after the killing blow: a heavy thud and the rattle of plates.
     Event("combat.body_fall", "combat", "combat.body_fall", 0.9,
           [clip("kenney", f"Audio/impactSoft_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
-                clip("kenney", f"Audio/impactPlate_light_00{(i + 1) % 5}.ogg", gain=0.35, delay=0.05)) for i in range(5)],
+                clip("kenney", f"Audio/impactPlate_light_00{(i + 1) % 5}.ogg", gain=0.35, delay=0.05)) for i in range(5)]
+          + [clip("kenney", f"Audio/impactSoft_heavy_00{i}.ogg", 0.0, None, 0.9, 1.0, 0.0,
+                  clip("breaking", f"bfh1_metal_falling_0{j}.ogg", gain=0.6, delay=0.04)) for i, j in ((1, 1), (3, 2))],
           lead=0.25),
-    # Blows on a shield: the dull thud of the boards with the ring of the iron rim and boss.
+    # Blows on a shield: the dull thud of the boards with the ring of the iron rim and boss, and recorded shield blocks.
     Event("weapon.shield_block", "weapon", "weapon.shield_block", 0.9,
           [clip("kenney", f"Audio/impactWood_heavy_00{i}.ogg", 0.0, None, 0.9, 1.0, 0.0,
                 clip("kenney", f"Audio/impactPlate_medium_00{i}.ogg", gain=0.3)) for i in range(5)]
           + [clip("kenney", f"Audio/impactPlank_medium_00{i}.ogg", 0.0, None, 0.85, 1.0, 0.0,
-                  clip("kenney", f"Audio/impactPlate_light_00{(i + 2) % 5}.ogg", gain=0.35)) for i in range(3)]),
+                  clip("kenney", f"Audio/impactPlate_light_00{(i + 2) % 5}.ogg", gain=0.35)) for i in range(3)]
+          + [clip("shieldblocks", f"impact.{n}.ogg", start) for n, start in ((1, 0.0), (2, 0.0), (3, 0.3), (5, 0.5), (6, 0.0), (9, 0.0))]),
     # A shield driven into someone: a heavy shove and the boards knocking.
     Event("combat.shield_bash", "combat", "combat.shield_bash", 0.95,
           [clip("kenney", f"Audio/impactPunch_heavy_00{i}.ogg", 0.0, None, 1.0, 1.0, 0.0,
@@ -219,6 +235,49 @@ EVENTS = [
                 clip("kenney", f"Audio/impactWood_heavy_00{i}.ogg", gain=0.8),
                 clip("kenney", f"Audio/impactPunch_heavy_00{(i + 2) % 5}.ogg", gain=0.5))
            for i, name in enumerate(("hammer-1a", "hammer-1b", "hammer-arm-2a", "hammer-arm-2b"))], attenuation=32),
+    # The shaft of a lance shattering on a blow struck at a gallop.
+    Event("weapon.lance_splinter", "weapon", "weapon.lance_splinter", 0.85,
+          [clip("breaking", f"bfh1_wood_breaking_0{n}.ogg", 0.0, None, 0.9, 1.0, 0.0,
+                clip("woodcracks", f"wood_impact/crack{c:02d}.mp3.flac", 0.0, 0.5, 1.0, 0.7)) for n, c in ((1, 1), (2, 3), (3, 4), (4, 5))],
+          attenuation=32),
+    # Raising a shield: the leather of the straps creaking and the boards knocking against the arm.
+    Event("weapon.shield_raise", "weapon", "weapon.shield_raise", 0.45,
+          [clip("clashes", f"quiver-leather-squeeze-{i:02d}.wav", 0.0, 0.45, 1.0, 1.0, 0.0,
+                clip("kenney", f"Audio/impactWood_light_00{j}.ogg", gain=0.6, delay=0.04))
+           for i, j in ((2, 0), (4, 1), (9, 2), (12, 3))], attenuation=12),
+    # A shield giving way under a blow: the boards cracking and splitting.
+    Event("weapon.shield_splinter", "weapon", "weapon.shield_splinter", 0.9,
+          [clip("woodcracks", f"wood_impact/crack{n:02d}.mp3.flac", 0.0, 0.9) for n in (7, 8, 9, 10)]
+          + [clip("breaking", f"bfh1_wood_breaking_0{n}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                  clip("kenney", f"Audio/impactWood_heavy_00{n}.ogg", gain=0.6)) for n in (1, 2, 3, 4)], attenuation=24),
+    # Arrows and thrown weapons striking a shield: a hollow knock of the boards.
+    Event("weapon.arrow_shield", "weapon", "weapon.arrow_shield", 0.8,
+          [clip("woodcracks", f"wood_impact/impactwood{n:02d}.mp3.flac") for n in (1, 4, 7, 10, 13, 16)], impact=True),
+    # A thrust turned aside by a blade: steel sliding along steel.
+    Event("weapon.scrape", "weapon", "weapon.scrape", 0.55,
+          [clip("clashes", f"sword-table-leg-scrape-0{i}.wav", 0.0, 0.7) for i in (1, 2, 3, 4)]
+          + [clip("clashes", f"sword-thermos-scrape-0{i}.wav", s, s + 0.8) for i, s in ((1, 0.6), (2, 0.7), (4, 0.1))]),
+    # Looking a weapon over: the blade ringing softly as it is turned in the hand.
+    Event("weapon.inspect", "weapon", "weapon.inspect", 0.3,
+          [clip("rpg", "RPG Sound Pack/inventory/metal-ringing.wav")]
+          + [clip("rpg", f"RPG Sound Pack/inventory/metal-small{n}.wav") for n in (1, 2, 3)], attenuation=8),
+    # Bones giving way under a crushing blow.
+    Event("combat.crunch", "combat", "combat.crunch", 0.8,
+          [clip("crunch", f"impcrunch/impactcrunch0{n}.mp3.flac", start) for n, start in ((1, 0.3), (2, 0.0), (3, 0.0), (4, 0.0), (5, 0.45))]),
+    # Out of breath: a fighter whose stamina ran out gasping for air.
+    Event("combat.exhausted", "combat", "combat.exhausted", 0.6,
+          [clip("breath", "breathing tired.wav", start, end, speed)
+           for start, end in ((0.1, 0.8), (1.25, 1.95), (2.35, 3.15)) for speed in (1.0, 0.93)], attenuation=12),
+    # Mail and plates rattling as an armoured fighter dodges, lands or is thrown about.
+    Event("armor.rattle", "armor", "armor.rattle", 0.6,
+          [clip("rpg", f"RPG Sound Pack/inventory/{name}.wav") for name in ("chainmail1", "chainmail2", "armor-light")]
+          + [clip("footsteps", f"footsteps/{name}.ogg", 0.0, None, 1.0, 1.0, 0.0,
+                  clip("rpg", "RPG Sound Pack/inventory/chainmail1.wav", gain=0.5, delay=0.03))
+             for name in ("step_metal", "step_metal (2)", "step_metal (3)", "step_metal (4)")], attenuation=16),
+    # Footsteps in armour: the plates and the mail clinking with every step.
+    Event("armor.step", "armor", "armor.step", 0.3,
+          [clip("footsteps", f"footsteps/{name}.ogg") for name in ("step_metal", "step_metal (2)", "step_metal (3)", "step_metal (4)")]
+          + [clip("footsteps", f"footsteps/{name}.ogg", speed=0.9) for name in ("step_metal (2)", "step_metal (4)")], attenuation=12),
     # Lowering a lance: leather creaking and a buckle clinking.
     Event("weapon.couch", "weapon", "weapon.couch", 0.55,
           [clip("clashes", f"sheath-squeeze-0{i}.wav", 0.0, 0.6, 1.0, 1.0, 0.0,

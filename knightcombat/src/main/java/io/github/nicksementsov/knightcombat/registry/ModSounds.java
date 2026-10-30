@@ -36,6 +36,16 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> SHIELD_BASH = register("combat.shield_bash");
     public static final RegistryObject<SoundEvent> LANCE_HIT = register("weapon.lance_hit");
     public static final RegistryObject<SoundEvent> COUCH = register("weapon.couch");
+    public static final RegistryObject<SoundEvent> LANCE_SPLINTER = register("weapon.lance_splinter");
+    public static final RegistryObject<SoundEvent> SHIELD_RAISE = register("weapon.shield_raise");
+    public static final RegistryObject<SoundEvent> SHIELD_SPLINTER = register("weapon.shield_splinter");
+    public static final RegistryObject<SoundEvent> ARROW_SHIELD = register("weapon.arrow_shield");
+    public static final RegistryObject<SoundEvent> SCRAPE = register("weapon.scrape");
+    public static final RegistryObject<SoundEvent> INSPECT = register("weapon.inspect");
+    public static final RegistryObject<SoundEvent> CRUNCH = register("combat.crunch");
+    public static final RegistryObject<SoundEvent> EXHAUSTED = register("combat.exhausted");
+    public static final RegistryObject<SoundEvent> ARMOR_RATTLE = register("armor.rattle");
+    public static final RegistryObject<SoundEvent> ARMOR_STEP = register("armor.step");
 
     private ModSounds() {
     }

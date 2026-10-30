@@ -99,5 +99,15 @@
   "subtitles.knightcombat.weapon.shield_block": "Удар о щит",
   "subtitles.knightcombat.combat.shield_bash": "Удар щитом",
   "subtitles.knightcombat.weapon.lance_hit": "Удар копья с налёта",
-  "subtitles.knightcombat.weapon.couch": "Копьё опущено"
+  "subtitles.knightcombat.weapon.couch": "Копьё опущено",
+  "subtitles.knightcombat.weapon.lance_splinter": "Древко копья трещит",
+  "subtitles.knightcombat.weapon.shield_raise": "Щит поднят",
+  "subtitles.knightcombat.weapon.shield_splinter": "Щит трещит",
+  "subtitles.knightcombat.weapon.arrow_shield": "Стрела бьёт в щит",
+  "subtitles.knightcombat.weapon.scrape": "Клинок скользит по клинку",
+  "subtitles.knightcombat.weapon.inspect": "Клинок звенит",
+  "subtitles.knightcombat.combat.crunch": "Хруст костей",
+  "subtitles.knightcombat.combat.exhausted": "Тяжёлое дыхание",
+  "subtitles.knightcombat.armor.rattle": "Звенят доспехи",
+  "subtitles.knightcombat.armor.step": "Шаги в доспехах"
 }

@@ -99,5 +99,15 @@
   "subtitles.knightcombat.weapon.shield_block": "Blow on a shield",
   "subtitles.knightcombat.combat.shield_bash": "Shield bash",
   "subtitles.knightcombat.weapon.lance_hit": "Lance strikes home",
-  "subtitles.knightcombat.weapon.couch": "Lance lowered"
+  "subtitles.knightcombat.weapon.couch": "Lance lowered",
+  "subtitles.knightcombat.weapon.lance_splinter": "Lance shaft cracks",
+  "subtitles.knightcombat.weapon.shield_raise": "Shield raised",
+  "subtitles.knightcombat.weapon.shield_splinter": "Shield cracks",
+  "subtitles.knightcombat.weapon.arrow_shield": "Arrow strikes a shield",
+  "subtitles.knightcombat.weapon.scrape": "Blade scrapes along a blade",
+  "subtitles.knightcombat.weapon.inspect": "Blade rings",
+  "subtitles.knightcombat.combat.crunch": "Bones crunch",
+  "subtitles.knightcombat.combat.exhausted": "Heavy breathing",
+  "subtitles.knightcombat.armor.rattle": "Armour rattles",
+  "subtitles.knightcombat.armor.step": "Armoured footsteps"
 }

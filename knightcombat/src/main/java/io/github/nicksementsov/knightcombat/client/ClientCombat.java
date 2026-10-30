@@ -205,6 +205,7 @@ public final class ClientCombat {
                     anim.advance(other, other == player);
                     anim.tickBody(other);
                 }
+                CombatParticles.tick(other, anim);
             }
             trackMount(player);
             // The own swing that just began its release (or a kick going out) carries the player forward.

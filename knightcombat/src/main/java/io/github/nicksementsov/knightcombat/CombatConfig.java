@@ -42,6 +42,8 @@ public final class CombatConfig {
     public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS;
     public static final ForgeConfigSpec.BooleanValue DOUBLE_TAP_DODGE;
     public static final ForgeConfigSpec.BooleanValue IDLE_ANIMATIONS;
+    public static final ForgeConfigSpec.BooleanValue PARTICLES;
+    public static final ForgeConfigSpec.BooleanValue BLOOD;
 
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
@@ -141,6 +143,12 @@ public final class CombatConfig {
                 .comment("A knight standing still for a while looks the weapon over: turns the blade, rests a two-handed weapon on the",
                         "shoulder, leans on a polearm")
                 .define("idleAnimations", true);
+        PARTICLES = client
+                .comment("Blows strike sparks off steel and flash on a parry, shields and lances splinter, feet and hooves kick up dust")
+                .define("particleEffects", true);
+        BLOOD = client
+                .comment("Blows that land draw blood, which lies on the ground for a moment (needs particleEffects)")
+                .define("bloodEffects", true);
         CLIENT_SPEC = client.build();
     }
 

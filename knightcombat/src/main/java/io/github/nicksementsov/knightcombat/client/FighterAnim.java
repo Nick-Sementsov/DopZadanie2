@@ -9,6 +9,8 @@ import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
+import io.github.nicksementsov.knightcombat.registry.ModSounds;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 
@@ -26,6 +28,8 @@ public final class FighterAnim {
     /** Ticks a fighter stands still before looking the weapon over, and how long that takes. */
     private static final int IDLE_BEFORE_INSPECT = 240;
     private static final float INSPECT_TICKS = 56;
+    /** Points of the inspection where the blade rings: held up flat, then turned on its edge. */
+    private static final float[] INSPECT_SOUNDS = {0.2f, 0.5f};
 
     Phase phase = Phase.IDLE;
     AttackType attack = AttackType.SLASH;
@@ -177,6 +181,7 @@ public final class FighterAnim {
         if (inspecting) {
             inspectO = inspect;
             inspect = (idleTicks - IDLE_BEFORE_INSPECT) / INSPECT_TICKS;
+            inspectSounds(player);
             if (inspect >= 1) {
                 inspect = 1;
                 idleTicks = 0;
@@ -186,6 +191,16 @@ public final class FighterAnim {
         inspectWeightO = inspectWeight;
         // Interrupted, the inspection fades out from where it was.
         inspectWeight = approach(inspectWeight, inspecting ? 1 : 0, 0.2f);
+    }
+
+    /** The blade rings softly as it is held up to the light and turned over. */
+    private void inspectSounds(Player player) {
+        for (float at : INSPECT_SOUNDS) {
+            if (inspectO < at && inspect >= at && Weapons.isWeapon(player.getMainHandItem())) {
+                player.level().playLocalSound(player.getX(), player.getEyeY() - 0.4, player.getZ(), ModSounds.INSPECT.get(),
+                        SoundSource.PLAYERS, 0.3f, 0.95f + player.getRandom().nextFloat() * 0.1f, false);
+            }
+        }
     }
 
     private static float approach(float value, float target, float step) {
