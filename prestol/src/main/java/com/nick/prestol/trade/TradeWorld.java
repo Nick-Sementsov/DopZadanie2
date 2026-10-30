@@ -70,6 +70,7 @@ public final class TradeWorld {
    }
 
    public static void tick(MinecraftServer server) {
+      Prices.refresh(server);
       TradeData data = TradeData.get(server);
       if (!Trading.on()) {
          for (Trader t : data.traders.values()) {
@@ -96,6 +97,8 @@ public final class TradeWorld {
                   if (!t.physical()) {
                      advance(server, data, t, now, 1.0, null);
                   }
+
+                  AutoTrade.idle(server, data, t, now);
                }
             }
          }
@@ -195,13 +198,26 @@ public final class TradeWorld {
    }
 
    private static void arrive(MinecraftServer server, TradeData data, Trader t, Stop stop, IColony colony, long now) {
-      Trading.arrive(server, data, t, stop, colony);
+      boolean home = t.auto && stop.settlement.equals(t.home);
+      if (home) {
+         AutoTrade.atHome(server, t, colony, now);
+      } else {
+         Trading.arrive(server, data, t, stop, colony);
+         if (t.auto) {
+            // done: these goods are no longer on their way here
+            stop.orders.clear();
+         }
+      }
+
       if (t.physical()) {
          pushCargo(server, t);
       }
 
       t.dwellUntil = now + PrestolConfig.DWELL_SECONDS.get() * 20L;
-      t.status("trading", colony.getName());
+      if (!home) {
+         t.status("trading", colony.getName());
+      }
+
       next(t);
    }
 
@@ -219,6 +235,8 @@ public final class TradeWorld {
          long cost = (long)t.guards * PrestolConfig.ESCORT_COST.get();
          if (eco.take(t.realm, cost)) {
             t.escorted = true;
+            t.spent += cost;
+            t.tripSpent += cost;
             if (cost > 0L) {
                eco.log(t.realm, Realms.day(Realms.now(server)), "escort", -cost, t.name);
             }
@@ -546,7 +564,7 @@ public final class TradeWorld {
       Entity m = level == null ? null : level.getEntity(t.merchant);
       if (m instanceof MerchantEntity merchant) {
          Entity body = t.kind == Trader.Kind.SHIP && m.getVehicle() != null ? m.getVehicle() : m;
-         boolean moving = t.running && t.route.size() >= 2 && now >= t.dwellUntil;
+         boolean moving = t.running && t.route.size() >= 2 && now >= t.dwellUntil && !merchant.haggling();
          Vec3 goal = null;
          if (moving) {
             int target = t.target < t.route.size() ? t.target : 0;
@@ -650,6 +668,11 @@ public final class TradeWorld {
          t.target = 0;
          t.wp = 0;
          t.leaving = true;
+         if (t.auto) {
+            AutoTrade.start(server, t);
+            t.leaving = true;
+         }
+
          t.dwellUntil = Realms.now(server) + 24000L;
          Entity killer = source.getEntity();
          if (killer == null) {

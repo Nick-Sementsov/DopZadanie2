@@ -45,7 +45,7 @@ final class GuideChapters {
       chapter("treasury", Items.GOLD_NUGGET, "economy", p("1"), p("2", "taxLow", "taxNormal", "taxHigh"), p("3", "soldierPay"), p("4")),
       chapter(
          "trade", Items.CHEST_MINECART, "trade",
-         p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("3"), p("4", "dwellSeconds"), p("5", "robberyChance", "escortCost")
+         p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("6", "autoRange"), p("3"), p("4", "dwellSeconds"), p("7", "markup"), p("5", "robberyChance", "escortCost")
       ),
       chapter("court", Items.NAME_TAG, "court", p("1"), p("2"), p("3", "outlawDays"), p("4")),
       chapter("banner", FlagArt.flagItem(), null, p("1", "standardWool"), pIf("paintings", "2"), pIf("paintings", "3")),

@@ -137,7 +137,7 @@ public final class Trading {
          return;
       }
 
-      List<Offer> market = data.market(key);
+      Markets.Market mk = Markets.of(server, key);
       int duty = duty(eco, mine, there);
 
       for (int pass = 0; pass < 2; pass++) {
@@ -180,14 +180,13 @@ public final class Trading {
                         }
                         break;
                      case SELL: {
-                        Offer offer = find(market, o.item(), false);
-                        if (there != null && offer != null && offer.price() >= o.price() && offer.price() > 0) {
+                        Offer offer = mk.find(item, false);
+                        if (there != null && offer != null && offer.price() >= o.price() && offer.price() > 0.0) {
                            int want = offer.amount() - Cargo.stock(stores, item);
                            long money = eco.balance(there.id());
-                           int n = (int)Math.min(
-                              (long)Math.min(Math.min(o.amount(), trader.cargo.count(item)), Math.min(want, Cargo.space(stores, item))), money / offer.price()
-                           );
-                           if (n > 0) {
+                           int n = Math.min(Math.min(o.amount(), trader.cargo.count(item)), Math.min(want, Cargo.space(stores, item)));
+                           n = (int)Math.min((long)n, (long)(money / offer.price()));
+                           if (n > 0 && Math.round(n * offer.price()) > 0L) {
                               int put = 0;
 
                               for (ItemStack s : trader.cargo.take(item, n)) {
@@ -198,8 +197,8 @@ public final class Trading {
                                  }
                               }
 
-                              if (put > 0) {
-                                 long cost = (long)put * offer.price();
+                              long cost = Math.round(put * offer.price());
+                              if (put > 0 && cost > 0L) {
                                  long net = cost - cost * duty / 100L;
                                  eco.take(there.id(), net);
                                  eco.give(mine.id(), net);
@@ -214,14 +213,14 @@ public final class Trading {
                         break;
                      }
                      case BUY: {
-                        Offer offer = find(market, o.item(), true);
+                        Offer offer = mk.find(item, true);
                         if (there != null && offer != null && offer.price() <= o.price()) {
                            int avail = Cargo.stock(stores, item) - offer.amount();
-                           long unit = (long)offer.price() * (100 + duty);
-                           long money = eco.balance(mine.id()) * 100L;
+                           double unit = offer.price() * (100 + duty) / 100.0;
+                           long money = eco.balance(mine.id());
                            int n = Math.min(Math.min(o.amount(), avail), trader.cargo.room(item));
-                           if (unit > 0L) {
-                              n = (int)Math.min((long)n, money / unit);
+                           if (unit > 0.0) {
+                              n = (int)Math.min((long)n, (long)(money / unit));
                            }
 
                            if (n > 0) {
@@ -236,7 +235,7 @@ public final class Trading {
                               }
 
                               if (got > 0) {
-                                 long cost = (long)got * offer.price();
+                                 long cost = Math.max(offer.price() > 0.0 ? 1L : 0L, Math.round(got * offer.price()));
                                  long total = cost + cost * duty / 100L;
                                  eco.take(mine.id(), total);
                                  eco.give(there.id(), total);
@@ -255,6 +254,11 @@ public final class Trading {
          }
       }
 
+      trader.earned += earned;
+      trader.spent += spent;
+      trader.tripEarned += earned;
+      trader.tripSpent += spent;
+      Markets.touched(key);
       MutableComponent report = Msg.t("trade.arrived", trader.name, colony.getName()).withStyle(ChatFormatting.GOLD);
       if (done.isEmpty()) {
          report.append(" ").append(Msg.t("trade.nothing").withStyle(ChatFormatting.GRAY));
@@ -278,16 +282,6 @@ public final class Trading {
 
          Realms.tell(server, there, msg);
       }
-   }
-
-   static Offer find(List<Offer> market, String item, boolean sell) {
-      for (Offer o : market) {
-         if (o.sell() == sell && o.item().equals(item)) {
-            return o;
-         }
-      }
-
-      return null;
    }
 
    static String json(Component c) {
@@ -379,6 +373,8 @@ public final class Trading {
                return Realms.Result.no(Msg.bad("err.treasury_short", Coins.fmt(eco.balance(realm.id()))));
             } else {
                Trader t = new Trader(UUID.randomUUID(), name, realm.id(), kind);
+               t.auto = true;
+               t.home = realm.capital();
                t.route.add(new Stop(realm.capital()));
                t.dim = dim(home);
                t.pos = Vec3.atBottomCenterOf(anchor(home, kind));
@@ -396,7 +392,9 @@ public final class Trading {
       switch (w[1]) {
          case "run": {
             boolean on = w.length > 3 && w[3].equals("on");
-            if (on && t.route.size() < 2) {
+            if (on && t.auto && t.route.size() < 2) {
+               AutoTrade.start(server, t);
+            } else if (on && t.route.size() < 2) {
                return Realms.Result.no(Msg.bad("err.route_short"));
             }
 
@@ -406,6 +404,47 @@ public final class Trading {
             }
 
             return Realms.Result.yes(Msg.good(on ? "ok.trader_go" : "ok.trader_stop", t.name));
+         }
+         case "mode": {
+            boolean auto = w.length > 3 && w[3].equals("auto");
+            if (auto == t.auto) {
+               return Realms.Result.yes(null);
+            }
+
+            t.auto = auto;
+            t.plan.clear();
+            if (auto) {
+               AutoTrade.start(server, t);
+            } else {
+               // his own route again: home, and the stops of the trip he was on
+               t.route.removeIf(st -> st.settlement.equals(t.home) && t.route.indexOf(st) > 0);
+               if (t.route.size() < 2) {
+                  t.running = false;
+                  t.status("stopped");
+               }
+
+               t.target = Math.min(t.target, t.route.size() - 1);
+               t.wp = 0;
+            }
+
+            return Realms.Result.yes(Msg.good(auto ? "ok.trader_auto" : "ok.trader_route", t.name));
+         }
+         case "home": {
+            String key = w.length > 3 ? w[3] : "";
+            IColony c = Settlements.byKey(key);
+            Realm owner = c == null ? null : RealmData.get(server).byMember(key);
+            if (c == null || owner == null || !owner.id().equals(realm.id())) {
+               return Realms.Result.no(Msg.bad("err.unknown"));
+            } else if (!AutoTrade.homeFor(c, t.kind)) {
+               return Realms.Result.no(Msg.bad(t.kind == Trader.Kind.SHIP ? "err.need_port" : "err.need_warehouse", c.getName()));
+            } else {
+               t.home = key;
+               if (t.auto) {
+                  AutoTrade.start(server, t);
+               }
+
+               return Realms.Result.yes(Msg.good("ok.trader_home", t.name, c.getName()));
+            }
          }
          case "rename": {
             String name = rest(w, 3);
@@ -602,7 +641,18 @@ public final class Trading {
                   offers.remove(i);
                }
 
+               Markets.touched(w[2]);
                return Realms.Result.yes(null);
+            } else if (what.equals("auto")) {
+               boolean on = w.length > 4 && w[4].equals("on");
+               if (on) {
+                  data.noAuto.remove(w[2]);
+               } else {
+                  data.noAuto.add(w[2]);
+               }
+
+               Markets.touched(w[2]);
+               return Realms.Result.yes(Msg.good(on ? "ok.market_auto_on" : "ok.market_auto_off", colony.getName()));
             } else if (!what.equals("sell") && !what.equals("buy")) {
                return Realms.Result.no(Msg.bad("err.unknown"));
             } else {
@@ -620,7 +670,8 @@ public final class Trading {
                   if (offers.size() >= TradeData.MAX_OFFERS) {
                      return Realms.Result.no(Msg.bad("err.too_many_offers", TradeData.MAX_OFFERS));
                   } else {
-                     offers.add(new Offer(item, sell, price, amount));
+                     offers.add(new Offer(item, sell, price, amount, false));
+                     Markets.touched(w[2]);
                      return Realms.Result.yes(Msg.good(sell ? "ok.offer_sell" : "ok.offer_buy", itemName(hand.getItem()), price));
                   }
                }
@@ -725,6 +776,21 @@ public final class Trading {
          }
 
          x.put("journal", j);
+         x.putBoolean("auto", tr.auto);
+         IColony homeC = Settlements.byKey(tr.home);
+         x.putString("home", tr.home);
+         x.putString("homeName", homeC == null ? "?" : homeC.getName());
+         ListTag plan = new ListTag();
+
+         for (String line : tr.plan) {
+            plan.add(StringTag.valueOf(line));
+         }
+
+         x.put("plan", plan);
+         x.putLong("earned", tr.earned);
+         x.putLong("spent", tr.spent);
+         x.putInt("trips", tr.trips);
+         x.putLong("lastProfit", tr.lastProfit);
          traders.add(x);
       }
 
@@ -735,7 +801,8 @@ public final class Trading {
          String key = Settlements.key(c);
          Realm owner = realms.byMember(key);
          boolean own = owner != null && owner.id().equals(realm.id());
-         List<Offer> offers = data.market(key);
+         Markets.Market mk = owner == null ? null : Markets.of(server, key);
+         List<Offer> offers = mk == null ? List.of() : mk.offers();
          if (own || owner != null && !offers.isEmpty()) {
             CompoundTag p = new CompoundTag();
             p.putString("key", key);
@@ -745,13 +812,13 @@ public final class Trading {
             p.putBoolean("war", !own && realms.war(realm.id(), owner.id()) != null);
             p.putInt("duty", duty(eco, realm, owner));
             p.putBoolean("port", port(c));
+            p.putBoolean("warehouse", warehouse(c));
             if (!offers.isEmpty()) {
-               List<IItemHandler> stores = Supplies.stores(c, null);
                ListTag l = new ListTag();
 
                for (Offer o : offers) {
                   CompoundTag ot = o.save();
-                  ot.putInt("stock", Cargo.stock(stores, Cargo.item(o.item())));
+                  ot.putInt("stock", mk.stockOf(Cargo.item(o.item())));
                   l.add(ot);
                }
 
@@ -772,12 +839,13 @@ public final class Trading {
             CompoundTag m = new CompoundTag();
             m.putString("key", key);
             m.putString("name", c.getName());
-            List<IItemHandler> stores = Supplies.stores(c, null);
+            m.putBoolean("auto", !data.noAuto.contains(key));
+            Markets.Market mk = Markets.of(server, key);
             ListTag l = new ListTag();
 
-            for (Offer o : data.market(key)) {
+            for (Offer o : mk.offers()) {
                CompoundTag ot = o.save();
-               ot.putInt("stock", Cargo.stock(stores, Cargo.item(o.item())));
+               ot.putInt("stock", mk.stockOf(Cargo.item(o.item())));
                l.add(ot);
             }
 

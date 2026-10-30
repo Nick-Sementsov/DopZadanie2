@@ -114,6 +114,8 @@ public final class PrestolConfig {
    public static final IntValue DWELL_SECONDS;
    public static final IntValue ROBBERY_CHANCE;
    public static final IntValue ESCORT_COST;
+   public static final IntValue TRADE_RANGE;
+   public static final IntValue MERCHANT_MARKUP;
 
    private PrestolConfig() {
    }
@@ -423,6 +425,14 @@ public final class PrestolConfig {
          )
          .defineInRange("robberyChance", 3, 0, 100);
       ESCORT_COST = b.comment("Монет за одного стражника охраны на перегон. / Coins per escort guard per leg.").defineInRange("escortCost", 4, 0, 10000);
+      TRADE_RANGE = b.comment(
+            "Как далеко (в блоках) торговец, ищущий сделки сам, ходит от своего дома. / How far (blocks) a self-planning trader travels from home."
+         )
+         .defineInRange("autoRange", 2000, 64, 100000);
+      MERCHANT_MARKUP = b.comment(
+            "Наценка купца, когда игрок покупает у него товар, в процентах (продаёт игроку дороже цены рынка). / Merchant's markup on goods sold to players, percent."
+         )
+         .defineInRange("merchantMarkupPercent", 30, 0, 500);
       b.pop();
       b.push("workers");
       AI_FIXES = b.comment("Поправки ИИ жителей: инструмент в руках, лесоруб без лишней ходьбы, еда без таверны. / Citizen AI fixes.").define("aiFixes", true);

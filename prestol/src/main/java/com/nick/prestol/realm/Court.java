@@ -68,6 +68,11 @@ public final class Court {
       }
    }
 
+   /** Whether {@code player} is outlawed in {@code realm}. */
+   public static boolean outlawed(MinecraftServer server, Realm realm, UUID player) {
+      return on() && realm != null && player != null && CourtData.get(server).outlaws(realm.id()).containsKey(player);
+   }
+
    public static boolean may(MinecraftServer server, Realm realm, ServerPlayer player, Court.Office office) {
       return may(server, realm, player.getUUID(), office);
    }

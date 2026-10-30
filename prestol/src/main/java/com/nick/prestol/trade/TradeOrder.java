@@ -7,19 +7,21 @@ import net.minecraft.nbt.CompoundTag;
  * What a trader does at a stop. In a settlement of his own realm he loads and unloads goods; in a foreign one he
  * buys from its market (paying at most {@code price} apiece) and sells to it (taking at least {@code price}).
  */
-public record TradeOrder(TradeOrder.Kind kind, String item, int amount, int price) {
+public record TradeOrder(TradeOrder.Kind kind, String item, int amount, double price) {
    public CompoundTag save() {
       CompoundTag t = new CompoundTag();
       t.putString("kind", this.kind.id());
       t.putString("item", this.item);
       t.putInt("amount", this.amount);
-      t.putInt("price", this.price);
+      t.putInt("price", (int)Math.round(this.price));
+      t.putDouble("p", this.price);
       return t;
    }
 
    public static TradeOrder load(CompoundTag t) {
       TradeOrder.Kind k = TradeOrder.Kind.byId(t.getString("kind"));
-      return new TradeOrder(k == null ? TradeOrder.Kind.LOAD : k, t.getString("item"), t.getInt("amount"), t.getInt("price"));
+      double price = t.contains("p") ? t.getDouble("p") : t.getInt("price");
+      return new TradeOrder(k == null ? TradeOrder.Kind.LOAD : k, t.getString("item"), t.getInt("amount"), price);
    }
 
    public static enum Kind {

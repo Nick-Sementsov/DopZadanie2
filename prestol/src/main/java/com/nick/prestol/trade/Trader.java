@@ -49,6 +49,19 @@ public final class Trader {
    boolean robPending;
    double legLength;
    double legDone;
+   /** Plans his own trips from {@link #home} (see {@link AutoTrade}) instead of following a written route. */
+   boolean auto;
+   /** The settlement his trips start from and end in. */
+   String home = "";
+   /** What the trip under way is for, as lines of text for the book. */
+   final List<String> plan = new ArrayList<>();
+   long nextPlan;
+   long earned;
+   long spent;
+   int trips;
+   long tripEarned;
+   long tripSpent;
+   long lastProfit;
    String status = "idle";
    List<String> statusArgs = new ArrayList<>();
    final Deque<String> journal = new ArrayDeque<>();
@@ -146,6 +159,21 @@ public final class Trader {
       t.putBoolean("robPending", this.robPending);
       t.putDouble("legLength", this.legLength);
       t.putDouble("legDone", this.legDone);
+      t.putBoolean("auto", this.auto);
+      t.putString("home", this.home);
+      ListTag pl = new ListTag();
+
+      for (String line : this.plan) {
+         pl.add(StringTag.valueOf(line));
+      }
+
+      t.put("plan", pl);
+      t.putLong("earned", this.earned);
+      t.putLong("spent", this.spent);
+      t.putInt("trips", this.trips);
+      t.putLong("tripEarned", this.tripEarned);
+      t.putLong("tripSpent", this.tripSpent);
+      t.putLong("lastProfit", this.lastProfit);
       t.putString("status", this.status);
       ListTag args = new ListTag();
 
@@ -188,6 +216,19 @@ public final class Trader {
       tr.robPending = t.getBoolean("robPending");
       tr.legLength = t.getDouble("legLength");
       tr.legDone = t.getDouble("legDone");
+      tr.auto = t.getBoolean("auto");
+      tr.home = t.getString("home");
+
+      for (Tag x : t.getList("plan", 8)) {
+         tr.plan.add(x.getAsString());
+      }
+
+      tr.earned = t.getLong("earned");
+      tr.spent = t.getLong("spent");
+      tr.trips = t.getInt("trips");
+      tr.tripEarned = t.getLong("tripEarned");
+      tr.tripSpent = t.getLong("tripSpent");
+      tr.lastProfit = t.getLong("lastProfit");
       tr.status = t.getString("status");
 
       for (Tag a : t.getList("statusArgs", 8)) {

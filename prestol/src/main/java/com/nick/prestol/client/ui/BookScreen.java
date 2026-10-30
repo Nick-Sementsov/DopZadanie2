@@ -2,6 +2,7 @@ package com.nick.prestol.client.ui;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nick.prestol.client.FlagArt;
+import com.nick.prestol.trade.Prices;
 import com.nick.prestol.client.PrestolClient;
 import com.nick.prestol.map.MapSnapshot;
 import com.nick.prestol.net.Net;
@@ -1876,6 +1877,36 @@ public class BookScreen extends Screen {
          this.stepper(g, 320, ry, Ink.tr("trader_guards", gd), 52, () -> order("trade guards " + id + " " + (gd - 1)), () -> order("trade guards " + id + " " + (gd + 1)));
          this.tip(320, ry, 52, 15, Ink.tr("trader_guards_tip", trade.getInt("escortCost")));
          ry += 18;
+         boolean auto = t.getBoolean("auto");
+         this.button(g, Ink.tr(auto ? "trader_mode_auto" : "trader_mode_route"), 214, ry, 78, true, () -> order("trade mode " + id + (auto ? " route" : " auto")));
+         this.tip(214, ry, 78, 15, Ink.tr(auto ? "trader_mode_auto_tip" : "trader_mode_route_tip"));
+         List<String> homes = new ArrayList<>();
+
+         for (CompoundTag p : list(trade, "places")) {
+            if (p.getBoolean("own") && (ship ? p.getBoolean("port") : p.getBoolean("warehouse"))) {
+               homes.add(p.getString("key"));
+            }
+         }
+
+         String nextHome = homes.isEmpty() ? null : homes.get((homes.indexOf(t.getString("home")) + 1) % homes.size());
+         this.button(
+            g,
+            Ink.clip(Ink.tr("trader_home", t.getString("homeName")), Ink.F_SMALL, 74),
+            294,
+            ry,
+            78,
+            nextHome != null && homes.size() > 1,
+            () -> order("trade home " + id + " " + nextHome)
+         );
+         this.tip(294, ry, 78, 15, Ink.tr("trader_home_tip"));
+         ry += 18;
+      } else if (t.getBoolean("auto")) {
+         ry = this.small(g, Ink.tr("trader_auto_line", t.getString("homeName")), 214, ry, 158, -9544893) + 2;
+      }
+
+      if (t.getBoolean("auto")) {
+         this.autoDetail(g, t, ry);
+         return;
       }
 
       List<CompoundTag> route = list(t, "route");
@@ -1950,6 +1981,59 @@ public class BookScreen extends Screen {
       }
    }
 
+   /** A self-planning trader: the trip he is on, his books and his journal. */
+   private void autoDetail(GuiGraphics g, CompoundTag t, int top) {
+      int off = this.beginScroll(g, "route", 214, top, 158, 224 - top);
+      int yy = top - off;
+      yy = this.sub(g, Ink.tr("trader_trip"), 214, yy);
+
+      for (Tag line : t.getList("plan", 8)) {
+         Component c = fromJson(line.getAsString());
+         if (c != null) {
+            yy += Ink.para(g, Component.literal(c.getString()), Ink.F_SMALL, 214, yy, 156, -13951730) + 2;
+         }
+      }
+
+      yy = this.sub(g, Ink.tr("trader_books"), 214, yy + 3);
+      yy = this.small(g, Ink.tr("trader_trips", t.getInt("trips")), 214, yy, 158, -9544893);
+      yy = this.small(g, Ink.tr("trader_money", coins(t.getLong("earned")), coins(t.getLong("spent"))), 214, yy, 158, -9544893);
+      if (t.getInt("trips") > 0) {
+         long last = t.getLong("lastProfit");
+         yy = this.small(g, Ink.tr("trader_last", (last >= 0L ? "+" : "−") + coins(Math.abs(last))), 214, yy, 158, last >= 0L ? -13673956 : -7464176);
+      }
+
+      if (!t.getList("journal", 8).isEmpty()) {
+         yy = this.sub(g, Ink.tr("trader_journal"), 214, yy + 3);
+         int shown = 0;
+
+         for (Tag j : t.getList("journal", 8)) {
+            if (shown++ >= 6) {
+               break;
+            }
+
+            Component c = fromJson(j.getAsString());
+            if (c != null) {
+               yy += Ink.para(g, Component.literal(c.getString()), Ink.F_SMALL, 214, yy, 156, -9544893) + 2;
+            }
+         }
+      }
+
+      this.endScroll(g, "route", yy + off - top);
+   }
+
+   private static Component fromJson(String json) {
+      try {
+         return Serializer.fromJson(json);
+      } catch (RuntimeException e) {
+         return null;
+      }
+   }
+
+   /** The price of a market line or an order, as people say it. */
+   private static String price(CompoundTag o) {
+      return Prices.fmt(o.contains("p") ? o.getDouble("p") : o.getInt("price"));
+   }
+
    private Component placeTip(CompoundTag p) {
       MutableComponent c = Component.literal(p.getString("name"));
       if (!p.getBoolean("own")) {
@@ -1957,7 +2041,7 @@ public class BookScreen extends Screen {
       }
 
       for (CompoundTag o : list(p, "offers")) {
-         c.append("\n").append(Ink.tr(o.getBoolean("sell") ? "offer_line_sell" : "offer_line_buy", itemName(o.getString("item")), o.getInt("price"), o.getInt("stock")));
+         c.append("\n").append(Ink.tr(o.getBoolean("sell") ? "offer_line_sell" : "offer_line_buy", itemName(o.getString("item")), price(o), o.getInt("stock")));
       }
 
       return c;
@@ -1973,7 +2057,7 @@ public class BookScreen extends Screen {
          String kind = o.getString("kind");
          this.icon(g, stackOf(o.getString("item"), 1), 220, yy, 0.6F);
          Component text = Ink.tr(
-            "order_" + kind, itemName(o.getString("item")), o.getInt("amount"), o.getInt("price")
+            "order_" + kind, itemName(o.getString("item")), o.getInt("amount"), price(o)
          );
          Ink.text(g, Ink.clip(text, Ink.F_SMALL, 128), Ink.F_SMALL, 232, yy + 2, -13951730);
          if (ruler) {
@@ -2094,7 +2178,7 @@ public class BookScreen extends Screen {
 
          List<CompoundTag> offers = list(sel, "offers");
          int top = ry;
-         int bottom = editable ? 172 : 224;
+         int bottom = editable ? 156 : 224;
          int mo = this.beginScroll(g, "offers", 214, top, 158, bottom - top);
          int oy = top - mo;
 
@@ -2103,11 +2187,14 @@ public class BookScreen extends Screen {
             int index = i;
             boolean sell = o.getBoolean("sell");
             this.icon(g, stackOf(o.getString("item"), 1), 214, oy, 0.75F);
-            Component a = Ink.tr(sell ? "offer_sell" : "offer_buy", itemName(o.getString("item")), o.getInt("price"));
+            boolean auto = o.getBoolean("auto");
+            MutableComponent a = Ink.tr(sell ? "offer_sell" : "offer_buy", itemName(o.getString("item")), price(o));
             Ink.text(g, Ink.clip(a, Ink.F_SMALL, 130), Ink.F_SMALL, 228, oy, sell ? -13673956 : -7464176);
-            Component b = Ink.tr(sell ? "offer_keep" : "offer_upto", o.getInt("amount"), o.getInt("stock"));
+            MutableComponent b = auto
+               ? Ink.tr(sell ? "offer_auto_sell" : "offer_auto_buy", sell ? o.getInt("stock") - o.getInt("amount") : o.getInt("amount") - o.getInt("stock"))
+               : Ink.tr(sell ? "offer_keep" : "offer_upto", o.getInt("amount"), o.getInt("stock"));
             Ink.text(g, Ink.clip(b, Ink.F_SMALL, 130), Ink.F_SMALL, 228, oy + 9, -9544893);
-            if (editable) {
+            if (editable && !auto) {
                this.button(g, Component.literal("✕"), 360, oy + 1, 12, true, () -> order("trade market " + key + " del " + index));
             }
 
@@ -2120,6 +2207,9 @@ public class BookScreen extends Screen {
 
          this.endScroll(g, "offers", oy + mo - top);
          if (editable) {
+            boolean auto = sel.getBoolean("auto");
+            this.button(g, Ink.tr(auto ? "market_auto_on" : "market_auto_off"), 214, 158, 158, true, () -> order("trade market " + key + " auto " + (auto ? "off" : "on")));
+            this.tip(214, 158, 158, 15, Ink.tr("market_auto_tip"));
             int ey = 176;
             this.button(g, Ink.tr(this.offerSell ? "offer_kind_sell" : "offer_kind_buy"), 214, ey, 52, true, () -> this.offerSell = !this.offerSell);
             this.stepper(g, 268, ey, Ink.tr("offer_price", PRICES[this.offerPrice]), 52, () -> this.offerPrice = step(PRICES, this.offerPrice, -1), () -> this.offerPrice = step(PRICES, this.offerPrice, 1));

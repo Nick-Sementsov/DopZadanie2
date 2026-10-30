@@ -102,6 +102,8 @@ public final class Guide {
       r.putInt("dwellSeconds", PrestolConfig.DWELL_SECONDS.get());
       r.putInt("robberyChance", PrestolConfig.ROBBERY_CHANCE.get());
       r.putInt("escortCost", PrestolConfig.ESCORT_COST.get());
+      r.putInt("autoRange", PrestolConfig.TRADE_RANGE.get());
+      r.putInt("markup", PrestolConfig.MERCHANT_MARKUP.get());
       r.putBoolean("morale", Morale.on());
       r.putInt("routBelow", PrestolConfig.ROUT_BELOW.get());
       r.putBoolean("camps", Camps.on());

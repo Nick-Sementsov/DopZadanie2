@@ -1,12 +1,15 @@
 package com.nick.prestol.trade;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -17,6 +20,8 @@ public final class TradeData extends SavedData {
    public static final int MAX_OFFERS = 16;
    final Map<UUID, Trader> traders = new LinkedHashMap<>();
    final Map<String, List<Offer>> markets = new LinkedHashMap<>();
+   /** Settlements whose owners keep their stores out of trade: only their own written lines are offered. */
+   final Set<String> noAuto = new HashSet<>();
 
    public static TradeData get(MinecraftServer server) {
       return server.overworld().getDataStorage().computeIfAbsent(TradeData::load, TradeData::new, NAME);
@@ -68,6 +73,13 @@ public final class TradeData extends SavedData {
          }
       });
       tag.put("markets", m);
+      ListTag na = new ListTag();
+
+      for (String k : this.noAuto) {
+         na.add(StringTag.valueOf(k));
+      }
+
+      tag.put("noAuto", na);
       return tag;
    }
 
@@ -89,6 +101,10 @@ public final class TradeData extends SavedData {
          }
 
          d.markets.put(k, offers);
+      }
+
+      for (Tag x : tag.getList("noAuto", 8)) {
+         d.noAuto.add(x.getAsString());
       }
 
       return d;
