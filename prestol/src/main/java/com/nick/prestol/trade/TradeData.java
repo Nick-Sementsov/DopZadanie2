@@ -1,6 +1,7 @@
 package com.nick.prestol.trade;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +23,8 @@ public final class TradeData extends SavedData {
    final Map<String, List<Offer>> markets = new LinkedHashMap<>();
    /** Settlements whose owners keep their stores out of trade: only their own written lines are offered. */
    final Set<String> noAuto = new HashSet<>();
+   /** When a merchant from far lands next sets out for each settlement. */
+   final Map<String, Long> nextVisit = new HashMap<>();
 
    public static TradeData get(MinecraftServer server) {
       return server.overworld().getDataStorage().computeIfAbsent(TradeData::load, TradeData::new, NAME);
@@ -80,6 +83,9 @@ public final class TradeData extends SavedData {
       }
 
       tag.put("noAuto", na);
+      CompoundTag nv = new CompoundTag();
+      this.nextVisit.forEach(nv::putLong);
+      tag.put("nextVisit", nv);
       return tag;
    }
 
@@ -105,6 +111,12 @@ public final class TradeData extends SavedData {
 
       for (Tag x : tag.getList("noAuto", 8)) {
          d.noAuto.add(x.getAsString());
+      }
+
+      CompoundTag nv = tag.getCompound("nextVisit");
+
+      for (String k : nv.getAllKeys()) {
+         d.nextVisit.put(k, nv.getLong(k));
       }
 
       return d;

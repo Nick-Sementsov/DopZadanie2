@@ -84,7 +84,7 @@ public final class TradeWorld {
          boolean second = server.getTickCount() % 20 == 7;
 
          for (Trader t : new ArrayList<>(data.traders.values())) {
-            if (realms.byId(t.realm) == null) {
+            if (t.stranger ? !Strangers.on() : realms.byId(t.realm) == null) {
                despawn(server, t, false);
                data.traders.remove(t.id);
             } else {
@@ -92,20 +92,46 @@ public final class TradeWorld {
                   moveReal(server, data, t, now);
                }
 
-               if (second) {
+               if (second && data.traders.containsKey(t.id)) {
                   presence(server, t);
                   if (!t.physical()) {
-                     advance(server, data, t, now, 1.0, null);
+                     step(server, data, t, now, null);
                   }
 
                   AutoTrade.idle(server, data, t, now);
                }
             }
          }
+
+         if (second) {
+            Strangers.tick(server, data, now);
+         }
       }
    }
 
    // ------------------------------------------------------------------ the road
+
+   /** One step of a trader's or a stranger's way (see {@link #advance}). */
+   private static void step(MinecraftServer server, TradeData data, Trader t, long now, Vec3 moved) {
+      if (t.stranger) {
+         Strangers.advance(server, data, t, now, 1.0, moved);
+      } else {
+         advance(server, data, t, now, 1.0, moved);
+      }
+   }
+
+   /** Where the merchant is heading just now, or null while he stands. */
+   private static Vec3 heading(Trader t, long now) {
+      if (t.stranger) {
+         return Strangers.moving(t, now) ? Strangers.goal(t) : null;
+      } else if (t.running && t.route.size() >= 2 && now >= t.dwellUntil) {
+         int target = t.target < t.route.size() ? t.target : 0;
+         IColony c = Settlements.byKey(t.route.get(target).settlement);
+         return c == null ? null : goal(t, t.route.get(target), c);
+      } else {
+         return null;
+      }
+   }
 
    private static Vec3 goal(Trader t, Stop stop, IColony colony) {
       return t.wp < stop.waypoints.size() ? Vec3.atBottomCenterOf(stop.waypoints.get(t.wp)) : Vec3.atBottomCenterOf(Trading.anchor(colony, t.kind));
@@ -406,7 +432,10 @@ public final class TradeWorld {
 
    private static float facing(Trader t, Vec3 from) {
       Vec3 to = t.pos;
-      if (t.route.size() >= 2 && t.target < t.route.size()) {
+      if (t.stranger) {
+         Vec3 g = Strangers.goal(t);
+         to = g == null ? to : g;
+      } else if (t.route.size() >= 2 && t.target < t.route.size()) {
          IColony c = Settlements.byKey(t.route.get(t.target).settlement);
          if (c != null) {
             to = goal(t, t.route.get(t.target), c);
@@ -431,7 +460,11 @@ public final class TradeWorld {
          Realm realm = RealmData.get(server).byId(t.realm);
          m.trader = t.id;
          m.moveTo(at.x, at.y, at.z, yaw, 0.0F);
-         m.setCustomName(Msg.t("trade.merchant_name", Msg.t("trade.kind." + t.kind.id()), t.name, realm == null ? "" : realm.name()));
+         m.setCustomName(
+            t.stranger
+               ? Msg.t("trade.stranger_name", Msg.t("trade.kind." + t.kind.id()), t.name)
+               : Msg.t("trade.merchant_name", Msg.t("trade.kind." + t.kind.id()), t.name, realm == null ? "" : realm.name())
+         );
          m.setCustomNameVisible(true);
          m.addTag(TAG);
          m.setVariant(Math.floorMod(t.id.hashCode(), MerchantEntity.VARIANTS));
@@ -564,15 +597,7 @@ public final class TradeWorld {
       Entity m = level == null ? null : level.getEntity(t.merchant);
       if (m instanceof MerchantEntity merchant) {
          Entity body = t.kind == Trader.Kind.SHIP && m.getVehicle() != null ? m.getVehicle() : m;
-         boolean moving = t.running && t.route.size() >= 2 && now >= t.dwellUntil && !merchant.haggling();
-         Vec3 goal = null;
-         if (moving) {
-            int target = t.target < t.route.size() ? t.target : 0;
-            IColony c = Settlements.byKey(t.route.get(target).settlement);
-            if (c != null) {
-               goal = goal(t, t.route.get(target), c);
-            }
-         }
+         Vec3 goal = merchant.haggling() ? null : heading(t, now);
 
          if (goal == null) {
             if (t.kind == Trader.Kind.CARAVAN) {
@@ -582,7 +607,7 @@ public final class TradeWorld {
             }
 
             if (server.getTickCount() % 20 == 7) {
-               advance(server, data, t, now, 1.0, body.position());
+               step(server, data, t, now, body.position());
             }
          } else {
             Vec3 at = body.position();
@@ -632,7 +657,7 @@ public final class TradeWorld {
                }
 
                t.lastPhysical = at;
-               advance(server, data, t, now, 1.0, at);
+               step(server, data, t, now, at);
             }
          }
       }
@@ -662,6 +687,11 @@ public final class TradeWorld {
          t.merchant = null;
          t.beasts.clear();
          t.cargo.slots.clear();
+         if (t.stranger) {
+            data.traders.remove(t.id);
+            return;
+         }
+
          RealmData realms = RealmData.get(server);
          Realm realm = realms.byId(t.realm);
          IColony home = realm == null ? null : Settlements.byKey(realm.capital());
@@ -747,6 +777,11 @@ public final class TradeWorld {
 
    /** What a player sees when he speaks to the merchant. */
    static MutableComponent card(MinecraftServer server, Trader t) {
+      if (t.stranger) {
+         MutableComponent c = Msg.t("trade.stranger_card", Msg.t("trade.kind." + t.kind.id()), t.name, Coins.fmt(t.purse));
+         return c.append(" ").append(Msg.t("trade.status." + t.status, t.statusArgs.toArray()).withStyle(ChatFormatting.GRAY));
+      }
+
       Realm realm = RealmData.get(server).byId(t.realm);
       MutableComponent c = Msg.t("trade.card", Msg.t("trade.kind." + t.kind.id()), t.name, realm == null ? "?" : realm.name(), t.cargo.used(), t.cargo.size());
       return c.append(" ").append(Msg.t("trade.status." + t.status, t.statusArgs.toArray()).withStyle(ChatFormatting.GRAY));

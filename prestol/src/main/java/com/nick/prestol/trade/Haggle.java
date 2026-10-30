@@ -38,6 +38,10 @@ public final class Haggle {
 
    /** Why he will not trade with {@code player}, as a message key, or null. */
    static String refusal(MinecraftServer server, Trader t, ServerPlayer player) {
+      if (t.stranger) {
+         return null;
+      }
+
       RealmData realms = RealmData.get(server);
       Realm his = realms.byId(t.realm);
       Realm theirs = Realms.realmOf(server, player);
@@ -68,6 +72,11 @@ public final class Haggle {
                out.add(new Deal(item, lot, Math.max(1L, Math.round(lot * unit)), true, e.getValue()));
             }
          }
+      }
+
+      if (t.stranger) {
+         Strangers.wants(t, out);
+         return out;
       }
 
       Markets.Market home = t.home.isEmpty() ? null : Markets.of(server, t.home);
@@ -107,7 +116,7 @@ public final class Haggle {
 
    static MerchantOffers offers(MinecraftServer server, Trader t, List<Deal> deals) {
       MerchantOffers out = new MerchantOffers();
-      long treasury = EconomyData.get(server).balance(t.realm);
+      long treasury = t.stranger ? t.purse : EconomyData.get(server).balance(t.realm);
       Map<String, Integer> carried = t.cargo.summary();
 
       for (Deal d : deals) {
@@ -151,6 +160,20 @@ public final class Haggle {
       EconomyData eco = EconomyData.get(server);
       long day = Realms.day(Realms.now(server));
       long coins = d.sell() ? coinsOf(gold(d.coins())) : d.coins();
+      if (t.stranger) {
+         // a stranger's purse is his own
+         if (d.sell()) {
+            t.cargo.take(d.item(), d.lot());
+            t.purse += coins;
+         } else {
+            t.cargo.add(d.item(), d.lot());
+            t.purse = Math.max(0L, t.purse - coins);
+         }
+
+         TradeWorld.pushCargo(server, t);
+         return;
+      }
+
       if (d.sell()) {
          t.cargo.take(d.item(), d.lot());
          eco.give(t.realm, coins);

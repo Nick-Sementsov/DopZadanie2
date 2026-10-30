@@ -1806,6 +1806,18 @@ public class BookScreen extends Screen {
          yy = this.small(g, Ink.tr("traders_none"), 28, yy, 158, -9544893);
       }
 
+      List<CompoundTag> guests = list(trade, "guests");
+      if (!guests.isEmpty()) {
+         yy = this.sub(g, Ink.tr("guests"), 28, yy + 3);
+
+         for (CompoundTag gt : guests) {
+            this.icon(g, new ItemStack(gt.getString("kind").equals("ship") ? Items.OAK_BOAT : Items.SADDLE), 28, yy + 1, 0.75F);
+            Ink.text(g, Ink.clip(Component.literal(gt.getString("name")), Ink.F_BODY, 120), Ink.F_BODY, 42, yy, -13951730);
+            Ink.text(g, Ink.clip(this.traderStatus(gt), Ink.F_SMALL, 140), Ink.F_SMALL, 42, yy + 11, -9544893);
+            yy += 22;
+         }
+      }
+
       this.endScroll(g, "traders", yy + off - y);
       if (ruler) {
          int cy = 182;

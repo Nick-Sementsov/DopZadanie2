@@ -104,6 +104,8 @@ public final class Guide {
       r.putInt("escortCost", PrestolConfig.ESCORT_COST.get());
       r.putInt("autoRange", PrestolConfig.TRADE_RANGE.get());
       r.putInt("markup", PrestolConfig.MERCHANT_MARKUP.get());
+      r.putString("strangerDays", com.nick.prestol.trade.Prices.fmt(PrestolConfig.STRANGER_DAYS.get()));
+      r.putBoolean("strangers", com.nick.prestol.trade.Strangers.on());
       r.putBoolean("morale", Morale.on());
       r.putInt("routBelow", PrestolConfig.ROUT_BELOW.get());
       r.putBoolean("camps", Camps.on());

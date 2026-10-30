@@ -795,6 +795,27 @@ public final class Trading {
       }
 
       t.put("traders", traders);
+      ListTag guests = new ListTag();
+
+      for (Trader g : data.traders.values()) {
+         Realm to = g.stranger && !g.route.isEmpty() ? realms.byMember(g.route.get(0).settlement) : null;
+         if (to != null && to.id().equals(realm.id())) {
+            CompoundTag x = new CompoundTag();
+            x.putString("name", g.name);
+            x.putString("kind", g.kind.id());
+            x.putString("status", g.status);
+            ListTag sa = new ListTag();
+
+            for (String a : g.statusArgs) {
+               sa.add(StringTag.valueOf(a));
+            }
+
+            x.put("statusArgs", sa);
+            guests.add(x);
+         }
+      }
+
+      t.put("guests", guests);
       ListTag places = new ListTag();
 
       for (IColony c : Settlements.all()) {

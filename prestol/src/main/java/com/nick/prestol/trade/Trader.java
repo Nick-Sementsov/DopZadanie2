@@ -62,6 +62,14 @@ public final class Trader {
    long tripEarned;
    long tripSpent;
    long lastProfit;
+   /** A merchant from far lands (see {@link Strangers}): no realm, his own purse, a single visit. */
+   boolean stranger;
+   /** A stranger's way: 0 coming, 1 staying, 2 going home. */
+   int phase;
+   Vec3 exit = Vec3.ZERO;
+   long purse;
+   /** What a stranger is glad to buy from passers-by. */
+   final List<String> wanted = new ArrayList<>();
    String status = "idle";
    List<String> statusArgs = new ArrayList<>();
    final Deque<String> journal = new ArrayDeque<>();
@@ -176,6 +184,22 @@ public final class Trader {
       t.putLong("tripEarned", this.tripEarned);
       t.putLong("tripSpent", this.tripSpent);
       t.putLong("lastProfit", this.lastProfit);
+      if (this.stranger) {
+         t.putBoolean("stranger", true);
+         t.putInt("phase", this.phase);
+         t.putDouble("ex", this.exit.x);
+         t.putDouble("ey", this.exit.y);
+         t.putDouble("ez", this.exit.z);
+         t.putLong("purse", this.purse);
+         ListTag w = new ListTag();
+
+         for (String id : this.wanted) {
+            w.add(StringTag.valueOf(id));
+         }
+
+         t.put("wanted", w);
+      }
+
       t.putString("status", this.status);
       ListTag args = new ListTag();
 
@@ -231,6 +255,15 @@ public final class Trader {
       tr.tripEarned = t.getLong("tripEarned");
       tr.tripSpent = t.getLong("tripSpent");
       tr.lastProfit = t.getLong("lastProfit");
+      tr.stranger = t.getBoolean("stranger");
+      tr.phase = t.getInt("phase");
+      tr.exit = new Vec3(t.getDouble("ex"), t.getDouble("ey"), t.getDouble("ez"));
+      tr.purse = t.getLong("purse");
+
+      for (Tag x : t.getList("wanted", 8)) {
+         tr.wanted.add(x.getAsString());
+      }
+
       tr.status = t.getString("status");
 
       for (Tag a : t.getList("statusArgs", 8)) {

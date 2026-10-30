@@ -4,6 +4,7 @@ import com.nick.prestol.client.FlagArt;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -45,7 +46,7 @@ final class GuideChapters {
       chapter("treasury", Items.GOLD_NUGGET, "economy", p("1"), p("2", "taxLow", "taxNormal", "taxHigh"), p("3", "soldierPay"), p("4")),
       chapter(
          "trade", Items.CHEST_MINECART, "trade",
-         p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("6", "autoRange"), p("3"), p("4", "dwellSeconds"), p("7", "markup"), p("5", "robberyChance", "escortCost")
+         p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("6", "autoRange"), p("3"), p("4", "dwellSeconds"), p("7", "markup"), pIf("strangers", "8", "strangerDays"), p("5", "robberyChance", "escortCost")
       ),
       chapter("court", Items.NAME_TAG, "court", p("1"), p("2"), p("3", "outlawDays"), p("4")),
       chapter("banner", FlagArt.flagItem(), null, p("1", "standardWool"), pIf("paintings", "2"), pIf("paintings", "3")),
@@ -108,7 +109,9 @@ final class GuideChapters {
 
                for (int i = 0; i < args.length; i++) {
                   String a = p.args[i];
-                  args[i] = a.equals("@key") ? Component.keybind("key.prestol.book") : (rules.contains(a) ? String.valueOf(rules.getInt(a)) : "?");
+                  args[i] = a.equals("@key")
+                     ? Component.keybind("key.prestol.book")
+                     : (!rules.contains(a) ? "?" : (rules.getTagType(a) == Tag.TAG_STRING ? rules.getString(a) : String.valueOf(rules.getInt(a))));
                }
 
                out.add(Component.translatable("prestol.guide." + this.id + "." + p.n, args));

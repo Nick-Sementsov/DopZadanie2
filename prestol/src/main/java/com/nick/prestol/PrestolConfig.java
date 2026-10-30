@@ -116,6 +116,7 @@ public final class PrestolConfig {
    public static final IntValue ESCORT_COST;
    public static final IntValue TRADE_RANGE;
    public static final IntValue MERCHANT_MARKUP;
+   public static final DoubleValue STRANGER_DAYS;
 
    private PrestolConfig() {
    }
@@ -433,6 +434,10 @@ public final class PrestolConfig {
             "Наценка купца, когда игрок покупает у него товар, в процентах (продаёт игроку дороже цены рынка). / Merchant's markup on goods sold to players, percent."
          )
          .defineInRange("merchantMarkupPercent", 30, 0, 500);
+      STRANGER_DAYS = b.comment(
+            "Как часто в каждое поселение державы приходит купец из дальних земель, в игровых днях (0 — не приходят). / Average game days between visits of a foreign merchant to each settlement of a realm (0: never)."
+         )
+         .defineInRange("strangerDays", 1.0, 0.0, 100.0);
       b.pop();
       b.push("workers");
       AI_FIXES = b.comment("Поправки ИИ жителей: инструмент в руках, лесоруб без лишней ходьбы, еда без таверны. / Citizen AI fixes.").define("aiFixes", true);
