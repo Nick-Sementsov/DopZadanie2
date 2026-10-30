@@ -23,7 +23,7 @@ Forge 1.20.1, Java 17. Исходники восстановлены из `prest
 | MineColonies, BlockUI, Structurize | обязательные | maven LDT Team |
 | Hundred Years War | необязательная (армия, наёмники, ополчение) | `libs/` |
 | Xaero's World Map / Minimap | необязательные, только клиент | Modrinth maven |
-| Immersive Paintings, Betsy Ross | необязательные (флаги-картинки) | Modrinth maven |
+| Immersive Paintings (0.6.11+), Betsy Ross (2.0+) | обязательные: флаг державы — флаг Betsy Ross, а не баннер | Modrinth maven / Modrinth |
 | EcoMinecolonies | необязательная (бригады строителей) | заглушки в `src/stubs`, в jar не попадают |
 | [Let's Do] Brewery, Vinery | необязательные (хижины пивовара и винодела) | ничего не нужно при сборке |
 

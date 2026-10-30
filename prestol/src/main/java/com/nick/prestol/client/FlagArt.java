@@ -1,6 +1,8 @@
 package com.nick.prestol.client;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.nick.prestol.flag.BannerImages;
 import com.nick.prestol.map.MapSnapshot;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,17 +10,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Map.Entry;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BannerPattern;
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public final class FlagArt {
    private static final Map<String, Optional<ResourceLocation>> PATTERNS = new HashMap<>();
+   private static final Map<String, Optional<ResourceLocation>> CLOTHS = new HashMap<>();
+   private static final int CLOTH_W = 96;
+   private static final int CLOTH_H = 64;
    private static Boolean paintings;
+   private static Boolean betsy;
 
    private FlagArt() {
    }
@@ -29,6 +42,22 @@ public final class FlagArt {
       }
 
       return paintings;
+   }
+
+   /** Whether realm colours fly as Betsy Ross flags in the world (and so are drawn as flags here, not banners). */
+   public static boolean betsy() {
+      if (betsy == null) {
+         betsy = ModList.get().isLoaded("betsyross") && paintings();
+      }
+
+      return betsy;
+   }
+
+   /** The Betsy Ross flag standard as an icon, or a banner without it. */
+   public static Item flagItem() {
+      ResourceLocation id = new ResourceLocation("betsyross", "flag_standard");
+      Item item = ForgeRegistries.ITEMS.containsKey(id) ? ForgeRegistries.ITEMS.getValue(id) : null;
+      return item != null && item != Items.AIR ? item : Items.RED_BANNER;
    }
 
    public static int draw(GuiGraphics g, String image, List<MapSnapshot.Layer> banner, int x, int y, int w, int h, boolean big) {
@@ -62,11 +91,72 @@ public final class FlagArt {
          }
       }
 
+      if (betsy() && banner != null && !banner.isEmpty()) {
+         Optional<ResourceLocation> cloth = cloth(banner);
+         if (cloth.isPresent()) {
+            ResourceLocation tex = cloth.get();
+            int dw = w;
+            int dh = Math.round((float)w * CLOTH_H / CLOTH_W);
+            if (dh > h) {
+               dh = h;
+               dw = Math.round((float)h * CLOTH_W / CLOTH_H);
+            }
+
+            int dx = onPole ? x : x + (w - dw) / 2;
+            int dy = onPole ? y : y + (h - dh) / 2;
+            g.blit(tex, dx, dy, dw, dh, 0.0F, 0.0F, CLOTH_W, CLOTH_H, CLOTH_W, CLOTH_H);
+            return new int[]{dw, dh};
+         }
+      }
+
       int bw = Math.min(w, h / 2);
       int bh = Math.min(h, bw * 2);
       int dx = onPole ? x : x + (w - bw) / 2;
       banner(g, banner, dx, y, bw, bh);
       return new int[]{bw, bh};
+   }
+
+   /** The realm's colours as the cloth of its Betsy Ross flag, painted the same way the server paints the flag. */
+   private static Optional<ResourceLocation> cloth(List<MapSnapshot.Layer> layers) {
+      StringBuilder key = new StringBuilder();
+
+      for (MapSnapshot.Layer l : layers) {
+         key.append(l.pattern()).append(l.color()).append('|');
+      }
+
+      return CLOTHS.computeIfAbsent(key.toString(), k -> {
+         try {
+            DyeColor base = DyeColor.WHITE;
+            ListTag patterns = new ListTag();
+
+            for (int i = 0; i < layers.size(); i++) {
+               MapSnapshot.Layer l = layers.get(i);
+               if (i == 0 && "b".equals(l.pattern())) {
+                  base = DyeColor.byId(l.color());
+               } else {
+                  CompoundTag t = new CompoundTag();
+                  t.putString("Pattern", l.pattern());
+                  t.putInt("Color", l.color());
+                  patterns.add(t);
+               }
+            }
+
+            int[] px = BannerImages.render(base, patterns, CLOTH_W, CLOTH_H);
+            NativeImage img = new NativeImage(CLOTH_W, CLOTH_H, false);
+
+            for (int y = 0; y < CLOTH_H; y++) {
+               for (int x = 0; x < CLOTH_W; x++) {
+                  int c = px[y * CLOTH_W + x];
+                  // NativeImage pixels are ABGR
+                  img.setPixelRGBA(x, y, 0xFF000000 | (c & 0xFF) << 16 | (c & 0xFF00) | c >> 16 & 0xFF);
+               }
+            }
+
+            return Optional.of(Minecraft.getInstance().getTextureManager().register("prestol_cloth", new DynamicTexture(img)));
+         } catch (RuntimeException e) {
+            return Optional.empty();
+         }
+      });
    }
 
    private static Optional<ResourceLocation> pattern(String code) {

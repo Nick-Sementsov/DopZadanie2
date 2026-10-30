@@ -2369,7 +2369,7 @@ public class BookScreen extends Screen {
       COURT(Items.NAME_TAG, 9118290),
       TRADE(Items.GOLD_INGOT, 12093995),
       CHRONICLE(Items.BOOK, 7227938),
-      BANNER(Items.RED_BANNER, 11569706),
+      BANNER(FlagArt.flagItem(), 11569706),
       GUIDE(Items.KNOWLEDGE_BOOK, 3043214),
       ADMIN(Items.COMPASS, 5592405);
 

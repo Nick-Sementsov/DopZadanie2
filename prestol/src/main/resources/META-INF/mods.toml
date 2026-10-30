@@ -45,14 +45,14 @@ displayTest="MATCH_VERSION"
 
 [[dependencies.prestol]]
     modId="immersive_paintings"
-    mandatory=false
-    versionRange="[0.6,)"
+    mandatory=true
+    versionRange="[0.6.11,)"
     ordering="AFTER"
     side="BOTH"
 
 [[dependencies.prestol]]
     modId="betsyross"
-    mandatory=false
+    mandatory=true
     versionRange="[2.0,)"
     ordering="AFTER"
     side="BOTH"
