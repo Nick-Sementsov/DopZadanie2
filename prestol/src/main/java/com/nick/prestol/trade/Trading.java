@@ -273,11 +273,13 @@ public final class Trading {
       }
 
       trader.note(json(report));
-      if (!done.isEmpty()) {
+      // a trader on his own route reports each stop; one who plans his trips sums them up when home
+      if (!done.isEmpty() && !trader.auto) {
          Realms.tell(server, mine, report);
       }
 
-      if (!theirs.isEmpty() && there != null) {
+      // the settlement's realm hears of foreign trade worth mentioning (the ledger keeps the rest)
+      if (!theirs.isEmpty() && there != null && earned + spent >= 10L) {
          MutableComponent msg = Msg.t("trade.visit", mine.name(), colony.getName()).withStyle(ChatFormatting.GOLD);
 
          for (int i = 0; i < theirs.size(); i++) {

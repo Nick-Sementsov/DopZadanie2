@@ -217,6 +217,9 @@ public class Prestol {
          run("trade", () -> TradeWorld.tick(server));
          if (server.getTickCount() % 20 == 9) {
             run("events", () -> com.nick.prestol.events.RealmEvents.tick(server));
+            if (server.getTickCount() % 100 == 9) {
+               run("celebrations", () -> com.nick.prestol.events.Celebrations.tick(server));
+            }
          }
 
          if (server.getTickCount() % 100 == 12) {
