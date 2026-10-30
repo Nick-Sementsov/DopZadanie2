@@ -475,15 +475,19 @@ public class BookScreen extends Screen {
          CompoundTag r = realm();
          int y = this.heading(g, Component.literal(r.getString("name")), 28, 24, 158);
          y = this.line(g, Component.translatable(r.getString("rank")).append(" · ").append(Ink.tr("founded", r.getLong("founded"))), 28, y, 158, -9544893);
-         Ink.frame(g, 52, y + 2, 110, 70);
-         FlagArt.draw(g, r.getString("flag"), banner(r), 58, y + 8, 98, 58, true);
-         y += 78;
+         Ink.frame(g, 52, y + 2, 110, 64);
+         FlagArt.draw(g, r.getString("flag"), banner(r), 58, y + 8, 98, 52, true);
+         y += 72;
          y = this.line(g, Ink.tr("ruler", r.getString("rulerName")), 28, y, 158, -13951730);
          y = this.line(g, Ink.tr("capital", r.getString("capital")), 28, y, 158, -13951730);
-         y = this.line(g, Ink.tr("day", state.getLong("day")), 28, y + 2, 158, -9544893);
+         CompoundTag land = state.getCompound("land");
+         y = this.small(g, Ink.tr("realm_stats1", r.getInt("population"), r.getInt("towns")), 28, y + 2, 158, -13951730);
+         y = this.small(g, Ink.tr("realm_stats2", r.getInt("settlements"), r.getInt("maxSettlements"), land.getInt("used"), land.getInt("limit")), 28, y, 158, -13951730);
+         y = this.small(g, this.relationsLine(), 28, y + 2, 158, -9544893);
+         y = this.small(g, Ink.tr("day", state.getLong("day")), 28, y + 2, 158, -9544893);
          if (state.contains("season")) {
             CompoundTag s = state.getCompound("season");
-            y = this.small(
+            this.small(
                g,
                Component.translatable("prestol.season." + s.getInt("sub"), new Object[]{s.getInt("day"), s.getInt("of"), s.getInt("toNext")}),
                28,
@@ -493,37 +497,13 @@ public class BookScreen extends Screen {
             );
          }
 
-         int ry = this.heading(g, Ink.tr("might"), 214, 24, 158);
-         ry = this.line(g, Ink.tr("population", r.getInt("population")), 214, ry, 158, -13951730);
-         ry = this.line(g, Ink.tr("towns", r.getInt("towns")), 214, ry, 158, -13951730);
-         ry = this.line(g, Ink.tr("settlements_count", r.getInt("settlements"), r.getInt("maxSettlements")), 214, ry, 158, -13951730);
-         CompoundTag land = state.getCompound("land");
-         ry = this.line(g, Ink.tr("land_count", land.getInt("used"), land.getInt("limit")), 214, ry, 158, -13951730);
-         ry += 4;
-         ry = this.sub(g, Ink.tr("laws_in_force"), 214, ry);
-         ListTag laws = r.getList("lawsActive", 8);
-         if (laws.isEmpty()) {
-            ry = this.small(g, Ink.tr("none"), 214, ry, 158, -9544893);
-         }
-
-         for (int i = 0; i < laws.size(); i++) {
-            ry = this.small(g, Component.literal("• ").append(Component.translatable("prestol.law." + laws.getString(i))), 214, ry, 158, -13951730);
-         }
-
-         ry += 4;
-         ry = this.sub(g, Ink.tr("relations"), 214, ry);
-         int shown = 0;
-
-         for (CompoundTag o : list(state, "realms")) {
-            String st = o.getString("stance");
-            if (st.equals("war") || st.equals("ally")) {
-               ry = this.small(g, Ink.tr("stance." + st).append(": " + o.getString("name")), 214, ry, 158, st.equals("war") ? -7464176 : -13673956);
-               shown++;
-            }
-         }
-
-         if (shown == 0) {
-            ry = this.small(g, Ink.tr("at_peace"), 214, ry, 158, -9544893);
+         int ry = this.adviceColumn(g, 24);
+         CompoundTag goal = state.getCompound("goal");
+         if (goal.contains("rank") && ry < 150) {
+            ry = this.sub(g, Ink.tr("goal", Component.translatable(goal.getString("rank"))), 214, ry + 2);
+            ry = this.stat(g, Ink.tr("goal_people"), goal.getInt("pop"), goal.getInt("popNeed"), ry);
+            ry = this.stat(g, Ink.tr("goal_towns"), goal.getInt("towns"), goal.getInt("townsNeed"), ry);
+            this.tip(214, ry - 24, 158, 24, Ink.tr("goal_tip", goal.getInt("laws")));
          }
 
          if (state.contains("pending")) {
@@ -542,11 +522,74 @@ public class BookScreen extends Screen {
          if (ruler()) {
             String name = this.field(g, "rename", 214, 208, 88, Ink.tr("new_name"));
             this.button(g, Ink.tr("rename"), 306, 206, 66, name.length() >= 3, () -> order("rename " + name));
-            this.dangerous(g, "disband", Ink.tr("disband"), 28, 208, 100, true, () -> order("disband"));
+            this.dangerous(g, "disband", Ink.tr("disband"), 28, 210, 72, true, () -> order("disband"));
          } else {
             this.small(g, Ink.tr("not_ruler_note"), 28, 206, 158, -9544893);
          }
       }
+   }
+
+   /** Wars and alliances in one line. */
+   private Component relationsLine() {
+      MutableComponent out = Component.empty();
+      int shown = 0;
+
+      for (CompoundTag o : list(state, "realms")) {
+         String st = o.getString("stance");
+         if (st.equals("war") || st.equals("ally")) {
+            if (shown++ > 0) {
+               out.append(" · ");
+            }
+
+            out.append(Ink.tr("stance." + st).append(": " + o.getString("name")).withStyle(st.equals("war") ? ChatFormatting.DARK_RED : ChatFormatting.DARK_GREEN));
+         }
+      }
+
+      return shown == 0 ? Ink.tr("at_peace") : out;
+   }
+
+   /** The advisor: what to do next, most pressing first, each with a way to the page where it is done. */
+   private int adviceColumn(GuiGraphics g, int top) {
+      return this.advice(g, 214, this.heading(g, Ink.tr("advisor"), 214, top, 158));
+   }
+
+   private int advice(GuiGraphics g, int x, int ry) {
+      for (CompoundTag a : list(state, "advice")) {
+         List<Object> args = new ArrayList<>();
+
+         for (Tag t : a.getList("a", 8)) {
+            String s = t.getAsString();
+            args.add(s.startsWith("prestol.") ? Component.translatable(s, state.getInt("armyArrows"), state.getInt("armyFood")) : s);
+         }
+
+         Component text = Component.translatable("prestol.advice." + a.getString("k"), args.toArray());
+         this.icon(g, stackOf(a.getString("i"), 1), x, ry + 1, 0.75F);
+         String target = a.getString("p");
+         int h = Ink.para(g, text, Ink.F_SMALL, x + 16, ry, target.isEmpty() ? 142 : 124, -13951730);
+         if (!target.isEmpty()) {
+            BookScreen.Page to;
+            try {
+               to = BookScreen.Page.valueOf(target);
+            } catch (IllegalArgumentException e) {
+               to = null;
+            }
+
+            if (to != null) {
+               BookScreen.Page dest = to;
+               this.button(g, Component.literal("→"), x + 144, ry, 14, true, () -> {
+                  this.page = dest;
+                  lastPage = dest;
+                  this.confirm = null;
+                  this.focus = null;
+               });
+               this.tip(x + 144, ry, 14, 15, dest.title());
+            }
+         }
+
+         ry += Math.max(18, h) + 5;
+      }
+
+      return ry;
    }
 
    private List<CompoundTag> ownFree() {
@@ -563,7 +606,9 @@ public class BookScreen extends Screen {
 
    private void noRealmPage(GuiGraphics g) {
       int y = this.heading(g, Ink.tr("free_lord"), 28, 24, 158);
-      y = this.line(g, Ink.tr("free_lord_text"), 28, y, 158, -13951730) + 6;
+      y = this.small(g, Ink.tr("free_lord_text"), 28, y, 158, -9544893) + 4;
+      y = this.sub(g, Ink.tr("advisor"), 28, y);
+      y = this.advice(g, 28, y) + 2;
       List<CompoundTag> mine = this.ownFree();
       y = this.sub(g, Ink.tr("invitations"), 28, y);
       int count = 0;
@@ -947,10 +992,25 @@ public class BookScreen extends Screen {
       Ink.bar(g, 28, y + 1, 158, 7, limit == 0 ? 0.0F : (float)used / (float)limit, -9532870);
       y += 14;
       y = this.small(g, Ink.tr("land_rules", land.getInt("reach")), 28, y, 158, -9544893) + 6;
-      y = this.sub(g, Ink.tr("how_to_draw"), 28, y);
+      // the simplest way: the land round where you stand
+      y = this.sub(g, Ink.tr("land_here"), 28, y);
+      var me = Minecraft.getInstance().player;
+      if (me != null) {
+         int cx = me.chunkPosition().x;
+         int cz = me.chunkPosition().z;
+         this.button(g, Ink.tr("land_take_here"), 28, y, 78, used < limit, () -> order("land take " + (cx - 2) + " " + (cz - 2) + " " + (cx + 2) + " " + (cz + 2)));
+         this.tip(28, y, 78, 15, Ink.tr("land_take_here_tip"));
+         this.button(g, Ink.tr("land_give_here"), 108, y, 78, used > 0, () -> order("land give " + (cx - 2) + " " + (cz - 2) + " " + (cx + 2) + " " + (cz + 2)));
+         this.tip(108, y, 78, 15, Ink.tr("land_give_here_tip"));
+         y += 20;
+      }
 
-      for (int i = 1; i <= 4; i++) {
-         y = this.small(g, Component.literal(i + ". ").append(Ink.tr("draw_step" + i)), 28, y, 158, -13951730) + 2;
+      if (PrestolClient.hasMapMod()) {
+         y = this.sub(g, Ink.tr("how_to_draw"), 28, y);
+
+         for (int i = 1; i <= 4; i++) {
+            y = this.small(g, Component.literal(i + ". ").append(Ink.tr("draw_step" + i)), 28, y, 158, -13951730) + 2;
+         }
       }
 
       int ry = this.heading(g, Ink.tr("map_of_realms"), 214, 24, 158);
@@ -1241,21 +1301,26 @@ public class BookScreen extends Screen {
          }
 
          y += 2;
+         int top = y;
+         int off = this.beginScroll(g, "laws", 28, top, 158, 224 - top);
+         y = top - off;
 
          for (String id : new String[]{"levy", "guilds", "fields", "roads", "charter", "schools"}) {
             boolean in = contains(enacted, id);
             boolean works = contains(active, id);
             Component name = Component.translatable("prestol.law." + id);
             Ink.text(g, Ink.clip(name, Ink.F_BODY, 98), Ink.F_BODY, 28, y + 3, in ? (works ? -13673956 : -9544893) : -13951730);
-            this.tip(28, y, 98, 14, Component.translatable("prestol.law." + id + ".desc"));
             if (ruler()) {
                this.button(g, in ? Ink.tr("repeal") : Ink.tr("enact"), 130, y, 56, true, () -> order("law " + (in ? "repeal " : "enact ") + id));
             } else if (in) {
                Ink.text(g, Ink.tr(works ? "in_force" : "dormant"), Ink.F_SMALL, 136, y + 4, -9544893);
             }
 
-            y += 17;
+            y += 15;
+            y += Ink.para(g, Component.translatable("prestol.law." + id + ".desc"), Ink.F_SMALL, 30, y, 156, -9544893) + 5;
          }
+
+         this.endScroll(g, "laws", y + off - top);
       }
 
       List<CompoundTag> decreeable = new ArrayList<>();
@@ -1285,7 +1350,6 @@ public class BookScreen extends Screen {
             Component name = Component.translatable("prestol.decree." + id);
             int color = d.contains("left") ? -13673956 : (d.contains("cooldown") ? -9544893 : -13951730);
             Ink.text(g, Ink.clip(name, Ink.F_BODY, 96), Ink.F_BODY, 214, yy + 3, color);
-            this.tip(214, yy, 96, 14, Component.translatable("prestol.decree." + id + ".desc"));
             if (d.contains("left")) {
                Ink.text(g, Component.literal(Ink.time(d.getInt("left"))), Ink.F_SMALL, 280, yy + 4, -13673956);
                this.button(g, Ink.tr("revoke"), 316, yy, 56, true, () -> order("revoke " + key + " " + id));
@@ -1295,7 +1359,13 @@ public class BookScreen extends Screen {
                this.button(g, Ink.tr("issue"), 316, yy, 56, true, () -> order("decree " + key + " " + id));
             }
 
-            yy += 17;
+            yy += 15;
+            MutableComponent desc = Component.translatable("prestol.decree." + id + ".desc").copy();
+            if (d.contains("dur")) {
+               desc.append(" ").append(Ink.tr("decree_time", d.getInt("dur"), d.getInt("cd")));
+            }
+
+            yy += Ink.para(g, desc, Ink.F_SMALL, 216, yy, 156, -9544893) + 5;
          }
 
          this.endScroll(g, "decrees", yy + off - ry);

@@ -110,6 +110,7 @@ public final class Lands {
                   Set<Long> tried = new HashSet<>();
                   boolean progress = true;
                   boolean stop = false;
+                  int ours = 0;
 
                   while (progress && !stop) {
                      progress = false;
@@ -124,6 +125,8 @@ public final class Lands {
                                  if (!ownedBySide(level, mine, owner)) {
                                     refused++;
                                     last = Realms.Result.no(Msg.bad("land.foreign"));
+                                 } else {
+                                    ours++;
                                  }
                               } else {
                                  IColony next = neighbour(level, mine, x, zx);
@@ -158,6 +161,10 @@ public final class Lands {
                   }
 
                   if (done == 0) {
+                     if (last == null && ours == (right - left + 1) * (bottom - top + 1)) {
+                        return Realms.Result.no(Msg.bad("land.all_yours"));
+                     }
+
                      return last != null ? last : Realms.Result.no(Msg.bad("land.not_touching"));
                   } else {
                      Realms.changed(server);

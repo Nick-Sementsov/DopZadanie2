@@ -65,6 +65,10 @@ public final class Trading {
       return has(colony, "BuildingFisherman");
    }
 
+   public static boolean hasWarehouse(IColony colony) {
+      return warehouse(colony);
+   }
+
    static boolean warehouse(IColony colony) {
       return has(colony, "BuildingWareHouse");
    }

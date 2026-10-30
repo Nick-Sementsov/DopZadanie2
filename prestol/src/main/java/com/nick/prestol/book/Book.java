@@ -430,6 +430,15 @@ public final class Book {
          tag.put("pending", pending);
       }
 
+      try {
+         tag.put("advice", Advisor.advise(server, player, mine, tag));
+         if (mine != null) {
+            tag.put("goal", Advisor.goal(mine));
+         }
+      } catch (RuntimeException e) {
+         // advice is a help, never a reason for the book not to open
+      }
+
       return tag;
    }
 
@@ -482,7 +491,7 @@ public final class Book {
 
       t.putInt("hall", s.townHall());
       t.putInt("buildings", s.buildings());
-      t.putDouble("happiness", (double)Math.round(Settlements.happiness(c) * 10.0) / 10.0);
+      t.putDouble("happiness", Math.max(0.0, Math.min(10.0, (double)Math.round(Settlements.happiness(c) * 10.0) / 10.0)));
       Tier next = tier.next();
       if (next != null) {
          t.putInt("needCitizens", next.minCitizens());
@@ -524,6 +533,8 @@ public final class Book {
          for (DecreeType d : DecreeType.values()) {
             CompoundTag e = new CompoundTag();
             e.putString("id", d.id);
+            e.putInt("dur", (int)(PrestolConfig.durationTicks(d) / 1200L));
+            e.putInt("cd", (int)(PrestolConfig.cooldownTicks(d) / 1200L));
             DecreeData.Active a = decrees.active(key, d);
             if (a != null) {
                e.putInt("left", (int)Math.max(0L, (a.end() - now) / 20L));
