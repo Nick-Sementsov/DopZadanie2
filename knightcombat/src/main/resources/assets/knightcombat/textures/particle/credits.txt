@@ -1,0 +1,9 @@
+Knightly Combat particle textures
+
+The textures of the sparks, flashes, blood and dust are made from the free particle pack below:
+cropped, scaled down and turned into white shapes the mod colours.
+
+Source:
+- "Particle Pack" by Kenney (kenney.nl), CC0 1.0: https://opengameart.org/content/particle-pack-80-sprites
+
+CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/

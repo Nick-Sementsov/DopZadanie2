@@ -1,0 +1,94 @@
+{
+  "variants": {
+    "facing=north,style=classic": {
+      "model": "chessmod:block/piece/classic/white_pawn"
+    },
+    "facing=north,style=marble": {
+      "model": "chessmod:block/piece/marble/white_pawn"
+    },
+    "facing=north,style=tournament": {
+      "model": "chessmod:block/piece/tournament/white_pawn"
+    },
+    "facing=north,style=nether": {
+      "model": "chessmod:block/piece/nether/white_pawn"
+    },
+    "facing=north,style=frost": {
+      "model": "chessmod:block/piece/frost/white_pawn"
+    },
+    "facing=north,style=end": {
+      "model": "chessmod:block/piece/end/white_pawn"
+    },
+    "facing=east,style=classic": {
+      "model": "chessmod:block/piece/classic/white_pawn",
+      "y": 90
+    },
+    "facing=east,style=marble": {
+      "model": "chessmod:block/piece/marble/white_pawn",
+      "y": 90
+    },
+    "facing=east,style=tournament": {
+      "model": "chessmod:block/piece/tournament/white_pawn",
+      "y": 90
+    },
+    "facing=east,style=nether": {
+      "model": "chessmod:block/piece/nether/white_pawn",
+      "y": 90
+    },
+    "facing=east,style=frost": {
+      "model": "chessmod:block/piece/frost/white_pawn",
+      "y": 90
+    },
+    "facing=east,style=end": {
+      "model": "chessmod:block/piece/end/white_pawn",
+      "y": 90
+    },
+    "facing=south,style=classic": {
+      "model": "chessmod:block/piece/classic/white_pawn",
+      "y": 180
+    },
+    "facing=south,style=marble": {
+      "model": "chessmod:block/piece/marble/white_pawn",
+      "y": 180
+    },
+    "facing=south,style=tournament": {
+      "model": "chessmod:block/piece/tournament/white_pawn",
+      "y": 180
+    },
+    "facing=south,style=nether": {
+      "model": "chessmod:block/piece/nether/white_pawn",
+      "y": 180
+    },
+    "facing=south,style=frost": {
+      "model": "chessmod:block/piece/frost/white_pawn",
+      "y": 180
+    },
+    "facing=south,style=end": {
+      "model": "chessmod:block/piece/end/white_pawn",
+      "y": 180
+    },
+    "facing=west,style=classic": {
+      "model": "chessmod:block/piece/classic/white_pawn",
+      "y": 270
+    },
+    "facing=west,style=marble": {
+      "model": "chessmod:block/piece/marble/white_pawn",
+      "y": 270
+    },
+    "facing=west,style=tournament": {
+      "model": "chessmod:block/piece/tournament/white_pawn",
+      "y": 270
+    },
+    "facing=west,style=nether": {
+      "model": "chessmod:block/piece/nether/white_pawn",
+      "y": 270
+    },
+    "facing=west,style=frost": {
+      "model": "chessmod:block/piece/frost/white_pawn",
+      "y": 270
+    },
+    "facing=west,style=end": {
+      "model": "chessmod:block/piece/end/white_pawn",
+      "y": 270
+    }
+  }
+}

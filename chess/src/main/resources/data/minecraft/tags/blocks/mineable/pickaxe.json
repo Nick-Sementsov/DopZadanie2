@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "chessmod:white_pawn",
+    "chessmod:white_knight",
+    "chessmod:white_bishop",
+    "chessmod:white_rook",
+    "chessmod:white_queen",
+    "chessmod:white_king",
+    "chessmod:black_pawn",
+    "chessmod:black_knight",
+    "chessmod:black_bishop",
+    "chessmod:black_rook",
+    "chessmod:black_queen",
+    "chessmod:black_king"
+  ]
+}

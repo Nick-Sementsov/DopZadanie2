@@ -1,0 +1,94 @@
+{
+  "variants": {
+    "facing=north,style=classic": {
+      "model": "chessmod:block/piece/classic/black_king"
+    },
+    "facing=north,style=marble": {
+      "model": "chessmod:block/piece/marble/black_king"
+    },
+    "facing=north,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_king"
+    },
+    "facing=north,style=nether": {
+      "model": "chessmod:block/piece/nether/black_king"
+    },
+    "facing=north,style=frost": {
+      "model": "chessmod:block/piece/frost/black_king"
+    },
+    "facing=north,style=end": {
+      "model": "chessmod:block/piece/end/black_king"
+    },
+    "facing=east,style=classic": {
+      "model": "chessmod:block/piece/classic/black_king",
+      "y": 90
+    },
+    "facing=east,style=marble": {
+      "model": "chessmod:block/piece/marble/black_king",
+      "y": 90
+    },
+    "facing=east,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_king",
+      "y": 90
+    },
+    "facing=east,style=nether": {
+      "model": "chessmod:block/piece/nether/black_king",
+      "y": 90
+    },
+    "facing=east,style=frost": {
+      "model": "chessmod:block/piece/frost/black_king",
+      "y": 90
+    },
+    "facing=east,style=end": {
+      "model": "chessmod:block/piece/end/black_king",
+      "y": 90
+    },
+    "facing=south,style=classic": {
+      "model": "chessmod:block/piece/classic/black_king",
+      "y": 180
+    },
+    "facing=south,style=marble": {
+      "model": "chessmod:block/piece/marble/black_king",
+      "y": 180
+    },
+    "facing=south,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_king",
+      "y": 180
+    },
+    "facing=south,style=nether": {
+      "model": "chessmod:block/piece/nether/black_king",
+      "y": 180
+    },
+    "facing=south,style=frost": {
+      "model": "chessmod:block/piece/frost/black_king",
+      "y": 180
+    },
+    "facing=south,style=end": {
+      "model": "chessmod:block/piece/end/black_king",
+      "y": 180
+    },
+    "facing=west,style=classic": {
+      "model": "chessmod:block/piece/classic/black_king",
+      "y": 270
+    },
+    "facing=west,style=marble": {
+      "model": "chessmod:block/piece/marble/black_king",
+      "y": 270
+    },
+    "facing=west,style=tournament": {
+      "model": "chessmod:block/piece/tournament/black_king",
+      "y": 270
+    },
+    "facing=west,style=nether": {
+      "model": "chessmod:block/piece/nether/black_king",
+      "y": 270
+    },
+    "facing=west,style=frost": {
+      "model": "chessmod:block/piece/frost/black_king",
+      "y": 270
+    },
+    "facing=west,style=end": {
+      "model": "chessmod:block/piece/end/black_king",
+      "y": 270
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "chessmod:block/piece/classic/white_king",
+  "overrides": [
+    {
+      "predicate": {
+        "chessmod:style": 0.05
+      },
+      "model": "chessmod:block/piece/marble/white_king"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.15
+      },
+      "model": "chessmod:block/piece/tournament/white_king"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.25
+      },
+      "model": "chessmod:block/piece/nether/white_king"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.35
+      },
+      "model": "chessmod:block/piece/frost/white_king"
+    },
+    {
+      "predicate": {
+        "chessmod:style": 0.45
+      },
+      "model": "chessmod:block/piece/end/white_king"
+    }
+  ]
+}
