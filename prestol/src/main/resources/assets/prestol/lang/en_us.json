@@ -997,6 +997,7 @@
   "prestol.tier.hamlet": "Hamlet",
   "prestol.tier.town": "Town",
   "prestol.tier.up": "«%s» has grown: %s → %s!",
+  "prestol.tier.up_sub": "now a %s",
   "prestol.tier.village": "Village",
   "prestol.title.baron": "Baron",
   "prestol.title.count": "Count",

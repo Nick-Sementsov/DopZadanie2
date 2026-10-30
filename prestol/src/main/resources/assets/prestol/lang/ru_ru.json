@@ -997,6 +997,7 @@
   "prestol.tier.hamlet": "Хутор",
   "prestol.tier.town": "Город",
   "prestol.tier.up": "«%s» выросло: %s → %s!",
+  "prestol.tier.up_sub": "теперь %s",
   "prestol.tier.village": "Село",
   "prestol.title.baron": "Барон",
   "prestol.title.count": "Граф",

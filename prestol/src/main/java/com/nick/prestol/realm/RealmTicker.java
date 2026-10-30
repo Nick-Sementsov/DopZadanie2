@@ -89,6 +89,20 @@ public final class RealmTicker {
             }
 
             Realms.chronicle(server, up ? "tier_up" : "tier_down", List.of(colonyx.getName(), "@" + old.key(), "@" + now.key()), realm);
+            if (up) {
+               // its own people see it grow
+               for (net.minecraft.server.level.ServerPlayer p : server.getPlayerList().getPlayers()) {
+                  if (Settlements.isMember(p, colonyx)) {
+                     p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+                        net.minecraft.network.chat.Component.literal(colonyx.getName()).withStyle(net.minecraft.ChatFormatting.GOLD)
+                     ));
+                     p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+                        Msg.t("tier.up_sub", now.title()).withStyle(net.minecraft.ChatFormatting.YELLOW)
+                     ));
+                     p.playNotifySound(net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, net.minecraft.sounds.SoundSource.MASTER, 1.0F, 1.0F);
+                  }
+               }
+            }
          }
       }
 
