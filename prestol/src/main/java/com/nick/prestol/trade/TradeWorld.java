@@ -337,7 +337,7 @@ public final class TradeWorld {
                );
                despawn(server, t, true);
             }
-         } else if (ticking && nearPlayer(level, t.pos, SPAWN_RANGE)) {
+         } else if (ticking && server.overworld().getGameTime() >= t.hiddenUntil && nearPlayer(level, t.pos, SPAWN_RANGE)) {
             spawn(server, level, t);
          }
       }
@@ -612,7 +612,11 @@ public final class TradeWorld {
                      Vec3 jump = new Vec3(at.x + dx / Math.max(d, 1.0) * Math.min(d, 6.0), at.y, at.z + dz / Math.max(d, 1.0) * Math.min(d, 6.0));
                      Vec3 to = surface(level, jump, t.kind == Trader.Kind.SHIP);
                      if (t.kind == Trader.Kind.SHIP && !level.getFluidState(BlockPos.containing(to).below()).isSource()) {
+                        // aground: the ship sails on out of sight and shows itself again a minute later
                         t.note(Trading.json(Msg.bad("trade.aground", (int)at.x, (int)at.z)));
+                        despawn(server, t, true);
+                        t.hiddenUntil = server.overworld().getGameTime() + 1200L;
+                        return;
                      } else {
                         body.teleportTo(to.x, to.y, to.z);
                         for (UUID id : t.beasts) {

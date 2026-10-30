@@ -7,7 +7,7 @@
     "S S"
   ],
   "key": {
-    "B": { "tag": "minecraft:banners" },
+    "B": { "tag": "prestol:camp_flags" },
     "W": { "tag": "minecraft:wool" },
     "S": { "item": "minecraft:stick" }
   },

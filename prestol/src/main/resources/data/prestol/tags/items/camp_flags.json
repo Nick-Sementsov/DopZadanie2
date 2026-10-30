@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:banners",
+    { "id": "betsyross:flag_standard", "required": false },
+    { "id": "betsyross:banner_standard", "required": false },
+    { "id": "betsyross:flag_block", "required": false }
+  ]
+}

@@ -70,6 +70,8 @@ public final class Trader {
    transient final List<UUID> beasts = new ArrayList<>();
    transient Vec3 lastPhysical;
    transient int stuck;
+   /** Until when he keeps out of sight (a ship that ran aground finds the channel in the books). */
+   transient long hiddenUntil;
 
    Trader(UUID id, String name, UUID realm, Trader.Kind kind) {
       this.id = id;
