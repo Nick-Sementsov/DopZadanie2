@@ -769,7 +769,7 @@
   "prestol.guide.settlements.2": "If citizens or buildings are lost, a settlement declines and loses its tier. The higher the tier, the larger its militia and mercenary squads. The Settlements page shows what the next tier needs.",
   "prestol.guide.settlements.3": "Mind the happiness: below %1$s of 10 for %2$s days in a row, a settlement mutinies and leaves the realm.",
   "prestol.guide.start": "Getting started",
-  "prestol.guide.start.1": "Prestol joins MineColonies colonies into realms. Everything is run from this book; it opens with %s. The pages are the ribbons on the right; hover a button or a line to see a hint.",
+  "prestol.guide.start.1": "Prestol joins MineColonies colonies into realms. Everything is run from this book; it opens with %s. The pages are the ribbons on the right; hover a button or a line to see a hint. Not sure what to do? On the book's first page the advisor tells you the next step, and the → button opens the page for it.",
   "prestol.guide.start.2": "1. Place a MineColonies town hall: this is your hamlet.",
   "prestol.guide.start.3": "2. Build houses and workshops and bring in citizens: the hamlet grows into a village, then a town.",
   "prestol.guide.start.4": "3. Found a realm on the Realm page: your settlement becomes its capital.",
