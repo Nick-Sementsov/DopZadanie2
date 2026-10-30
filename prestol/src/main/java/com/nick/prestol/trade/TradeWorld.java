@@ -272,7 +272,9 @@ public final class TradeWorld {
       }
 
       t.risky = to != null && from != null && risky(server, t, stop, to);
-      t.robPending = t.risky && !t.escorted && server.overworld().random.nextInt(100) < PrestolConfig.ROBBERY_CHANCE.get();
+      // bandits: as usual, gone from patrolled roads, thrice as bold where the ruler let them be
+      int roads = t.stranger ? 1 : com.nick.prestol.events.RealmEvents.roads(server, t.realm);
+      t.robPending = t.risky && !t.escorted && server.overworld().random.nextInt(100) < PrestolConfig.ROBBERY_CHANCE.get() * roads;
    }
 
    /** Whether the road crosses land that is neither the trader's realm's nor an ally's. */

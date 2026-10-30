@@ -48,6 +48,7 @@ final class GuideChapters {
          "trade", Items.CHEST_MINECART, "trade",
          p("1"), p("2", "caravanCost", "muleCost", "shipCost", "maxTraders"), p("6", "autoRange"), p("3"), p("4", "dwellSeconds"), p("7", "markup"), pIf("strangers", "8", "strangerDays"), p("5", "robberyChance", "escortCost")
       ),
+      chapter("events", Items.BELL, "events", p("1", "eventDays"), p("2"), p("3")),
       chapter("court", Items.NAME_TAG, "court", p("1"), p("2"), p("3", "outlawDays"), p("4")),
       chapter("banner", FlagArt.flagItem(), null, p("1", "standardWool"), pIf("paintings", "2"), pIf("paintings", "3")),
       chapter("drinks", Items.HONEY_BOTTLE, "brewery|vinery", p("1"), p("2"), p("3"))

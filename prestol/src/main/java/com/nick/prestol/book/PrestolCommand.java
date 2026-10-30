@@ -25,6 +25,18 @@ public final class PrestolCommand {
                   return 1;
                }
             }))
+            .then(Commands.literal("event").then(Commands.argument("choice", StringArgumentType.word()).executes(ctx -> {
+               ServerPlayer player = ((CommandSourceStack)ctx.getSource()).getPlayerOrException();
+               // answered from the chat: a refusal is said there too
+               com.nick.prestol.realm.Realms.Result r = com.nick.prestol.events.RealmEvents.order(
+                  player.getServer(), player, new String[]{"event", StringArgumentType.getString(ctx, "choice")}
+               );
+               if (!r.ok() && r.message() != null) {
+                  player.sendSystemMessage(r.message());
+               }
+
+               return r.ok() ? 1 : 0;
+            })))
             .then(
                ((LiteralArgumentBuilder)Commands.literal("admin").requires(s -> s.hasPermission(2)))
                   .then(Commands.argument("order", StringArgumentType.greedyString()).executes(ctx -> {

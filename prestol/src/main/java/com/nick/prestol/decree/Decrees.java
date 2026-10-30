@@ -199,7 +199,7 @@ public final class Decrees {
          }
       }
 
-      if (Treasury.on() || Weariness.any()) {
+      if (Treasury.on() || Weariness.any() || com.nick.prestol.events.RealmEvents.on()) {
          // the tax rate and war weariness change happiness in every settlement of every realm
          for (Realm r : realms.all()) {
             keys.addAll(r.members());
@@ -259,6 +259,7 @@ public final class Decrees {
 
       Treasury.addEffects(server, key, out);
       Weariness.addEffects(server, key, out);
+      com.nick.prestol.events.RealmEvents.addEffects(server, key, out);
       return out;
    }
 

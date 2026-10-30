@@ -109,6 +109,13 @@ public final class Strangers {
       }
    }
 
+   /** A stranger comes to {@code c} now (a fair called him). */
+   public static void visit(MinecraftServer server, IColony c) {
+      if (on()) {
+         send(server, TradeData.get(server), c, server.overworld().getGameTime(), server.overworld().random);
+      }
+   }
+
    /** A stranger sets out for {@code c} from somewhere beyond the horizon. */
    static boolean send(MinecraftServer server, TradeData data, IColony c, long now, RandomSource rnd) {
       String key = Settlements.key(c);

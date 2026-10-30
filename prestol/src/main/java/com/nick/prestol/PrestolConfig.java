@@ -117,6 +117,7 @@ public final class PrestolConfig {
    public static final IntValue TRADE_RANGE;
    public static final IntValue MERCHANT_MARKUP;
    public static final DoubleValue STRANGER_DAYS;
+   public static final DoubleValue EVENT_DAYS;
 
    private PrestolConfig() {
    }
@@ -438,6 +439,12 @@ public final class PrestolConfig {
             "Как часто в каждое поселение державы приходит купец из дальних земель, в игровых днях (0 — не приходят). / Average game days between visits of a foreign merchant to each settlement of a realm (0: never)."
          )
          .defineInRange("strangerDays", 1.0, 0.0, 100.0);
+      b.pop();
+      b.push("events");
+      EVENT_DAYS = b.comment(
+            "Как часто у державы случается событие с выбором (неурожай, ярмарка, разбойники...), в игровых днях; 0 — никогда. / Average game days between realm events with a choice; 0: never."
+         )
+         .defineInRange("everyDays", 1.5, 0.0, 100.0);
       b.pop();
       b.push("workers");
       AI_FIXES = b.comment("Поправки ИИ жителей: инструмент в руках, лесоруб без лишней ходьбы, еда без таверны. / Citizen AI fixes.").define("aiFixes", true);

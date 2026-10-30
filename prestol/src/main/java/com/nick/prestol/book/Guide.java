@@ -103,6 +103,8 @@ public final class Guide {
       r.putInt("robberyChance", PrestolConfig.ROBBERY_CHANCE.get());
       r.putInt("escortCost", PrestolConfig.ESCORT_COST.get());
       r.putInt("autoRange", PrestolConfig.TRADE_RANGE.get());
+      r.putBoolean("events", com.nick.prestol.events.RealmEvents.on());
+      r.putString("eventDays", com.nick.prestol.trade.Prices.fmt(PrestolConfig.EVENT_DAYS.get()));
       r.putInt("markup", PrestolConfig.MERCHANT_MARKUP.get());
       r.putString("strangerDays", com.nick.prestol.trade.Prices.fmt(PrestolConfig.STRANGER_DAYS.get()));
       r.putBoolean("strangers", com.nick.prestol.trade.Strangers.on());

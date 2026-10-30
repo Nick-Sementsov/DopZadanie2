@@ -550,11 +550,58 @@ public class BookScreen extends Screen {
 
    /** The advisor: what to do next, most pressing first, each with a way to the page where it is done. */
    private int adviceColumn(GuiGraphics g, int top) {
-      return this.advice(g, 214, this.heading(g, Ink.tr("advisor"), 214, top, 158));
+      int ry = this.heading(g, Ink.tr("advisor"), 214, top, 158);
+      if (state.contains("event")) {
+         ry = this.eventBox(g, ry);
+         return this.advice(g, 214, ry, 1);
+      } else {
+         return this.advice(g, 214, ry, 3);
+      }
+   }
+
+   /** What befell the realm, and the two answers to it. */
+   private int eventBox(GuiGraphics g, int y) {
+      CompoundTag e = state.getCompound("event");
+      String k = "prestol.event." + e.getString("kind");
+      Ink.text(g, Component.translatable(k + ".title"), Ink.F_BOLD, 214, y, -7464176);
+      Component left = Component.literal(Ink.time(e.getInt("left")));
+      Ink.text(g, left, Ink.F_SMALL, 372 - Ink.width(left, Ink.F_SMALL), y + 1, -9544893);
+      y += 11;
+      y += Ink.para(g, Component.translatable(k + ".text", e.getString("place")), Ink.F_SMALL, 214, y, 158, -13951730) + 3;
+      if (e.getBoolean("decider")) {
+         for (int i = 0; i < 2; i++) {
+            String c = i == 0 ? "a" : "b";
+            int cost = e.getInt(i == 0 ? "costA" : "costB");
+            MutableComponent label = Component.translatable(k + "." + c);
+            if (cost > 0) {
+               label.append(" · " + cost);
+            }
+
+            int bx = i == 0 ? 214 : 294;
+            this.button(g, Ink.clip(label, Ink.F_SMALL, 74), bx, y, 78, true, () -> order("event " + c));
+            this.tip(bx, y, 78, 15, Component.translatable(k + "." + c + ".tip"));
+         }
+
+         y += 18;
+      } else {
+         y = this.small(g, Ink.tr("event_wait"), 214, y, 158, -9544893);
+      }
+
+      return y + 4;
    }
 
    private int advice(GuiGraphics g, int x, int ry) {
+      return this.advice(g, x, ry, 3);
+   }
+
+   private int advice(GuiGraphics g, int x, int ry, int most) {
+      int shown = 0;
+
       for (CompoundTag a : list(state, "advice")) {
+         if (shown++ >= most) {
+            break;
+         }
+
          List<Object> args = new ArrayList<>();
 
          for (Tag t : a.getList("a", 8)) {

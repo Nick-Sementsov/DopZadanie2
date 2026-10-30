@@ -40,6 +40,24 @@ final class Admin {
                Realms.chronicleAll(server, "disbanded", r.name());
                Realms.removeRealm(server, data, r, Msg.info("realm.disbanded", r.name()));
                return Realms.Result.yes(Msg.good("admin.done"));
+            case "event": {
+               // an event staged by an operator: /prestol admin event <realm> [kind]
+               Realm target = null;
+
+               for (Realm x : data.all()) {
+                  if (w.length > 2 && (x.name().equalsIgnoreCase(w[2]) || x.id().toString().equals(w[2]))) {
+                     target = x;
+                  }
+               }
+
+               if (target == null) {
+                  return Realms.Result.no(Msg.bad("err.no_realm"));
+               }
+
+               return com.nick.prestol.events.RealmEvents.stage(server, target, w.length > 3 ? w[3] : "")
+                  ? Realms.Result.yes(Msg.good("admin.done"))
+                  : Realms.Result.no(Msg.bad("err.unknown"));
+            }
             case "redraw":
                Realms.changed(server);
                return Realms.Result.yes(Msg.good("admin.done"));

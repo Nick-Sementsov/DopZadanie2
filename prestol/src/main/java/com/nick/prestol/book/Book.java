@@ -149,6 +149,8 @@ public final class Book {
                return FlagActions.choose(server, player, w.length > 1 ? w[1] : "-");
             case "standard":
                return FlagActions.standard(server, player);
+            case "event":
+               return com.nick.prestol.events.RealmEvents.order(server, player, w);
             case "land":
                return Lands.rect(
                   server, player, w[1].equals("take"), Integer.parseInt(w[2]), Integer.parseInt(w[3]), Integer.parseInt(w[4]), Integer.parseInt(w[5])
@@ -428,6 +430,11 @@ public final class Book {
       CompoundTag pending = Conquest.pendingFor(player, server);
       if (pending != null) {
          tag.put("pending", pending);
+      }
+
+      CompoundTag event = com.nick.prestol.events.RealmEvents.describe(server, mine, mine != null && Court.may(server, mine, player, Court.Office.CHANCELLOR));
+      if (event != null) {
+         tag.put("event", event);
       }
 
       try {
