@@ -26,6 +26,7 @@ run
 run-data
 logs
 mcmodsrepo
+devmods
 
 # OS
 .DS_Store

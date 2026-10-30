@@ -1418,8 +1418,9 @@ public final class CombatManager {
             return;
         }
         ServerLevel level = player.serverLevel();
+        boolean throwingWeapon = Weapons.madeForThrowing(stack);
         float damage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE) * ThrownWeapon.damageFactor(weapon)
-                * CombatConfig.damageMultiplier();
+                * (throwingWeapon ? ThrownWeapon.THROWING_WEAPON_DAMAGE : 1) * CombatConfig.damageMultiplier();
         boolean creative = player.getAbilities().instabuild;
         ItemStack thrownStack = creative ? stack.copyWithCount(1) : stack.split(1);
         ThrownWeapon thrown = new ThrownWeapon(level, player, thrownStack, weapon, damage);
@@ -1430,7 +1431,7 @@ public final class CombatManager {
         Vec3 hand = eye.add(right.scale(0.28)).add(0, -0.12, 0);
         Vec3 aim = eye.add(look.scale(16)).subtract(hand).normalize();
         thrown.setPos(hand.x, hand.y, hand.z);
-        thrown.shoot(aim.x, aim.y + 0.04, aim.z, ThrownWeapon.speed(weapon), 0.4f);
+        thrown.shoot(aim.x, aim.y + 0.04, aim.z, ThrownWeapon.speed(weapon, throwingWeapon), 0.4f);
         level.addFreshEntity(thrown);
         player.swing(InteractionHand.MAIN_HAND, true);
         player.awardStat(Stats.ITEM_USED.get(thrownStack.getItem()));

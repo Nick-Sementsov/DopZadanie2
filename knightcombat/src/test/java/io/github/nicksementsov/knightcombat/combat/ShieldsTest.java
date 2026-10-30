@@ -20,6 +20,17 @@ class ShieldsTest {
     }
 
     @Test
+    void shieldsOfTheAddonsOfEpicKnightsHaveTheirSizes() {
+        // Antique Legacy: the hoplite's round shield and the oval thureos are large, the pelta is small.
+        assertEquals(Shields.Size.LARGE, Shields.size("bronze_hoplon"));
+        assertEquals(Shields.Size.LARGE, Shields.size("bronze_tureos"));
+        assertEquals(Shields.Size.LARGE, Shields.size("bronze_imperial_scutum"));
+        assertEquals(Shields.Size.SMALL, Shields.size("pelta"));
+        // Epic Knights: Addon: the judicial dueling shield is as tall as a man.
+        assertEquals(Shields.Size.LARGE, Shields.size("dueling_shield"));
+    }
+
+    @Test
     void largerShieldsCoverMoreAndCostLessButParryShorter() {
         Shields.Size[] sizes = Shields.Size.values();
         for (int i = 1; i < sizes.length; i++) {

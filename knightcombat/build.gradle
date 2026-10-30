@@ -64,6 +64,8 @@ repositories {
         url = 'https://api.modrinth.com/maven'
         content { includeGroup 'maven.modrinth' }
     }
+    // Mods for the development game that are not on Modrinth: their jars are put into knightcombat/devmods (not in git).
+    flatDir { dirs 'devmods' }
 }
 
 dependencies {
@@ -80,6 +82,10 @@ dependencies {
         runtimeOnly fg.deobf('maven.modrinth:epic-knights-antique-legacy:4DhbZFhg') // 1.13
         runtimeOnly fg.deobf('maven.modrinth:architectury-api:1MKTLiiG') // 9.2.14
         runtimeOnly fg.deobf('maven.modrinth:cloth-config:t8TXrZvZ') // 11.1.136
+        // Epic Knights: Dark Ages is only on CurseForge: put its jar into knightcombat/devmods as epic-knights-dark-ages-1.1.jar.
+        if (file('devmods/epic-knights-dark-ages-1.1.jar').exists()) {
+            runtimeOnly fg.deobf('devmods:epic-knights-dark-ages:1.1')
+        }
     }
 
     // Unit tests for the parts of the combat rules that do not need Minecraft classes

@@ -39,8 +39,9 @@ public final class Shields {
         }
     }
 
-    private static final String[] SMALL = {"buckler", "target", "rondache", "rotella", "parma", "small"};
-    private static final String[] LARGE = {"pavise", "pavese", "scutum", "tower", "mantlet", "large", "great"};
+    private static final String[] SMALL = {"buckler", "target", "rondache", "rotella", "parma", "pelta", "small"};
+    private static final String[] LARGE = {"pavise", "pavese", "scutum", "hoplon", "aspis", "thureos", "tureos", "dueling",
+            "tower", "mantlet", "large", "great"};
 
     private Shields() {
     }

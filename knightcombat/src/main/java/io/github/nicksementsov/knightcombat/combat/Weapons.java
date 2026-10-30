@@ -32,15 +32,19 @@ public final class Weapons {
 
     private static final String[] LANCES = {"lance"};
     private static final String[] DAGGERS = {"dagger", "stiletto", "stylet", "knife", "dirk", "kunai", "tanto", "sica",
-            "shortseax", "short_seax", "sickle", "kukri", "karambit", "misericorde", "baselard"};
+            "shortseax", "short_seax", "small_seax", "sittingbourne_seax", "sickle", "kukri", "karambit", "misericorde", "baselard"};
     private static final String[] POLEAXES = {"halberd", "poleaxe", "pollaxe", "bardiche", "glaive", "voulge", "guisarme",
             "lochaber", "fauchard", "billhook", "bill_hook", "scythe", "lucern", "goedendag", "naginata", "hammerspear", "hammer_spear"};
     private static final String[] SPEARS = {"pike", "spear", "ranseur", "partisan", "rogatina", "doru", "dory", "sarissa",
-            "ahlspiess", "fork", "trident", "yari", "standard", "assegai", "hasta"};
+            "ahlspiess", "fork", "trident", "yari", "standard", "assegai", "hasta", "javelin", "pilum", "angon", "sulica"};
     private static final String[] AXES = {"axe", "tabar", "hatchet", "francisca"};
     private static final String[] BLUNT = {"mace", "hammer", "club", "flail", "morgenstern", "morningstar", "morning_star",
             "eveningstar", "evening_star", "beak", "maul", "cudgel", "warpick", "war_pick", "pernach", "shestopyor", "kanabo"};
     private static final String[] THRUSTING = {"estoc", "rapier", "smallsword", "small_sword", "tuck", "koncerz"};
+    /** Weapons made to be thrown: javelins and throwing axes. */
+    private static final String[] THROWING = {"javelin", "pilum", "angon", "sulica", "francisca", "throwing"};
+    /** A spear this much longer than an arm's reach (a sarissa, a pike) is held in both hands, whatever its mod says. */
+    private static final float LONG_SPEAR_REACH = 3.0f;
     /** Names that mean a two-handed weapon when the mod does not say how the weapon is held. */
     private static final String[] GREAT = {"great", "zweihander", "claymore", "longsword", "long_sword", "bastard",
             "flamberge", "nodachi", "odachi", "two_handed", "twohanded", "executioner", "grand"};
@@ -58,6 +62,12 @@ public final class Weapons {
 
     public static boolean isWeapon(ItemStack stack) {
         return of(stack) != null;
+    }
+
+    /** Whether the weapon is made to be thrown (a javelin, a throwing axe): it is thrown harder and flies faster. */
+    public static boolean madeForThrowing(ItemStack stack) {
+        ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        return id != null && contains(id.getPath().toLowerCase(Locale.ROOT), THROWING);
     }
 
     /** The settings that decide which items are weapons changed. */
@@ -185,8 +195,8 @@ public final class Weapons {
                 return Grip.POLEARM;
             }
             if (kind.polearm()) {
-                // One-handed spears of Epic Knights are thrown and thrust over the shield.
-                return bonusReach >= 1.0f && epic.twoHanded() >= 1 ? Grip.POLEARM : Grip.ONE_HANDED;
+                // One-handed spears of Epic Knights are thrown and thrust over the shield; a very long one is not.
+                return bonusReach >= 1.0f && epic.twoHanded() >= 1 || bonusReach >= LONG_SPEAR_REACH ? Grip.POLEARM : Grip.ONE_HANDED;
             }
             return epic.twoHanded() >= 1 ? Grip.TWO_HANDED : Grip.ONE_HANDED;
         }

@@ -94,9 +94,12 @@ public class ThrownWeapon extends AbstractArrow {
         };
     }
 
-    /** Speed of a throw in blocks per tick: light weapons fly faster. */
-    public static float speed(WeaponStats weapon) {
-        return 2.4f - 0.9f * weapon.weight() + (weapon.kind() == WeaponKind.SPEAR ? 0.3f : 0);
+    /** Weapons made to be thrown (javelins, throwing axes) strike this much harder again. */
+    public static final float THROWING_WEAPON_DAMAGE = 1.3f;
+
+    /** Speed of a throw in blocks per tick: light weapons fly faster, and those made to be thrown faster still. */
+    public static float speed(WeaponStats weapon, boolean madeForThrowing) {
+        return 2.4f - 0.9f * weapon.weight() + (weapon.kind() == WeaponKind.SPEAR ? 0.3f : 0) + (madeForThrowing ? 0.4f : 0);
     }
 
     private static int spin(WeaponStats weapon) {
