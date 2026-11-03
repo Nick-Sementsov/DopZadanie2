@@ -1,6 +1,7 @@
 package io.github.nicksementsov.druzhina.server;
 
 import io.github.nicksementsov.druzhina.DruzhinaConfig;
+import io.github.nicksementsov.druzhina.entity.Formation;
 import io.github.nicksementsov.druzhina.entity.Orders;
 import io.github.nicksementsov.druzhina.entity.Role;
 import io.github.nicksementsov.druzhina.entity.Soldier;
@@ -21,6 +22,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -32,10 +34,6 @@ import net.minecraft.world.phys.Vec3;
 public final class Army {
     /** How far the commander's voice (and his baton) carries. */
     public static final double VOICE = 64;
-    /** Soldiers stand this far apart in a line, and the ranks this far behind each other. */
-    private static final double FILE = 1.4;
-    private static final double RANK = 1.7;
-    private static final int WIDTH = 8;
 
     private Army() {
     }
@@ -189,36 +187,104 @@ public final class Army {
         }
         // facing: the way the commander looks, squared to the nearest eighth of a turn
         float face = Math.round(yaw / 45f) * 45f;
-        double fx = -Mth.sin(face * Mth.DEG_TO_RAD);
-        double fz = Mth.cos(face * Mth.DEG_TO_RAD);
-        double rx = -fz;
-        double rz = fx;
-        List<Soldier> blades = new ArrayList<>(army.stream().filter(s -> !s.role().ranged).toList());
-        List<Soldier> bows = new ArrayList<>(army.stream().filter(s -> s.role().ranged).toList());
-        int rank = 0;
-        rank = place(player.serverLevel(), blades, at, fx, fz, rx, rz, face, rank);
-        place(player.serverLevel(), bows, at, fx, fz, rx, rz, face, rank);
+        form(player.serverLevel(), army, Vec3.atBottomCenterOf(at), face, 0, Formation.LINE);
         announce(player, Orders.HOLD, army.size());
         return army.size();
     }
 
-    private static int place(ServerLevel level, List<Soldier> men, BlockPos at, double fx, double fz, double rx, double rz, float face, int rank) {
-        for (int i = 0; i < men.size(); i += WIDTH, rank++) {
-            List<Soldier> line = new ArrayList<>(men.subList(i, Math.min(men.size(), i + WIDTH)));
-            // whoever stands further to the right takes a place further to the right: nobody crosses the line
-            line.sort(Comparator.comparingDouble(s -> (s.getX() - at.getX()) * rx + (s.getZ() - at.getZ()) * rz));
-            int n = line.size();
+    /**
+     * Sends {@code men} to stand in {@code formation} at {@code center} (the middle of the front), facing {@code yaw}:
+     * the men with blades in front, the archers and crossbowmen behind them, and in every rank whoever stands
+     * further to the right takes a place further to the right, so that nobody crosses the others on the way.
+     */
+    public static void form(ServerLevel level, List<Soldier> men, Vec3 center, float yaw, double width, Formation formation) {
+        List<Soldier> order = new ArrayList<>(men);
+        order.sort(Comparator.comparing((Soldier s) -> s.role().ranged));
+        List<Vec3> slots = formation.slots(order.size(), center, yaw, width);
+        double rx = -Mth.cos(yaw * Mth.DEG_TO_RAD);
+        double rz = -Mth.sin(yaw * Mth.DEG_TO_RAD);
+        Comparator<Vec3> across = Comparator.comparingDouble(v -> (v.x - center.x) * rx + (v.z - center.z) * rz);
+        int i = 0;
+        for (int n : formation.ranks(order.size(), width)) {
+            List<Soldier> rankMen = new ArrayList<>(order.subList(i, i + n));
+            List<Vec3> rankSlots = new ArrayList<>(slots.subList(i, i + n));
+            rankMen.sort(Comparator.comparing(Soldier::position, across));
+            rankSlots.sort(across);
             for (int k = 0; k < n; k++) {
-                double side = (k - (n - 1) / 2.0) * FILE;
-                double back = rank * RANK;
-                double x = at.getX() + 0.5 + rx * side - fx * back;
-                double z = at.getZ() + 0.5 + rz * side - fz * back;
-                BlockPos spot = BlockPos.containing(x, at.getY(), z);
+                Vec3 v = rankSlots.get(k);
+                BlockPos spot = BlockPos.containing(v.x, center.y, v.z);
                 BlockPos ground = ground(level, spot);
-                line.get(k).order(Orders.HOLD, new Vec3(x, (ground != null ? ground : spot).getY(), z), face);
+                rankMen.get(k).order(Orders.HOLD, new Vec3(v.x, (ground != null ? ground : spot).getY(), v.z), yaw);
+            }
+            i += n;
+        }
+    }
+
+    // ---------------------------------------------------------------- the commander's view
+
+    /** Orders given from the commander's view (see the client's command screen). */
+    public enum Command {
+        /** Go there and stand in formation. */
+        MOVE,
+        /** Fall upon that one. */
+        ATTACK,
+        FOLLOW,
+        /** Stop and stand where you are. */
+        HOLD,
+        CHARGE;
+
+        public static Command byId(int ordinal) {
+            Command[] all = values();
+            return ordinal >= 0 && ordinal < all.length ? all[ordinal] : HOLD;
+        }
+    }
+
+    /** How far from the commander his men still hear him in his commander's view. */
+    public static final double FIELD = 160;
+
+    /** Carries out an order of the commander's view for the men picked out by their entity ids. */
+    public static void command(ServerPlayer player, int[] ids, Command command, Vec3 at, float yaw, double width, Formation formation, int target) {
+        ServerLevel level = player.serverLevel();
+        List<Soldier> men = new ArrayList<>();
+        for (int id : ids) {
+            if (level.getEntity(id) instanceof Soldier s && s.isAlive() && player.getUUID().equals(s.getOwnerUUID()) && !s.managed()
+                    && s.distanceToSqr(player) < FIELD * FIELD) {
+                men.add(s);
             }
         }
-        return rank;
+        if (men.isEmpty()) {
+            return;
+        }
+        switch (command) {
+            case MOVE -> {
+                if (at.distanceToSqr(player.position()) > FIELD * FIELD) {
+                    return;
+                }
+                form(level, men, at, yaw, Math.min(width, 64), formation);
+            }
+            case ATTACK -> {
+                if (!(level.getEntity(target) instanceof LivingEntity foe) || !foe.isAlive()) {
+                    return;
+                }
+                for (Soldier s : men) {
+                    if (s.canAttack(foe)) {
+                        s.order(Orders.CHARGE, null, 0);
+                        s.setTarget(foe);
+                    }
+                }
+            }
+            case FOLLOW -> men.forEach(s -> s.follow(null));
+            case HOLD -> men.forEach(s -> s.order(Orders.HOLD, s.position(), s.getYRot()));
+            case CHARGE -> men.forEach(s -> s.order(Orders.CHARGE, null, 0));
+        }
+        player.displayClientMessage(Component.translatable("druzhina.command." + command.name().toLowerCase(java.util.Locale.ROOT), men.size())
+                .withStyle(ChatFormatting.GOLD), true);
+        SoundEvent sound = switch (command) {
+            case ATTACK, CHARGE -> SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(2).value();
+            case FOLLOW -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
+            default -> SoundEvents.ARMOR_EQUIP_CHAIN;
+        };
+        player.playNotifySound(sound, SoundSource.PLAYERS, command == Command.ATTACK || command == Command.CHARGE ? 1.2f : 0.8f, 1.0f);
     }
 
     private static void announce(ServerPlayer player, Orders orders, int men) {

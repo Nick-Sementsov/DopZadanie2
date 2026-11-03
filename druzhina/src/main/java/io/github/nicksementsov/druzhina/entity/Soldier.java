@@ -80,6 +80,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final EntityDataAccessor<Integer> ORDERS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> RANK = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Optional<UUID>> OWNER = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.OPTIONAL_UUID);
+    private static final EntityDataAccessor<Boolean> MANAGED_DATA = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
     public static final int SKINS = 8;
     public static final int BANDIT_SKINS = 4;
     public static final int NAMES = 40;
@@ -133,6 +134,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.define(ORDERS, Orders.FOLLOW.ordinal());
         this.entityData.define(RANK, 0);
         this.entityData.define(OWNER, Optional.empty());
+        this.entityData.define(MANAGED_DATA, false);
     }
 
     @Override
@@ -275,11 +277,12 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     /** Kept by another mod (a realm's garrison): the baton does not move him and he cannot be sent home. */
     public boolean managed() {
-        return this.getPersistentData().getBoolean(MANAGED);
+        return this.entityData.get(MANAGED_DATA);
     }
 
     public void setManaged(boolean managed) {
         this.getPersistentData().putBoolean(MANAGED, managed);
+        this.entityData.set(MANAGED_DATA, managed);
     }
 
     /** Gives him a name of another mod's choosing, kept through promotions. */
@@ -712,6 +715,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (this.leader != null) {
             tag.putUUID("Leader", this.leader);
         }
+        tag.putBoolean("Managed", this.managed());
         if (!this.patrol.isEmpty()) {
             ListTag round = new ListTag();
             for (Vec3 p : this.patrol) {
@@ -752,6 +756,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.post = tag.contains("PostX") ? new Vec3(tag.getDouble("PostX"), tag.getDouble("PostY"), tag.getDouble("PostZ")) : null;
         this.postYaw = tag.getFloat("PostYaw");
         this.leader = tag.hasUUID("Leader") ? tag.getUUID("Leader") : null;
+        this.entityData.set(MANAGED_DATA, tag.getBoolean("Managed") || this.getPersistentData().getBoolean(MANAGED));
         this.patrol.clear();
         for (Tag t : tag.getList("Patrol", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) t;

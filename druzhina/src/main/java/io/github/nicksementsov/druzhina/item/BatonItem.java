@@ -64,5 +64,6 @@ public class BatonItem extends Item {
         lines.add(Component.translatable("item.druzhina.commander_baton.follow").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("item.druzhina.commander_baton.hold").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("item.druzhina.commander_baton.charge").withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("item.druzhina.commander_baton.view").withStyle(ChatFormatting.GOLD));
     }
 }
