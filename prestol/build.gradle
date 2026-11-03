@@ -53,7 +53,8 @@ repositories {
         url = 'https://api.modrinth.com/maven'
         content { includeGroup 'maven.modrinth' }
     }
-    flatDir { dirs 'libs' }
+    // Druzhina and Knightly Combat are built next door (../druzhina, ../knightcombat): build them first
+    flatDir { dirs 'libs', '../druzhina/build/libs', '../knightcombat/build/libs' }
 }
 
 dependencies {
@@ -66,7 +67,8 @@ dependencies {
     compileOnly fg.deobf("maven.modrinth:xaeros-minimap:${xaero_minimap_version}")
     compileOnly fg.deobf("maven.modrinth:xaeros-world-map:${xaero_worldmap_version}")
     compileOnly fg.deobf("maven.modrinth:immersive-paintings:${immersive_paintings_version}")
-    compileOnly fg.deobf("local:HundredYearsWar:${hyw_jar_version}")
+    compileOnly fg.deobf("local:druzhina:${druzhina_version}")
+    compileOnly fg.deobf("local:knightcombat:${knightcombat_version}")
 }
 
 tasks.named('processResources', ProcessResources).configure {

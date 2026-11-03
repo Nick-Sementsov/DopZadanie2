@@ -7,7 +7,7 @@ import com.minecolonies.core.colony.jobs.AbstractJobGuard;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.army.Army;
 import com.nick.prestol.army.Morale;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.map.MapSync;
 import com.nick.prestol.realm.Holding;
 import com.nick.prestol.realm.Realm;
@@ -298,10 +298,10 @@ public final class Sieges {
          }
       }
 
-      if (Hyw.present()) {
-         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null && !Morale.routed(ex))) {
+      if (Troops.present()) {
+         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Troops.soldierOwner(ex) != null && !Morale.routed(ex))) {
             if (inRange(colony, e)) {
-               UUID owner = Hyw.soldierOwner(e);
+               UUID owner = Troops.soldierOwner(e);
                boolean attackerx;
                if (claimant != null) {
                   attackerx = owner.equals(claimant) || onlyRealm != null && inRealm(server, data, owner, onlyRealm);
@@ -356,10 +356,10 @@ public final class Sieges {
          }
       }
 
-      if (Hyw.present() && defender != null) {
-         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Hyw.soldierOwner(ex) != null && !Morale.routed(ex))) {
+      if (Troops.present() && defender != null) {
+         for (Entity e : level.getEntities((Entity)null, area(colony), ex -> Troops.soldierOwner(ex) != null && !Morale.routed(ex))) {
             if (inRange(colony, e)) {
-               Realm rx = realmOfPlayer(server, data, Hyw.soldierOwner(e));
+               Realm rx = realmOfPlayer(server, data, Troops.soldierOwner(e));
                if (rx != null && (rx == defender || Wars.allied(rx, defender))) {
                   return true;
                }

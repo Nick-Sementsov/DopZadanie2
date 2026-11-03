@@ -4,7 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Settlements;
@@ -36,7 +36,7 @@ import net.minecraftforge.items.wrapper.PlayerMainInvWrapper;
 /**
  * Provisions: every soldier of a player carries a food bar (0-100) that empties in {@code army.provisionDays}
  * game days. It is refilled with ordinary food from the colony (warehouse, town hall, his tower), from the chests
- * of his realm's siege camp, from the supply points of Hundred Years War, or from the pack of the commander he follows. A hungry soldier is weak,
+ * of his realm's siege camp, or from the pack of the commander he follows. A hungry soldier is weak,
  * and one who starves too long deserts; a recruit goes back home to his colony.
  */
 public final class Provisions {
@@ -50,7 +50,7 @@ public final class Provisions {
 
    public static boolean on() {
       try {
-         return PrestolConfig.PROVISIONS.get() && Hyw.present();
+         return PrestolConfig.PROVISIONS.get() && Troops.present();
       } catch (IllegalStateException var1) {
          return false;
       }
@@ -89,13 +89,13 @@ public final class Provisions {
             List<Entity> soldiers = new ArrayList<>();
 
             for (Entity e : level.getAllEntities()) {
-               if (Hyw.eater(e)) {
+               if (Troops.eater(e)) {
                   soldiers.add(e);
                }
             }
 
             for (Entity unit : soldiers) {
-               Hyw.noSupply(unit);
+               Troops.noSupply(unit);
                String tag = unit.getPersistentData().getString("prestol_army");
                // militia stands for a few minutes and mercenaries bring their own bread
                if (!tag.startsWith("m|") && !tag.startsWith("x|")) {
@@ -144,7 +144,7 @@ public final class Provisions {
 
       double got = eaten / perPoint;
       if (got < points) {
-         got += Hyw.fromSupplyPoints(level, unit.blockPosition(), owner, points - got, days());
+         got += Troops.fromSupplyPoints(level, unit.blockPosition(), owner, points - got, days());
       }
 
       if (got < points) {
@@ -221,7 +221,7 @@ public final class Provisions {
             Vec3 eye = p.getEyePosition();
             Vec3 end = eye.add(p.getViewVector(1.0F).scale(10.0));
             AABB box = p.getBoundingBox().expandTowards(end.subtract(eye)).inflate(1.0);
-            EntityHitResult hit = ProjectileUtil.getEntityHitResult(p, eye, end, box, Hyw::eater, 100.0);
+            EntityHitResult hit = ProjectileUtil.getEntityHitResult(p, eye, end, box, Troops::eater, 100.0);
             if (hit != null) {
                Entity unit = hit.getEntity();
                UUID owner = ((OwnableEntity)unit).getOwnerUUID();
@@ -231,7 +231,7 @@ public final class Provisions {
                   ours = mine != null && mine == Sieges.realmOfPlayer(server, realms, owner);
                }
 
-               MutableComponent line = Component.empty().append(unit.getDisplayName()).append(" · ").append(Msg.t("army.rank", Hyw.rank(unit)));
+               MutableComponent line = Component.empty().append(unit.getDisplayName()).append(" · ").append(Msg.t("army.rank", Troops.rank(unit)));
                if (ours && on()) {
                   int food = (int)Math.round(get(unit));
                   ChatFormatting color = food >= 50 ? ChatFormatting.GREEN : (food >= 25 ? ChatFormatting.GOLD : ChatFormatting.RED);

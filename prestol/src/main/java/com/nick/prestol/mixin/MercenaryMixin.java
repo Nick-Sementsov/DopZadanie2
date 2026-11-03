@@ -21,7 +21,7 @@ public abstract class MercenaryMixin {
       remap = false,
       require = 0
    )
-   private void prestol$hywMercenaries(Context ctx, boolean isLogicalServer, IColony colony, CallbackInfo info) {
+   private void prestol$mercenaries(Context ctx, boolean isLogicalServer, IColony colony, CallbackInfo info) {
       ServerPlayer player = ctx.getSender();
       if (isLogicalServer && player != null && colony != null && player.getServer() != null && Mercenaries.on()) {
          Mercenaries.hire(player.getServer(), player, colony);

@@ -2,7 +2,7 @@ package com.nick.prestol.war;
 
 import com.minecolonies.api.research.util.ResearchConstants;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
@@ -97,7 +97,7 @@ public final class Weariness {
    public static void onDeath(LivingDeathEvent event) {
       LivingEntity dead = event.getEntity();
       MinecraftServer server = dead.getServer();
-      if (on() && server != null && Hyw.soldier(dead)) {
+      if (on() && server != null && Troops.soldier(dead)) {
          RealmData data = RealmData.get(server);
          Realm mine = Sieges.realmOfPlayer(server, data, ((OwnableEntity)dead).getOwnerUUID());
          Entity killer = event.getSource().getEntity();

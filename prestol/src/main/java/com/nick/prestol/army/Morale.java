@@ -3,7 +3,7 @@ package com.nick.prestol.army;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.economy.EconomyData;
 import com.nick.prestol.flag.Flags;
 import com.nick.prestol.economy.Treasury;
@@ -84,7 +84,7 @@ public final class Morale {
 
    public static boolean on() {
       try {
-         return PrestolConfig.MORALE.get() && Hyw.present();
+         return PrestolConfig.MORALE.get() && Troops.present();
       } catch (IllegalStateException var1) {
          return false;
       }
@@ -114,7 +114,7 @@ public final class Morale {
             List<Entity> soldiers = new ArrayList<>();
 
             for (Entity e : level.getAllEntities()) {
-               if (Hyw.eater(e)) {
+               if (Troops.eater(e)) {
                   soldiers.add(e);
                }
             }
@@ -212,7 +212,7 @@ public final class Morale {
          m += STANDARD;
       }
 
-      m += Math.min(10.0, 2.0 * Math.max(0, Hyw.rank(unit) - 1));
+      m += Math.min(10.0, 2.0 * Math.max(0, Troops.rank(unit) - 1));
       int friends = odds[0];
       int foes = odds[1];
       if (foes > 2 * friends) {
@@ -234,7 +234,7 @@ public final class Morale {
       Set<Entity> foes = new HashSet<>();
 
       for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, unit.getBoundingBox().inflate(NEAR), LivingEntity::isAlive)) {
-         if (e instanceof Mob mob && Hyw.eater(e) && cx.sameSide(owner, ((OwnableEntity)e).getOwnerUUID())) {
+         if (e instanceof Mob mob && Troops.eater(e) && cx.sameSide(owner, ((OwnableEntity)e).getOwnerUUID())) {
             friends++;
             LivingEntity t = mob.getTarget();
             if (t != null && t.isAlive() && t.distanceTo(unit) <= NEAR) {
@@ -252,7 +252,7 @@ public final class Morale {
       if (e instanceof Player p) {
          return cx.sameSide(owner, p.getUUID());
       } else {
-         return Hyw.eater(e) && cx.sameSide(owner, ((OwnableEntity)e).getOwnerUUID());
+         return Troops.eater(e) && cx.sameSide(owner, ((OwnableEntity)e).getOwnerUUID());
       }
    }
 
@@ -260,7 +260,7 @@ public final class Morale {
       if (e instanceof LivingEntity unit) {
          double bonus = m >= HIGH ? 0.1 : (m < LOW ? -0.15 : 0.0);
          DecreeBonus.set(unit, Attributes.ATTACK_DAMAGE, MELEE, "prestol_morale_melee", bonus, Operation.MULTIPLY_TOTAL);
-         Attribute ranged = Hyw.rangedDamage();
+         Attribute ranged = Troops.rangedDamage();
          if (ranged != null) {
             DecreeBonus.set(unit, ranged, RANGED, "prestol_morale_ranged", bonus, Operation.MULTIPLY_TOTAL);
          }
@@ -285,7 +285,7 @@ public final class Morale {
          if (lord) {
             side = dead.getUUID();
          } else {
-            if (!Hyw.soldier(dead)) {
+            if (!Troops.soldier(dead)) {
                return;
             }
 
@@ -297,7 +297,7 @@ public final class Morale {
          long now = level.getGameTime();
          LivingEntity killer = dead.getLastHurtByMob();
          Map<UUID, Integer> fled = new HashMap<>();
-         List<LivingEntity> around = level.getEntitiesOfClass(LivingEntity.class, dead.getBoundingBox().inflate(range), x -> x != dead && Hyw.eater(x));
+         List<LivingEntity> around = level.getEntitiesOfClass(LivingEntity.class, dead.getBoundingBox().inflate(range), x -> x != dead && Troops.eater(x));
          // a loss weighs by the share of the band it takes: one of six is a blow, one of sixty is a scratch
          int comrades = 0;
          int foes = 0;
@@ -322,7 +322,7 @@ public final class Morale {
                delta = -25.0;
             } else if (!lord && cx.sameSide(owner, side) && e.distanceTo(dead) <= NEAR) {
                // veterans have seen it before
-               double steady = Math.min(0.5, 0.06 * Math.max(0, Hyw.rank(e) - 1));
+               double steady = Math.min(0.5, 0.06 * Math.max(0, Troops.rank(e) - 1));
                delta = -blow * (1.0 - steady);
             } else if (!lord && e.distanceTo(dead) <= NEAR && killer != null && friendOf(cx, killer, owner)) {
                delta = cheer;
@@ -339,7 +339,7 @@ public final class Morale {
 
    /** Gives a soldier the flight he takes when his spirit breaks: above all his other goals, it holds his legs. */
    static void teachFlight(Entity e) {
-      if (e instanceof PathfinderMob mob && Hyw.fighter(e)) {
+      if (e instanceof PathfinderMob mob && Troops.fighter(e)) {
          mob.goalSelector.addGoal(0, new Flight(mob));
       }
    }

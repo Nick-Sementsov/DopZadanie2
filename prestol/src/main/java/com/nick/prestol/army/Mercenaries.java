@@ -3,7 +3,7 @@ package com.nick.prestol.army;
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.economy.Coins;
 import com.nick.prestol.economy.EconomyData;
 import com.nick.prestol.economy.Treasury;
@@ -40,7 +40,7 @@ public final class Mercenaries {
 
    public static boolean on() {
       try {
-         return (Boolean)PrestolConfig.MERCENARIES.get() && Hyw.present();
+         return (Boolean)PrestolConfig.MERCENARIES.get() && Troops.present();
       } catch (IllegalStateException var1) {
          return false;
       }
@@ -83,13 +83,15 @@ public final class Mercenaries {
 
             for (int i = 0; i < size; i++) {
                BlockPos at = spots.isEmpty() ? player.blockPosition() : spots.get(i % spots.size());
-               Entity unit = Hyw.spawn(level, SQUAD[i % SQUAD.length].entity, player.getUUID(), at, at, rank, tier);
+               Entity unit = Troops.spawn(level, SQUAD[i % SQUAD.length].entity, player.getUUID(), at, at, rank, tier);
                if (unit == null) {
                   break;
                }
 
                unit.getPersistentData().putString("prestol_army", "x|" + until);
-               Hyw.orders(unit, at, List.of(), player);
+               // hired swords answer to the commander's baton of the lord who pays them
+               Troops.release(unit);
+               Troops.orders(unit, at, List.of(), player);
                data.hired.put(unit.getUUID(), new ArmyData.Hire(player.getUUID(), until));
                came++;
             }
@@ -164,7 +166,7 @@ public final class Mercenaries {
             if (p != null) {
                Entity unit = p.serverLevel().getEntity(e.getKey());
                String orders = "follow|" + p.getUUID();
-               if (unit != null && !orders.equals(given.get(e.getKey())) && Hyw.orders(unit, unit.blockPosition(), List.of(), p)) {
+               if (unit != null && !orders.equals(given.get(e.getKey())) && Troops.orders(unit, unit.blockPosition(), List.of(), p)) {
                   given.put(e.getKey(), orders);
                }
             }

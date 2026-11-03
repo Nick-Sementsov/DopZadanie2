@@ -13,7 +13,7 @@ import com.nick.prestol.army.Conscripts;
 import com.nick.prestol.army.Mercenaries;
 import com.nick.prestol.army.Provisions;
 import com.nick.prestol.colony.PrestolHuts;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.flag.Flags;
 import com.nick.prestol.realm.Settlements;
 import java.util.UUID;
@@ -78,7 +78,7 @@ public final class Guide {
       r.putInt("revoltDays", PrestolConfig.REVOLT_AFTER_DAYS.get());
       r.putInt("revoltHappiness", (int)Math.round(PrestolConfig.REVOLT_HAPPINESS.get()));
       r.putInt("standardWool", PrestolConfig.STANDARD_WOOL.get());
-      r.putBoolean("hyw", Hyw.present());
+      r.putBoolean("troops", Troops.present());
       r.putBoolean("garrisons", Army.garrisons());
       r.putBoolean("conscription", Conscripts.on());
       r.putBoolean("militia", Army.militiaOn());
@@ -113,7 +113,6 @@ public final class Guide {
       r.putBoolean("camps", Camps.on());
       r.putInt("campRange", PrestolConfig.CAMP_RANGE.get());
       r.putInt("campHoldMinutes", Math.max(1, PrestolConfig.CAMP_HOLD_SECONDS.get() / 60));
-      r.putBoolean("enginesAtWar", Hyw.present() && PrestolConfig.SIEGE_ENGINES_AT_WAR_ONLY.get());
       r.putBoolean("court", Court.on());
       r.putInt("outlawDays", PrestolConfig.OUTLAW_DAYS.get());
       r.putBoolean("fealty", Fealty.on());

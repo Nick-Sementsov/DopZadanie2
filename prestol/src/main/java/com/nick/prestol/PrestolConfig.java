@@ -42,7 +42,6 @@ public final class PrestolConfig {
    public static final IntValue SIEGE_GRACE_SECONDS;
    public static final IntValue CAMP_RANGE;
    public static final IntValue CAMP_HOLD_SECONDS;
-   public static final BooleanValue SIEGE_ENGINES_AT_WAR_ONLY;
    public static final IntValue WEARINESS_HAPPINESS;
    public static final BooleanValue DEFENDER_ONLINE;
    public static final BooleanValue CAPITAL_LAST;
@@ -91,7 +90,6 @@ public final class PrestolConfig {
    public static final IntValue PROVISION_DAYS;
    public static final IntValue DAILY_RATION;
    public static final IntValue DESERT_DAYS;
-   public static final BooleanValue NO_HYW_WORKERS;
    public static final BooleanValue MORALE;
    public static final IntValue ROUT_BELOW;
    public static final BooleanValue ECONOMY;
@@ -220,10 +218,6 @@ public final class PrestolConfig {
             "Пока стоит лагерь, осада без осаждающих у ратуши держится столько секунд. / With a camp, a siege survives this long with nobody at the town hall."
          )
          .defineInRange("campHoldSeconds", 600, 1, 86400);
-      SIEGE_ENGINES_AT_WAR_ONLY = b.comment(
-            "Осадные орудия «Столетней войны» ломают блоки только в дикой земле и в поселениях врага во время войны. / HYW siege engines break blocks only in the wild and in enemy settlements at war."
-         )
-         .define("siegeEnginesOnlyAtWar", true);
       WEARINESS_HAPPINESS = b.comment(
             "Усталость от войны: на сколько процентов падает довольство жителей державы при полной усталости (0 — выключено). / War weariness: happiness lost at full weariness, percent (0 = off)."
          )
@@ -298,9 +292,9 @@ public final class PrestolConfig {
       b.push("army");
       ARMY_GARRISON = b.comment(
             new String[]{
-               "Сторожевые башни и башни казарм держат гарнизон юнитов «Столетней войны» вместо стражи MineColonies:",
-               "жители стражниками больше не нанимаются. Нужен мод Hundred Years War.",
-               "Guard towers and barracks towers keep a garrison of Hundred Years War soldiers instead of MineColonies guards."
+               "Сторожевые башни и башни казарм держат гарнизон воинов «Дружины» вместо стражи MineColonies:",
+               "жители стражниками больше не нанимаются.",
+               "Guard towers and barracks towers keep a garrison of Druzhina soldiers instead of MineColonies guards."
             }
          )
          .define("garrisonInsteadOfGuards", true);
@@ -328,8 +322,8 @@ public final class PrestolConfig {
          .defineInRange("capitalBonusPercent", 50, 0, 500);
       MERCENARIES = b.comment(
             new String[]{
-               "Кнопка «Нанять наёмников» в ратуше нанимает отряд «Столетней войны» за золото: он ходит за нанявшим и служит срок.",
-               "The town hall's \"hire mercenaries\" button hires a Hundred Years War squad for gold; it follows the hirer for a while."
+               "Кнопка «Нанять наёмников» в ратуше нанимает отряд воинов за золото: он ходит за нанявшим и служит срок.",
+               "The town hall's \"hire mercenaries\" button hires a squad of soldiers for gold; it follows the hirer for a while."
             }
          )
          .define("mercenaries", true);
@@ -360,7 +354,7 @@ public final class PrestolConfig {
       PROVISIONS = b.comment(
             new String[]{
                "Провиант: солдаты игроков едят обычную еду из колонии (склад, ратуша, своя башня), с пунктов снабжения HYW или из сумки командира.",
-               "Снабжение «Столетней войны» при этом выключается. / Soldiers eat colony food instead of Hundred Years War supply."
+               "/ Soldiers eat colony food."
             }
          )
          .define("provisions", true);
@@ -379,10 +373,6 @@ public final class PrestolConfig {
          .define("morale", true);
       ROUT_BELOW = b.comment("Ниже какого духа солдат бежит с поля боя (0 — никогда). / Morale below which a soldier flees (0 = never).")
          .defineInRange("routBelow", 20, 0, 100);
-      NO_HYW_WORKERS = b.comment(
-            "Вырезать рабочих «Столетней войны»: их нельзя нанять, их свитки и верстаки не работают. / Remove Hundred Years War workers."
-         )
-         .define("removeHywWorkers", true);
       b.pop();
       b.push("economy");
       ECONOMY = b.comment("Казна держав: налоги с поселений, жалованье гарнизонам, монеты из золота. / Realm treasuries: taxes, soldier pay, gold coins.")

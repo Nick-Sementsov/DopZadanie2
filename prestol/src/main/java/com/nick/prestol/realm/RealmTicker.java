@@ -3,7 +3,7 @@ package com.nick.prestol.realm;
 import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.util.Msg;
 import com.nick.prestol.war.Wars;
 import java.util.ArrayList;
@@ -122,7 +122,7 @@ public final class RealmTicker {
       }
 
       Wars.applyHostility(server, data);
-      Hyw.sync(server, data);
+      Troops.sync(server, data);
    }
 
    @SubscribeEvent

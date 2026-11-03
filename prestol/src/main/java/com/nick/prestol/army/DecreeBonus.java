@@ -2,7 +2,7 @@ package com.nick.prestol.army;
 
 import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.research.util.ResearchConstants;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.decree.DecreeData;
 import com.nick.prestol.decree.Decrees;
 import java.util.Map;
@@ -19,7 +19,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 
 /**
  * War decrees and laws (Mobilize, Levy, Medic) were written for MineColonies guards. With garrisons the
- * guards are Hundred Years War soldiers, so the same bonuses go onto them as attribute modifiers.
+ * guards are Druzhina soldiers, so the same bonuses go onto them as attribute modifiers.
  */
 final class DecreeBonus {
    private static final UUID HEALTH = UUID.fromString("7d0f0b8e-5a5c-4f43-9f2e-3a1d9c6e1a01");
@@ -40,7 +40,7 @@ final class DecreeBonus {
          set(unit, Attributes.MAX_HEALTH, HEALTH, "prestol_decree_health", bonus.getOrDefault(ResearchConstants.HEALTH_BOOST, 0.0), Operation.ADDITION);
          set(unit, Attributes.ATTACK_DAMAGE, MELEE, "prestol_decree_melee", bonus.getOrDefault(ResearchConstants.MELEE_DAMAGE, 0.0), Operation.ADDITION);
          set(unit, Attributes.ARMOR, ARMOR, "prestol_decree_armor", bonus.getOrDefault(ResearchConstants.MELEE_ARMOR, 0.0), Operation.MULTIPLY_BASE);
-         Attribute ranged = Hyw.rangedDamage();
+         Attribute ranged = Troops.rangedDamage();
          if (ranged != null) {
             set(unit, ranged, RANGED, "prestol_decree_ranged", bonus.getOrDefault(ResearchConstants.ARCHER_DAMAGE, 0.0), Operation.ADDITION);
          }

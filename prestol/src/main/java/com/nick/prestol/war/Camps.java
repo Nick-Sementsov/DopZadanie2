@@ -3,7 +3,7 @@ package com.nick.prestol.war;
 import com.minecolonies.api.colony.IColony;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.army.Morale;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
@@ -152,7 +152,7 @@ public final class Camps {
          Realms.chronicle(server, "camp_razed", List.of(who, name), mine, defender);
          AABB around = new AABB(pos).inflate(AURA);
 
-         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, around, Hyw::eater)) {
+         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, around, Troops::eater)) {
             Realm theirs = Sieges.realmOfPlayer(server, realms, ((OwnableEntity)e).getOwnerUUID());
             if (mine != null && theirs == mine) {
                Morale.shock(e, RAZED_SHOCK);

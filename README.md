@@ -4,7 +4,7 @@
 |-----|-------|---------|
 | [Дружина](druzhina/README.md) | `druzhina/` | Своё войско: найм воинов у вербовочного стола, приказы жезлом воеводы (за мной, строй, в атаку), звания за победы, шайки разбойников. Воины дерутся по правилам «Рыцарского боя», как игрок |
 | [Рыцарский бой](knightcombat/README.md) | `knightcombat/` | Ближний бой в духе Chivalry 2: удары с направлением, тяжёлые удары, комбо, блок и парирование, щиты, рипост, финты, пинок, уклонения, броски оружия, таран копьём, выносливость. С 2.8.0 — бойцы-NPC других модов |
-| Престол | `prestol/` | Связка MineColonies и Hundred Years War (отдельный проект, см. `prestol/`) |
+| [Престол](prestol/README.md) | `prestol/` | Державы, войны и осады для MineColonies; войско держав — воины «Дружины» (отдельный Gradle-проект, собирается после «Дружины») |
 
 ## Сборка
 
@@ -16,4 +16,5 @@
 | `./gradlew :knightcombat:build` | «Рыцарский бой» → `knightcombat/build/libs/knightcombat-2.8.0.jar` |
 | `./gradlew :druzhina:runClient` | Minecraft с «Дружиной» и «Рыцарским боем» |
 
-«Дружине» нужен «Рыцарский бой»: в папку `mods` кладутся оба `.jar`.
+«Дружине» нужны «Рыцарский бой» и Epic Knights (с Architectury и Cloth Config); аддоны Epic Knights (Slavic Armory,
+Addon) желательны. «Престолу» нужны «Дружина», MineColonies, Betsy Ross и Immersive Paintings.

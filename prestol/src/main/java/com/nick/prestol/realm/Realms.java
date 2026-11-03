@@ -4,7 +4,7 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.economy.Treasury;
 import com.nick.prestol.flag.TownFlags;
 import com.nick.prestol.map.MapSync;
@@ -223,7 +223,7 @@ public final class Realms {
 
    public static void removeRealm(MinecraftServer server, RealmData data, Realm realm, Component announce) {
       data.remove(realm);
-      Hyw.onRealmRemoved(server, realm);
+      Troops.onRealmRemoved(server, realm);
       Wars.onRealmRemoved(server, realm);
       Court.onRealmRemoved(server, realm);
       Fealty.onRealmRemoved(server, realm);

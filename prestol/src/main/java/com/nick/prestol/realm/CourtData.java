@@ -19,7 +19,7 @@ public final class CourtData extends SavedData {
    private static final String NAME = "prestol_court";
    final Map<UUID, Map<Court.Office, UUID>> offices = new HashMap<>();
    final Map<UUID, Map<UUID, CourtData.Outlaw>> outlaws = new HashMap<>();
-   /** The outlaws whose hostility was handed to Hundred Years War, to take it back on a pardon. */
+   /** The outlaws the realm's soldiers were last told to fall upon. */
    final Map<UUID, Set<UUID>> hywHostile = new HashMap<>();
 
    public static CourtData get(MinecraftServer server) {

@@ -15,22 +15,7 @@
     "GuardHireMixin",
     "SecurityMixin",
     "ManyColoniesMixin",
-    "MercenaryMixin",
-    "RecipeFilterMixin",
-    "hyw.RecruitmentMixin",
-    "hyw.SupplyMixin",
-    "hyw.ElephantPathMixin",
-    "hyw.ElephantTrampleMixin",
-    "hyw.FlagSourcesMixin",
-    "hyw.ColonyFlagsMixin",
-    "hyw.CaptainOrdersMixin",
-    "hyw.CaptainExtMixin",
-    "hyw.SharedPathAccess",
-    "hyw.GroupPathSkipMixin",
-    "hyw.SpoilerClientCheckMixin",
-    "hyw.RoutTargetMixin",
-    "hyw.SiegeBreakMixin",
-    "hyw.RamBreakMixin"
+    "MercenaryMixin"
   ],
   "client": [
     "GuiMapMixin",

@@ -11,7 +11,6 @@ import com.nick.prestol.client.PrestolClient;
 import com.nick.prestol.colony.PrestolHuts;
 import com.nick.prestol.trade.TradeEntities;
 import com.nick.prestol.trade.TradeWorld;
-import com.nick.prestol.compat.HywRules;
 import com.nick.prestol.decree.Decrees;
 import com.nick.prestol.decree.EffectBoost;
 import com.nick.prestol.economy.Treasury;
@@ -81,11 +80,6 @@ public class Prestol {
       MinecraftForge.EVENT_BUS.register(TradeWorld.class);
       MinecraftForge.EVENT_BUS.register(Camps.class);
       MinecraftForge.EVENT_BUS.register(Court.class);
-      if (ModList.get().isLoaded("hundred_years_war")) {
-         MinecraftForge.EVENT_BUS.register(HywRules.class);
-         modBus.addListener(HywRules::onTabs);
-      }
-
       DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> PrestolClient.init(modBus));
    }
 

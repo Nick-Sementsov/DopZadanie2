@@ -14,7 +14,7 @@ import com.minecolonies.core.colony.jobs.JobCombatTraining;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
@@ -74,7 +74,7 @@ public final class Army {
 
    public static boolean garrisons() {
       try {
-         return (Boolean)PrestolConfig.ARMY_GARRISON.get() && Hyw.present();
+         return (Boolean)PrestolConfig.ARMY_GARRISON.get() && Troops.present();
       } catch (IllegalStateException var1) {
          return false;
       }
@@ -82,7 +82,7 @@ public final class Army {
 
    public static boolean militiaOn() {
       try {
-         return (Boolean)PrestolConfig.MILITIA.get() && Hyw.present();
+         return (Boolean)PrestolConfig.MILITIA.get() && Troops.present();
       } catch (IllegalStateException var1) {
          return false;
       }
@@ -136,9 +136,12 @@ public final class Army {
    }
 
    public static void tick(MinecraftServer server) {
-      if (Hyw.present()) {
+      if (Troops.present()) {
          ArmyData data = ArmyData.get(server);
          long now = now(server);
+         if (data.troops < ArmyData.TROOPS) {
+            standDownOldTroops(server, data);
+         }
          if (Mercenaries.on() || !data.hired.isEmpty()) {
             Mercenaries.tick(server, data, now, GIVEN);
          }
@@ -281,7 +284,7 @@ public final class Army {
 
          for (UUID id : p.units) {
             Entity unit = level.getEntity(id);
-            if (unit != null && !orders.equals(GIVEN.get(id)) && Hyw.orders(unit, home, var14, follow)) {
+            if (unit != null && !orders.equals(GIVEN.get(id)) && Troops.orders(unit, home, var14, follow)) {
                GIVEN.put(id, orders);
             }
          }
@@ -384,7 +387,7 @@ public final class Army {
          p.nextAt = now + 200L;
       } else {
          BlockPos at = stand(level, b);
-         Entity unit = Hyw.spawn(level, p.type.entity, p.owner, at, at, b.getBuildingLevel(), tier(b.getBuildingLevel()));
+         Entity unit = Troops.spawn(level, p.type.entity, p.owner, at, at, b.getBuildingLevel(), tier(b.getBuildingLevel()));
          if (unit == null) {
             p.lack = "SPAWN";
             p.nextAt = now + 600L;
@@ -398,7 +401,7 @@ public final class Army {
             if (recruit != null) {
                String name = recruit.getName();
                data.conscripts.put(unit.getUUID(), new ArmyData.Conscript(Settlements.key(colony), Conscripts.enlist(colony, recruit)));
-               unit.setCustomName(Conscripts.soldierName(name, p.type));
+               Troops.name(unit, Conscripts.soldierName(name, p.type));
                Realms.tellColony(level.getServer(), colony, Msg.info("army.conscripted", name, colony.getName()));
             }
 
@@ -408,6 +411,37 @@ public final class Army {
             data.setDirty();
          }
       }
+   }
+
+   /**
+    * A world from Prestol 1.x kept Hundred Years War units in its garrisons, militia and mercenary bands. They are
+    * gone with that mod: their places are freed, the citizens drafted into them come home, and the towers raise
+    * Druzhina soldiers in their stead.
+    */
+   private static void standDownOldTroops(MinecraftServer server, ArmyData data) {
+      int units = 0;
+      for (ArmyData.Post p : data.posts.values()) {
+         for (UUID u : new ArrayList<>(p.units)) {
+            dismiss(server, data, u);
+            units++;
+         }
+         p.units.clear();
+         p.nextAt = 0L;
+         p.lack = "";
+      }
+      for (UUID u : new ArrayList<>(data.militia.keySet())) {
+         dismiss(server, data, u);
+         units++;
+      }
+      data.militia.clear();
+      for (UUID u : new ArrayList<>(data.hired.keySet())) {
+         dismiss(server, data, u);
+         units++;
+      }
+      data.hired.clear();
+      data.troops = ArmyData.TROOPS;
+      data.setDirty();
+      Prestol.LOGGER.info("Prestol: {} Hundred Years War soldiers stood down; the garrisons are raised again from Druzhina soldiers", units);
    }
 
    /** A starving garrison soldier leaves his post; a recruit goes back to his colony. */
@@ -425,7 +459,7 @@ public final class Army {
    }
 
    public static void inspect(MinecraftServer server) {
-      if (Hyw.present() && (Provisions.on() || Morale.on())) {
+      if (Troops.present() && (Provisions.on() || Morale.on())) {
          Provisions.inspect(server);
       }
    }
@@ -535,7 +569,7 @@ public final class Army {
 
                      for (UUID id : p == null ? Set.<UUID>of() : p.units) {
                         Entity unit = level == null ? null : level.getEntity(id);
-                        int rank = unit == null ? -1 : Hyw.rank(unit);
+                        int rank = unit == null ? -1 : Troops.rank(unit);
                         if (rank >= 0) {
                            low = Math.min(low, rank);
                            high = Math.max(high, rank);
@@ -607,8 +641,9 @@ public final class Army {
       return best;
    }
 
+   /** How far a school trains the men of a post: a recruit (1) up to a hero ({@link Troops#maxRank()}). */
    private static int cap(IBuilding post, int school) {
-      return post.getBuildingLevel() + 2 * school;
+      return Math.min(Troops.maxRank(), 1 + (post.getBuildingLevel() + 2 * school) / 4);
    }
 
    private static void train(MinecraftServer server, ArmyData data) {
@@ -626,9 +661,8 @@ public final class Army {
 
                      for (UUID id : p.units) {
                         Entity unit = level.getEntity(id);
-                        int rank = unit == null ? -1 : Hyw.rank(unit);
-                        if (rank >= 0 && rank < cap) {
-                           Hyw.rankUp(unit);
+                        int rank = unit == null ? -1 : Troops.rank(unit);
+                        if (rank >= 0 && rank < cap && Troops.rankUp(unit)) {
                            taught++;
                         }
                      }
@@ -705,7 +739,7 @@ public final class Army {
 
          for (int i = 0; i < size && i < adults.size(); i++) {
             BlockPos at = spots.isEmpty() ? home.above() : spots.get(i % spots.size());
-            Entity unit = Hyw.spawn(level, UnitType.MILITIA.entity, owner, at, at, 1, tier);
+            Entity unit = Troops.spawn(level, UnitType.MILITIA.entity, owner, at, at, 1, tier);
             if (unit == null) {
                break;
             }

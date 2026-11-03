@@ -23,6 +23,9 @@ public final class ArmyData extends SavedData {
    final Map<UUID, ArmyData.Hire> hired = new HashMap<>();
    /** Garrison soldiers raised from citizens: who they were, so they can come home when discharged. */
    final Map<UUID, ArmyData.Conscript> conscripts = new HashMap<>();
+   /** Whose soldiers the garrisons are: 1 for Hundred Years War units (Prestol 1.x), 2 for Druzhina soldiers. */
+   int troops = TROOPS;
+   static final int TROOPS = 2;
 
    public static ArmyData get(MinecraftServer server) {
       return (ArmyData)server.overworld().getDataStorage().computeIfAbsent(ArmyData::load, ArmyData::new, "prestol_army");
@@ -127,6 +130,7 @@ public final class ArmyData extends SavedData {
          drafted.add(t);
       });
       tag.put("conscripts", drafted);
+      tag.putInt("troops", this.troops);
       return tag;
    }
 
@@ -173,6 +177,9 @@ public final class ArmyData extends SavedData {
          CompoundTag t = (CompoundTag)x;
          d.conscripts.put(t.getUUID("unit"), new ArmyData.Conscript(t.getString("settlement"), t.getCompound("citizen")));
       }
+
+      // a world from before Druzhina: its garrisons are Hundred Years War units
+      d.troops = tag.contains("troops") ? tag.getInt("troops") : 1;
 
       return d;
    }

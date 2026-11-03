@@ -36,10 +36,11 @@ displayTest="MATCH_VERSION"
     ordering="AFTER"
     side="BOTH"
 
+# The realms' soldiers are the soldiers of Druzhina (and so fight by Knightly Combat, armed from Epic Knights)
 [[dependencies.prestol]]
-    modId="hundred_years_war"
-    mandatory=false
-    versionRange="[0.7,)"
+    modId="druzhina"
+    mandatory=true
+    versionRange="[1.0.0,)"
     ordering="AFTER"
     side="BOTH"
 

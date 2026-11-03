@@ -5,7 +5,7 @@ import com.minecolonies.api.colony.IColonyManager;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.PrestolConfig;
 import com.nick.prestol.realm.Court;
-import com.nick.prestol.compat.Hyw;
+import com.nick.prestol.compat.Troops;
 import com.nick.prestol.economy.Coins;
 import com.nick.prestol.economy.EconomyData;
 import com.nick.prestol.land.Territory;
@@ -503,11 +503,11 @@ public final class TradeWorld {
             if (t.escorted && realm != null) {
                for (int i = 0; i < t.guards; i++) {
                   Vec3 p = surface(level, at.add(back.scale(-1.0 - i)).add(i % 2 == 0 ? 1.2 : -1.2, 0.0, 0.0), false);
-                  Entity guard = Hyw.spawn(level, "spear_man", realm.ruler(), BlockPos.containing(p), BlockPos.containing(p), 2, 1);
+                  Entity guard = Troops.spawn(level, "spear_man", realm.ruler(), BlockPos.containing(p), BlockPos.containing(p), 2, 1);
                   if (guard != null) {
                      guard.addTag(TAG);
                      guard.getPersistentData().putString("prestol_army", "x|escort");
-                     Hyw.orders(guard, BlockPos.containing(p), List.of(), m);
+                     Troops.orders(guard, BlockPos.containing(p), List.of(), m);
                      t.beasts.add(guard.getUUID());
                   }
                }
