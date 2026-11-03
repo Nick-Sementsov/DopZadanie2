@@ -4,14 +4,21 @@ import io.github.nicksementsov.druzhina.entity.ai.CommanderTargetGoal;
 import io.github.nicksementsov.druzhina.entity.ai.DuelGoal;
 import io.github.nicksementsov.druzhina.entity.ai.FollowCommanderGoal;
 import io.github.nicksementsov.druzhina.entity.ai.HoldPostGoal;
+import io.github.nicksementsov.druzhina.entity.ai.PatrolGoal;
+import io.github.nicksementsov.druzhina.api.Relations;
+import io.github.nicksementsov.druzhina.registry.DruzhinaAttributes;
 import io.github.nicksementsov.druzhina.entity.ai.VolleyGoal;
 import io.github.nicksementsov.knightcombat.api.CombatFighter;
 import io.github.nicksementsov.knightcombat.api.KnightCombatApi;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -54,6 +61,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ShieldItem;
@@ -78,6 +86,8 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     /** Kills needed for each rank above recruit. */
     private static final int[] RANK_KILLS = {3, 10, 25};
     private static final int HEAL_DELAY = 200;
+    private static final String MANAGED = "druzhina.managed";
+    private static final String NAMED = "druzhina.named";
 
     @Nullable
     private Vec3 post;
@@ -88,6 +98,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private int given;
     private long lastFight;
     private long dismissAsked = Long.MIN_VALUE / 2;
+    /** Whom he follows when it is not his commander (a guard captain's rally, a lord's escort), or null. */
+    @Nullable
+    private UUID leader;
+    /** Places he walks between, back and forth, when he patrols. */
+    private final List<Vec3> patrol = new ArrayList<>();
+    private int patrolIndex;
+    private int patrolStep = 1;
 
     public Soldier(EntityType<? extends Soldier> type, Level level) {
         super(type, level);
@@ -104,7 +121,8 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             // like a player's bare hand: the weapon adds the rest
             .add(Attributes.ATTACK_DAMAGE, 1.0)
             .add(Attributes.FOLLOW_RANGE, 32.0)
-            .add(Attributes.ARMOR, 0.0);
+            .add(Attributes.ARMOR, 0.0)
+            .add(DruzhinaAttributes.RANGED_DAMAGE.get());
     }
 
     @Override
@@ -124,6 +142,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.goalSelector.addGoal(1, new VolleyGoal(this));
         this.goalSelector.addGoal(2, new OpenDoorGoal(this, true));
         this.goalSelector.addGoal(3, new HoldPostGoal(this));
+        this.goalSelector.addGoal(3, new PatrolGoal(this));
         this.goalSelector.addGoal(4, new FollowCommanderGoal(this));
         this.goalSelector.addGoal(6, new BanditStrollGoal(this));
         this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
@@ -132,16 +151,20 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.targetSelector.addGoal(2, new CommanderTargetGoal(this));
         // monsters for the hired, bandits for everyone else
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Mob.class, 10, true, false, this::isFoe));
-        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, p -> this.isBandit()));
+        // bandits hate everyone; soldiers hate the commanders their own commander is at war with, and his outlaws
+        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+                p -> this.withinReach(p) && (this.isBandit() || !this.isBandit() && this.getOwnerUUID() != null
+                        && Relations.between(this.getOwnerUUID(), p.getUUID()) == Relations.Stance.ENEMY)));
         this.targetSelector.addGoal(5, new NearestAttackableTargetGoal<>(this, AbstractVillager.class, 10, true, false, v -> this.isBandit()));
     }
 
     /** Whom this soldier attacks on sight. */
     private boolean isFoe(LivingEntity e) {
-        if (!this.withinReach(e)) {
+        if (!this.withinReach(e) || this.routed()) {
             return false;
         } else if (e instanceof Soldier other) {
-            return this.isBandit() != other.isBandit();
+            return this.isBandit() != other.isBandit()
+                    || !this.isBandit() && Relations.between(this.getOwnerUUID(), other.getOwnerUUID()) == Relations.Stance.ENEMY;
         } else if (this.isBandit()) {
             return false;
         } else {
@@ -160,6 +183,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         double leash = this.role().ranged ? 26 : 16;
         return switch (this.orders()) {
             case CHARGE -> true;
+            case PATROL -> {
+                double best = Double.MAX_VALUE;
+                for (Vec3 p : this.patrol) {
+                    best = Math.min(best, e.distanceToSqr(p));
+                }
+                yield best < (leash + 4) * (leash + 4);
+            }
             case HOLD -> this.post == null || e.distanceToSqr(this.post) < leash * leash;
             case FOLLOW -> {
                 Player boss = this.commander();
@@ -205,10 +235,63 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         return this.entityData.get(OWNER).orElse(null);
     }
 
+    /** Whom he follows: the one he was told to follow, or else his commander. */
     @Nullable
     public Player commander() {
+        UUID id = this.leader != null ? this.leader : this.getOwnerUUID();
+        return id == null ? null : this.level().getPlayerByUUID(id);
+    }
+
+    /** The player who hired him (or whose realm he serves). */
+    @Nullable
+    public Player owner() {
         UUID id = this.getOwnerUUID();
         return id == null ? null : this.level().getPlayerByUUID(id);
+    }
+
+    public List<Vec3> patrol() {
+        return this.patrol;
+    }
+
+    /** The next place of his round, and turns back at the ends of it. */
+    @Nullable
+    public Vec3 nextWaypoint(boolean reached) {
+        if (this.patrol.isEmpty()) {
+            return null;
+        }
+        if (reached) {
+            if (this.patrol.size() == 1) {
+                this.patrolIndex = 0;
+            } else {
+                if (this.patrolIndex + this.patrolStep < 0 || this.patrolIndex + this.patrolStep >= this.patrol.size()) {
+                    this.patrolStep = -this.patrolStep;
+                }
+                this.patrolIndex += this.patrolStep;
+            }
+        }
+        this.patrolIndex = Math.max(0, Math.min(this.patrol.size() - 1, this.patrolIndex));
+        return this.patrol.get(this.patrolIndex);
+    }
+
+    /** Kept by another mod (a realm's garrison): the baton does not move him and he cannot be sent home. */
+    public boolean managed() {
+        return this.getPersistentData().getBoolean(MANAGED);
+    }
+
+    public void setManaged(boolean managed) {
+        this.getPersistentData().putBoolean(MANAGED, managed);
+    }
+
+    /** Gives him a name of another mod's choosing, kept through promotions. */
+    public void setOwnName(Component name) {
+        this.getPersistentData().putBoolean(NAMED, true);
+        this.setCustomName(name);
+        this.setCustomNameVisible(false);
+    }
+
+    /** His spirit is broken: he runs instead of fighting. */
+    public boolean routed() {
+        return Relations.routed(this);
     }
 
     @Nullable
@@ -222,13 +305,18 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     /** Sets up a new soldier of {@code role}, serving {@code owner} (or nobody: a bandit). */
     public void enlist(Role role, @Nullable UUID owner, RandomSource rnd) {
+        this.enlist(role, owner, role.grade, rnd);
+    }
+
+    /** Sets up a new soldier of {@code role} with a kit of the given grade (see {@link Kits}). */
+    public void enlist(Role role, @Nullable UUID owner, int grade, RandomSource rnd) {
         this.entityData.set(ROLE, role.ordinal());
         this.entityData.set(SKIN, rnd.nextInt(role.bandit ? BANDIT_SKINS : SKINS));
         this.entityData.set(OWNER, Optional.ofNullable(owner));
         this.nameIndex = rnd.nextInt(NAMES);
         // Knightly Combat draws the blows from the right hand
         this.setLeftHanded(false);
-        role.equip(this, rnd);
+        Kits.equip(this, role, grade, rnd);
         if (!role.bandit) {
             // a soldier stays in the world; bandits who are left far behind go their way
             this.setPersistenceRequired();
@@ -247,9 +335,57 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.set(ORDERS, orders.ordinal());
         this.post = post;
         this.postYaw = yaw;
+        this.leader = null;
+        if (orders != Orders.PATROL) {
+            this.patrol.clear();
+        }
         if (orders != Orders.CHARGE) {
             this.setTarget(null);
         }
+    }
+
+    /** Follow {@code leader} (null: his commander). */
+    public void follow(@Nullable UUID leader) {
+        this.order(Orders.FOLLOW, null, 0);
+        this.leader = leader;
+    }
+
+    /** Walk the round through {@code points} and back, and fight what comes near it. */
+    public void patrol(List<Vec3> points) {
+        if (points.isEmpty()) {
+            return;
+        }
+        this.order(Orders.PATROL, points.get(0), 0);
+        this.patrol.clear();
+        this.patrol.addAll(points);
+        this.patrolIndex = 0;
+        this.patrolStep = 1;
+    }
+
+    /** One rank up (no further than the highest), with what a rank gives. */
+    public void promote() {
+        int rank = this.rank();
+        if (rank < RANK_KILLS.length) {
+            this.entityData.set(RANK, rank + 1);
+            this.kills = Math.max(this.kills, RANK_KILLS[rank]);
+            this.applyRank();
+            this.heal(4.0f);
+            this.rename();
+        }
+    }
+
+    /** Sets his rank outright (0 to 3), as for a veteran raised from a seasoned garrison. */
+    public void setRank(int rank) {
+        int r = Math.max(0, Math.min(RANK_KILLS.length, rank));
+        this.entityData.set(RANK, r);
+        this.kills = r == 0 ? 0 : Math.max(this.kills, RANK_KILLS[r - 1]);
+        this.applyRank();
+        this.setHealth(this.getMaxHealth());
+        this.rename();
+    }
+
+    public static int maxRank() {
+        return RANK_KILLS.length;
     }
 
     private void applyRank() {
@@ -266,6 +402,10 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     /** The name over his head: his own, his role and, once he has earned it, his rank. */
     private void rename() {
+        if (this.getPersistentData().getBoolean(NAMED) && this.hasCustomName()) {
+            // named by someone else (a conscript keeps the name he had at home)
+            return;
+        }
         if (this.nameIndex < 0) {
             this.nameIndex = this.random.nextInt(NAMES);
         }
@@ -291,11 +431,11 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
                 return this.isBandit() && s.isBandit();
             }
 
-            // men of the same commander (or men of nobody, the free companies) stand together
-            return java.util.Objects.equals(this.getOwnerUUID(), s.getOwnerUUID()) || super.isAlliedTo(other);
+            // men of the same commander (or men of nobody, the free companies) stand together, and so do allies
+            return Relations.between(this.getOwnerUUID(), s.getOwnerUUID()) == Relations.Stance.ALLY || super.isAlliedTo(other);
         } else {
             UUID mine = this.getOwnerUUID();
-            if (mine != null && mine.equals(other.getUUID())) {
+            if (mine != null && other instanceof Player && Relations.between(mine, other.getUUID()) == Relations.Stance.ALLY) {
                 return true;
             } else if (mine != null && other instanceof OwnableEntity pet && mine.equals(pet.getOwnerUUID())) {
                 return true;
@@ -342,7 +482,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.heal(4.0f);
             this.rename();
             this.playSound(SoundEvents.PLAYER_LEVELUP, 0.6f, 1.2f);
-            Player boss = this.commander();
+            Player boss = this.owner();
             if (boss != null) {
                 boss.displayClientMessage(Component.translatable("druzhina.msg.promoted", this.plainName(), Component.translatable("druzhina.rank." + (rank + 1))).withStyle(ChatFormatting.GOLD), false);
             }
@@ -371,7 +511,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     @Override
     public void die(DamageSource source) {
         if (!this.level().isClientSide) {
-            Player boss = this.commander();
+            Player boss = this.owner();
             if (boss != null) {
                 boss.displayClientMessage(Component.translatable("druzhina.msg.fallen", this.getDisplayName()).withStyle(ChatFormatting.RED), false);
             }
@@ -415,7 +555,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         } else {
             ItemStack held = player.getItemInHand(hand);
             EquipmentSlot slot = slotFor(held);
-            if (held.isEmpty() && player.isShiftKeyDown()) {
+            if (held.isEmpty() && player.isShiftKeyDown() && !this.managed()) {
                 // Shift and an empty hand, twice: he is let go
                 long now = this.level().getGameTime();
                 if (now - this.dismissAsked < 60) {
@@ -478,7 +618,8 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             return armor.getEquipmentSlot();
         } else if (stack.getItem() instanceof ShieldItem && !this.role().ranged) {
             return EquipmentSlot.OFFHAND;
-        } else if (this.role().ranged ? stack.getItem() instanceof BowItem : KnightCombatApi.weapon(stack) != null) {
+        } else if (this.role() == Role.CROSSBOWMAN ? stack.getItem() instanceof CrossbowItem
+                : this.role().ranged ? stack.getItem() instanceof BowItem : KnightCombatApi.weapon(stack) != null) {
             return EquipmentSlot.MAINHAND;
         } else {
             return null;
@@ -502,6 +643,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     @Override
     public void performRangedAttack(LivingEntity target, float power) {
+        boolean crossbow = this.getMainHandItem().getItem() instanceof CrossbowItem;
         ItemStack arrowStack = new ItemStack(Items.ARROW);
         AbstractArrow arrow = ProjectileUtil.getMobArrow(this, arrowStack, power);
         double dx = target.getX() - this.getX();
@@ -510,9 +652,15 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         double d = Math.sqrt(dx * dx + dz * dz);
         // a steadier hand with every rank
         float spread = Math.max(2.0f, 10.0f - 8.0f * this.skill());
-        arrow.shoot(dx, dy + d * 0.2, dz, 1.6f, spread);
+        float speed = crossbow ? 2.6f : 1.6f;
+        arrow.shoot(dx, dy + d * (crossbow ? 0.08 : 0.2), dz, speed, spread * (crossbow ? 0.7f : 1.0f));
+        // a bolt goes through mail; laws and good spirit make the shots tell (an attribute others may raise)
+        arrow.setBaseDamage(arrow.getBaseDamage() + (crossbow ? 1.5 : 0) + this.getAttributeValue(DruzhinaAttributes.RANGED_DAMAGE.get()));
+        if (crossbow) {
+            arrow.setShotFromCrossbow(true);
+        }
         arrow.pickup = AbstractArrow.Pickup.DISALLOWED;
-        this.playSound(SoundEvents.SKELETON_SHOOT, 1.0f, 1.0f / (this.getRandom().nextFloat() * 0.4f + 0.8f));
+        this.playSound(crossbow ? SoundEvents.CROSSBOW_SHOOT : SoundEvents.SKELETON_SHOOT, 1.0f, 1.0f / (this.getRandom().nextFloat() * 0.4f + 0.8f));
         this.level().addFreshEntity(arrow);
     }
 
@@ -561,6 +709,21 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             tag.putUUID("Commander", owner);
         }
 
+        if (this.leader != null) {
+            tag.putUUID("Leader", this.leader);
+        }
+        if (!this.patrol.isEmpty()) {
+            ListTag round = new ListTag();
+            for (Vec3 p : this.patrol) {
+                CompoundTag t = new CompoundTag();
+                t.putDouble("X", p.x);
+                t.putDouble("Y", p.y);
+                t.putDouble("Z", p.z);
+                round.add(t);
+            }
+            tag.put("Patrol", round);
+            tag.putInt("PatrolIndex", this.patrolIndex);
+        }
         if (this.post != null) {
             tag.putDouble("PostX", this.post.x);
             tag.putDouble("PostY", this.post.y);
@@ -588,6 +751,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.set(OWNER, tag.hasUUID("Commander") ? Optional.of(tag.getUUID("Commander")) : Optional.empty());
         this.post = tag.contains("PostX") ? new Vec3(tag.getDouble("PostX"), tag.getDouble("PostY"), tag.getDouble("PostZ")) : null;
         this.postYaw = tag.getFloat("PostYaw");
+        this.leader = tag.hasUUID("Leader") ? tag.getUUID("Leader") : null;
+        this.patrol.clear();
+        for (Tag t : tag.getList("Patrol", Tag.TAG_COMPOUND)) {
+            CompoundTag c = (CompoundTag) t;
+            this.patrol.add(new Vec3(c.getDouble("X"), c.getDouble("Y"), c.getDouble("Z")));
+        }
+        this.patrolIndex = tag.getInt("PatrolIndex");
         this.applyRank();
         if (this.nameIndex >= 0) {
             this.rename();

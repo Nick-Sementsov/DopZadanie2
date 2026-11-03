@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShieldItem;
 
@@ -53,6 +54,9 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
         ItemStack stack = soldier.getItemInHand(hand);
         if (stack.isEmpty()) {
             return HumanoidModel.ArmPose.EMPTY;
+        }
+        if (stack.getItem() instanceof CrossbowItem) {
+            return soldier.isUsingItem() && soldier.getUsedItemHand() == hand ? HumanoidModel.ArmPose.CROSSBOW_CHARGE : HumanoidModel.ArmPose.CROSSBOW_HOLD;
         }
         if (soldier.isUsingItem() && soldier.getUsedItemHand() == hand) {
             if (stack.getItem() instanceof BowItem) {

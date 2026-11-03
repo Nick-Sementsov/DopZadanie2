@@ -32,3 +32,26 @@ description='''${mod_description}'''
     versionRange="[2.8.0,)"
     ordering="AFTER"
     side="BOTH"
+
+# Every soldier is armed and armoured from Epic Knights
+[[dependencies.${mod_id}]]
+    modId="magistuarmory"
+    mandatory=true
+    versionRange="[10.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+# More arms and armour when these addons are there: the mail and scale of the Rus, more swords, axes and spears
+[[dependencies.${mod_id}]]
+    modId="slavicarmory"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="magistuarmoryaddon"
+    mandatory=false
+    versionRange="*"
+    ordering="AFTER"
+    side="BOTH"

@@ -9,7 +9,9 @@ public enum Orders {
     /** Stand at his post; fight what comes close and go back there. */
     HOLD,
     /** Fall upon every enemy around. */
-    CHARGE;
+    CHARGE,
+    /** Walk a round back and forth (a garrison's patrol), fighting what comes near it. */
+    PATROL;
 
     public String id() {
         return this.name().toLowerCase(Locale.ROOT);
@@ -20,7 +22,4 @@ public enum Orders {
         return ordinal >= 0 && ordinal < all.length ? all[ordinal] : FOLLOW;
     }
 
-    public Orders next() {
-        return byId((this.ordinal() + 1) % values().length);
-    }
 }

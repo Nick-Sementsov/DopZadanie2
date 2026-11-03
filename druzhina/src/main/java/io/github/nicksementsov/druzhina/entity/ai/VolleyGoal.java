@@ -7,6 +7,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.Item;
 
 /**
  * An archer's fight: he keeps his distance, draws, and shoots when the bow is full drawn. An enemy who comes too
@@ -30,8 +32,8 @@ public class VolleyGoal extends Goal {
     @Override
     public boolean canUse() {
         LivingEntity t = this.soldier.getTarget();
-        return t != null && t.isAlive() && this.soldier.role().ranged && this.soldier.getMainHandItem().getItem() instanceof BowItem
-                && this.soldier.canAttack(t) && this.soldier.withinReach(t);
+        return t != null && t.isAlive() && this.soldier.role().ranged && this.launcher()
+                && this.soldier.canAttack(t) && this.soldier.withinReach(t) && !this.soldier.routed();
     }
 
     @Override
@@ -44,6 +46,12 @@ public class VolleyGoal extends Goal {
             return false;
         }
         return true;
+    }
+
+    /** A bow or a crossbow in hand. */
+    private boolean launcher() {
+        Item item = this.soldier.getMainHandItem().getItem();
+        return item instanceof BowItem || item instanceof CrossbowItem;
     }
 
     @Override
@@ -99,12 +107,15 @@ public class VolleyGoal extends Goal {
                 this.soldier.stopUsingItem();
             } else if (sees && this.soldier.getTicksUsingItem() >= this.drawFor && this.clearShot(t)) {
                 this.soldier.stopUsingItem();
-                this.soldier.performRangedAttack(t, BowItem.getPowerForTime(this.drawFor));
+                this.soldier.performRangedAttack(t, this.soldier.getMainHandItem().getItem() instanceof CrossbowItem ? 1.0f : BowItem.getPowerForTime(this.drawFor));
             }
         } else if (this.seeTime >= -20 && dist <= RANGE + 4) {
             // the better archer draws faster
-            this.drawFor = Mth.clamp(Math.round(26 - 10 * this.soldier.skill()), 15, 24) + this.soldier.getRandom().nextInt(6);
-            this.soldier.startUsingItem(ProjectileUtil.getWeaponHoldingHand(this.soldier, item -> item instanceof BowItem));
+            boolean crossbow = this.soldier.getMainHandItem().getItem() instanceof CrossbowItem;
+            // the better archer draws faster; a crossbow is spanned at its own pace
+            this.drawFor = crossbow ? 34 + this.soldier.getRandom().nextInt(10)
+                    : Mth.clamp(Math.round(26 - 10 * this.soldier.skill()), 15, 24) + this.soldier.getRandom().nextInt(6);
+            this.soldier.startUsingItem(ProjectileUtil.getWeaponHoldingHand(this.soldier, item -> item instanceof BowItem || item instanceof CrossbowItem));
         }
     }
 

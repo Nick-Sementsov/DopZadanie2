@@ -4,7 +4,6 @@ import io.github.nicksementsov.druzhina.Druzhina;
 import io.github.nicksementsov.druzhina.block.MusterTableBlock;
 import io.github.nicksementsov.druzhina.entity.Soldier;
 import io.github.nicksementsov.druzhina.item.BatonItem;
-import io.github.nicksementsov.druzhina.item.SpearItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
@@ -14,7 +13,6 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -44,7 +42,6 @@ public final class DruzhinaRegistry {
 
     public static final RegistryObject<Item> MUSTER_TABLE_ITEM = ITEMS.register("muster_table", () -> new BlockItem(MUSTER_TABLE.get(), new Item.Properties()));
     public static final RegistryObject<Item> BATON = ITEMS.register("commander_baton", () -> new BatonItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
-    public static final RegistryObject<Item> SPEAR = ITEMS.register("spear", () -> new SpearItem(Tiers.IRON, new Item.Properties()));
 
     public static final RegistryObject<CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.druzhina"))
@@ -52,7 +49,6 @@ public final class DruzhinaRegistry {
             .displayItems((params, out) -> {
                 out.accept(MUSTER_TABLE_ITEM.get());
                 out.accept(BATON.get());
-                out.accept(SPEAR.get());
             })
             .build());
 
@@ -60,6 +56,7 @@ public final class DruzhinaRegistry {
     }
 
     public static void register(IEventBus modBus) {
+        DruzhinaAttributes.ATTRIBUTES.register(modBus);
         ENTITIES.register(modBus);
         BLOCKS.register(modBus);
         ITEMS.register(modBus);

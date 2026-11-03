@@ -29,7 +29,7 @@ public class FollowCommanderGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (this.soldier.orders() == Orders.HOLD || this.soldier.getTarget() != null) {
+        if (this.soldier.orders() == Orders.HOLD || this.soldier.orders() == Orders.PATROL || this.soldier.getTarget() != null) {
             return false;
         }
         Player boss = this.soldier.commander();
@@ -43,7 +43,7 @@ public class FollowCommanderGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         return this.commander != null && this.commander.isAlive() && !this.commander.isSpectator() && this.soldier.getTarget() == null
-                && this.soldier.orders() != Orders.HOLD && this.commander.level() == this.soldier.level()
+                && this.soldier.orders() != Orders.HOLD && this.soldier.orders() != Orders.PATROL && this.commander.level() == this.soldier.level()
                 && this.soldier.distanceToSqr(this.commander) > STOP * STOP;
     }
 

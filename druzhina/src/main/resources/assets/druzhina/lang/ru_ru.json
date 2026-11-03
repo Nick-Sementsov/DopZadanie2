@@ -6,7 +6,6 @@
   "item.druzhina.commander_baton.follow": "ПКМ: «За мной!» — воины идут за вами",
   "item.druzhina.commander_baton.hold": "ПКМ по земле: «Стоять здесь!» — строй там, лицом туда, куда вы смотрите",
   "item.druzhina.commander_baton.charge": "Shift + ПКМ: «В атаку!» — бьют всех врагов вокруг",
-  "item.druzhina.spear": "Копьё",
   "druzhina.role.swordsman": "Мечник",
   "druzhina.role.spearman": "Копейщик",
   "druzhina.role.axeman": "Секироносец",
@@ -16,8 +15,8 @@
   "druzhina.role.bandit_archer": "Разбойник-лучник",
   "druzhina.role.chieftain": "Атаман",
   "druzhina.role.swordsman.desc": "Меч и щит. Держит удар, парирует, отвечает.",
-  "druzhina.role.spearman.desc": "Длинное копьё: достаёт врага раньше, чем тот его.",
-  "druzhina.role.axeman.desc": "Секира рубит щиты. Крепок, но защищается хуже.",
+  "druzhina.role.spearman.desc": "Пика или рогатина: достаёт врага раньше, чем тот его.",
+  "druzhina.role.axeman.desc": "Алебарда или бердыш: рубят щиты. Крепок, но защищается хуже.",
   "druzhina.role.archer.desc": "Лук. Стреляет из-за спин товарищей, в своих не попадает.",
   "druzhina.role.knight.desc": "Латы, лучший меч, опыт. Дорог, но стоит троих.",
   "druzhina.rank.1": "Бывалый",
@@ -91,5 +90,13 @@
   "druzhina.name.36": "Игорь",
   "druzhina.name.37": "Глеб",
   "druzhina.name.38": "Ярослав",
-  "druzhina.name.39": "Всеслав"
+  "druzhina.name.39": "Всеслав",
+  "druzhina.role.crossbowman": "Арбалетчик",
+  "druzhina.role.militia": "Ополченец",
+  "druzhina.role.crossbowman.desc": "Тяжёлый арбалет: медленно, но пробивает доспех.",
+  "druzhina.role.militia.desc": "Вилы или дубина, стёганка. Дёшев и слаб.",
+  "druzhina.orders.patrol": "обходит дозором",
+  "attribute.druzhina.ranged_damage": "Урон стрел",
+  "druzhina.role.warrior": "Ратник",
+  "druzhina.role.warrior.desc": "Двуручный меч: длинные широкие удары, но без щита."
 }

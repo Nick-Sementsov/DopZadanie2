@@ -57,7 +57,7 @@ public final class Army {
     /** The player's soldiers within earshot. */
     public static List<Soldier> near(Player player) {
         return player.level().getEntitiesOfClass(Soldier.class, player.getBoundingBox().inflate(VOICE),
-                s -> s.isAlive() && player.getUUID().equals(s.getOwnerUUID()));
+                s -> s.isAlive() && player.getUUID().equals(s.getOwnerUUID()) && !s.managed());
     }
 
     public static int price(Role role) {
@@ -229,7 +229,7 @@ public final class Army {
         if (men > 0) {
             SoundEvent sound = switch (orders) {
                 case CHARGE -> SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(2).value();
-                case HOLD -> SoundEvents.ARMOR_EQUIP_CHAIN;
+                case HOLD, PATROL -> SoundEvents.ARMOR_EQUIP_CHAIN;
                 case FOLLOW -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
             };
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(), sound, SoundSource.PLAYERS,

@@ -6,7 +6,6 @@
   "item.druzhina.commander_baton.follow": "Right click: \"Follow me!\" - your soldiers walk behind you",
   "item.druzhina.commander_baton.hold": "Right click the ground: \"Hold here!\" - a line there, facing where you look",
   "item.druzhina.commander_baton.charge": "Shift + right click: \"Charge!\" - they attack every enemy around",
-  "item.druzhina.spear": "Spear",
   "druzhina.role.swordsman": "Swordsman",
   "druzhina.role.spearman": "Spearman",
   "druzhina.role.axeman": "Axeman",
@@ -16,8 +15,8 @@
   "druzhina.role.bandit_archer": "Bandit Archer",
   "druzhina.role.chieftain": "Chieftain",
   "druzhina.role.swordsman.desc": "Sword and shield. Takes blows, parries, strikes back.",
-  "druzhina.role.spearman.desc": "A long spear: reaches the enemy before he reaches him.",
-  "druzhina.role.axeman.desc": "His axe hacks shields apart. Tough, guards worse.",
+  "druzhina.role.spearman.desc": "A pike or a boar spear: reaches the enemy first.",
+  "druzhina.role.axeman.desc": "A halberd or a bardiche: hacks shields apart. Tough, guards worse.",
   "druzhina.role.archer.desc": "A bow. Shoots from behind the line, never hits friends.",
   "druzhina.role.knight.desc": "Plate, the best sword, experience. Dear, worth three.",
   "druzhina.rank.1": "Seasoned",
@@ -91,5 +90,13 @@
   "druzhina.name.36": "Igor",
   "druzhina.name.37": "Gleb",
   "druzhina.name.38": "Yaroslav",
-  "druzhina.name.39": "Vseslav"
+  "druzhina.name.39": "Vseslav",
+  "druzhina.role.crossbowman": "Crossbowman",
+  "druzhina.role.militia": "Militiaman",
+  "druzhina.role.crossbowman.desc": "A heavy crossbow: slow, but it goes through armour.",
+  "druzhina.role.militia.desc": "A pitchfork or a club, a gambeson. Cheap and weak.",
+  "druzhina.orders.patrol": "on patrol",
+  "attribute.druzhina.ranged_damage": "Ranged Damage",
+  "druzhina.role.warrior": "Warrior",
+  "druzhina.role.warrior.desc": "A two-handed sword: long sweeping blows, but no shield."
 }
