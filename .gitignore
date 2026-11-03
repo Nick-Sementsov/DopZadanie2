@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Gradle builds of the Minecraft mods (knightcombat, druzhina)
+build/
+.gradle/
+run/
+run-data/
+devmods/

@@ -1,0 +1,251 @@
+package io.github.nicksementsov.knightcombat;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.common.ForgeConfigSpec;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/** Settings of the combat rules (serverconfig/knightcombat-server.toml) and of the client (config/knightcombat-client.toml). */
+public final class CombatConfig {
+    public static final ForgeConfigSpec SERVER_SPEC;
+    public static final ForgeConfigSpec CLIENT_SPEC;
+
+    private static final ForgeConfigSpec.BooleanValue VANILLA_WEAPONS;
+    private static final ForgeConfigSpec.BooleanValue MODDED_WEAPONS;
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> EXCLUDED_WEAPONS;
+    private static final ForgeConfigSpec.BooleanValue WALLS_STOP_ATTACKS;
+    private static final ForgeConfigSpec.IntValue MAX_STAMINA;
+    private static final ForgeConfigSpec.DoubleValue STAMINA_REGEN;
+    private static final ForgeConfigSpec.DoubleValue DAMAGE_MULTIPLIER;
+    private static final ForgeConfigSpec.IntValue BATTLE_CRY_COOLDOWN;
+    private static final ForgeConfigSpec.BooleanValue ATTACK_YELLS;
+    private static final ForgeConfigSpec.BooleanValue HEAVY_ATTACKS;
+    private static final ForgeConfigSpec.BooleanValue FINISHERS;
+    private static final ForgeConfigSpec.BooleanValue WEAPON_THROWING;
+    private static final ForgeConfigSpec.BooleanValue DODGES;
+    private static final ForgeConfigSpec.BooleanValue SHIELDS;
+    private static final ForgeConfigSpec.BooleanValue MOUNTED_CHARGES;
+    private static final ForgeConfigSpec.BooleanValue TWO_HANDED_PUTS_AWAY_SHIELD;
+
+    public static final ForgeConfigSpec.BooleanValue SCROLL_ATTACKS;
+    public static final ForgeConfigSpec.BooleanValue CAMERA_SWAY;
+    public static final ForgeConfigSpec.BooleanValue STAMINA_BAR;
+    public static final ForgeConfigSpec.BooleanValue HIT_MESSAGES;
+    public static final ForgeConfigSpec.BooleanValue SWING_TRAILS;
+    public static final ForgeConfigSpec.BooleanValue FIRST_PERSON_ARMS;
+    public static final ForgeConfigSpec.DoubleValue WEAPON_SCALE;
+    public static final ForgeConfigSpec.DoubleValue CAMERA_SHAKE;
+    public static final ForgeConfigSpec.BooleanValue HIT_STOP;
+    public static final ForgeConfigSpec.BooleanValue ATTACK_LUNGE;
+    public static final ForgeConfigSpec.BooleanValue SCREEN_EFFECTS;
+    public static final ForgeConfigSpec.BooleanValue DOUBLE_TAP_DODGE;
+    public static final ForgeConfigSpec.BooleanValue IDLE_ANIMATIONS;
+    public static final ForgeConfigSpec.BooleanValue PARTICLES;
+    public static final ForgeConfigSpec.BooleanValue BLOOD;
+
+    static {
+        ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
+        VANILLA_WEAPONS = server
+                .comment("Swords and axes from Minecraft fight with slashes, overheads, stabs and blocks")
+                .define("vanillaWeapons", true);
+        MODDED_WEAPONS = server
+                .comment("Weapons of other mods fight with the combat rules too: Epic Knights and its addons, and swords, axes,",
+                        "maces, spears and the like of any mod")
+                .define("moddedWeapons", true);
+        EXCLUDED_WEAPONS = server
+                .comment("Items that keep their own way of fighting. Item ids, * matches any text: \"magistuarmory:*\" leaves out",
+                        "all of Epic Knights, \"*:wooden_sword\" every wooden sword. Lances of Epic Knights are always left out")
+                .defineListAllowEmpty(List.of("excludedWeapons"), () -> List.of("*lance*", "minecraft:trident"), o -> o instanceof String);
+        WALLS_STOP_ATTACKS = server
+                .comment("Walls stop slashes and stabs that hit them, like in narrow corridors")
+                .define("wallsStopAttacks", true);
+        MAX_STAMINA = server
+                .comment("Stamina of every player")
+                .defineInRange("maxStamina", 100, 20, 1000);
+        STAMINA_REGEN = server
+                .comment("Stamina restored per second once a player has not spent any for a second")
+                .defineInRange("staminaRegenPerSecond", 25.0, 1.0, 500.0);
+        DAMAGE_MULTIPLIER = server
+                .comment("Multiplier of all weapon damage")
+                .defineInRange("damageMultiplier", 1.0, 0.1, 10.0);
+        BATTLE_CRY_COOLDOWN = server
+                .comment("Seconds between two battle cries of a player")
+                .defineInRange("battleCryCooldownSeconds", 20, 0, 600);
+        ATTACK_YELLS = server
+                .comment("Fighters shout now and then as they strike and cry out when a weapon hits them")
+                .define("attackYells", true);
+        HEAVY_ATTACKS = server
+                .comment("Holding the attack key through the wind-up makes a heavy attack: a longer wind-up, more damage and more stamina drained from blockers")
+                .define("heavyAttacks", true);
+        FINISHERS = server
+                .comment("Chained attacks in some orders end in finishers (Whirlwind, Mill, Hammerfall, Sting, Hamstring) and attacks right after a kick are faster")
+                .define("comboFinishers", true);
+        WEAPON_THROWING = server
+                .comment("Weapons can be thrown; they stick into walls and can be picked up again")
+                .define("weaponThrowing", true);
+        DODGES = server
+                .comment("Fighters can dodge: a quick step aside, back or forward that costs stamina")
+                .define("dodges", true);
+        SHIELDS = server
+                .comment("Shields (Minecraft's, Epic Knights' and other mods') follow the combat rules: a raised shield parries at first,",
+                        "every blow on it costs stamina, heavy axe and mace blows knock it aside, and the kick key bashes with it")
+                .define("shields", true);
+        MOUNTED_CHARGES = server
+                .comment("Riders lower a lance (Epic Knights' tournament lances too) or a spear with the use key and strike with the speed of",
+                        "the mount: the faster, the harder, throwing riders out of the saddle. Epic Knights' own lance collisions are then off")
+                .define("mountedCharges", true);
+        TWO_HANDED_PUTS_AWAY_SHIELD = server
+                .comment("A two-handed weapon (two-handed swords and axes, polearms) needs both hands: while one is held, a shield in the off",
+                        "hand is put away into the inventory (dropped if there is no room) and taken back when the weapon is put away")
+                .define("twoHandedPutsAwayShield", true);
+        SERVER_SPEC = server.build();
+
+        ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
+        SCROLL_ATTACKS = client
+                .comment("Mouse wheel up makes an overhead and wheel down a stab while a weapon is in hand (instead of changing the hotbar slot)")
+                .define("scrollAttacks", true);
+        CAMERA_SWAY = client
+                .comment("The camera follows the swings a little")
+                .define("cameraSway", true);
+        STAMINA_BAR = client
+                .comment("Show the stamina bar under the crosshair while a weapon is in hand")
+                .define("staminaBar", true);
+        HIT_MESSAGES = client
+                .comment("Show short messages near the crosshair: parry, blocked, guard broken and so on")
+                .define("hitMessages", true);
+        SWING_TRAILS = client
+                .comment("Swings leave a short trail behind the blade")
+                .define("swingTrails", true);
+        FIRST_PERSON_ARMS = client
+                .comment("Show the arms holding the weapon in the first person view")
+                .define("firstPersonArms", true);
+        WEAPON_SCALE = client
+                .comment("Size of weapons in hand compared to the size the mod picks (two-handed and long weapons are drawn larger)")
+                .defineInRange("weaponScale", 1.0, 0.5, 2.0);
+        CAMERA_SHAKE = client
+                .comment("How hard the camera shakes when blows land, are blocked or parried (0 turns the shaking off)")
+                .defineInRange("cameraShake", 1.0, 0.0, 2.0);
+        HIT_STOP = client
+                .comment("A swing stops for an instant when it hits, as if the blade bit into the target")
+                .define("hitStop", true);
+        ATTACK_LUNGE = client
+                .comment("Attacks carry you a little forward: stabs the most, then overheads and slashes")
+                .define("attackLunge", true);
+        SCREEN_EFFECTS = client
+                .comment("The edges of the screen flash red when you are hit, white on a parry and darken when stamina runs low")
+                .define("screenEffects", true);
+        DOUBLE_TAP_DODGE = client
+                .comment("Pressing left, right or back twice quickly dodges that way while a weapon is in hand (the dodge key works too)")
+                .define("doubleTapDodge", true);
+        IDLE_ANIMATIONS = client
+                .comment("A knight standing still for a while looks the weapon over: turns the blade, rests a two-handed weapon on the",
+                        "shoulder, leans on a polearm")
+                .define("idleAnimations", true);
+        PARTICLES = client
+                .comment("Blows strike sparks off steel and flash on a parry, shields and lances splinter, feet and hooves kick up dust")
+                .define("particleEffects", true);
+        BLOOD = client
+                .comment("Blows that land draw blood, which lies on the ground for a moment (needs particleEffects)")
+                .define("bloodEffects", true);
+        CLIENT_SPEC = client.build();
+    }
+
+    private CombatConfig() {
+    }
+
+    // Server values are synced to clients when they join. Before a world is loaded they are not available,
+    // so every getter falls back to the default value.
+
+    public static boolean vanillaWeapons() {
+        return get(VANILLA_WEAPONS, true);
+    }
+
+    public static boolean moddedWeapons() {
+        return get(MODDED_WEAPONS, true);
+    }
+
+    /** Whether the item with this id is left out of the combat rules by the server settings. */
+    public static boolean isExcluded(ResourceLocation id) {
+        String text = id.toString();
+        for (String pattern : get(EXCLUDED_WEAPONS, List.<String>of())) {
+            if (matches(pattern.toLowerCase(Locale.ROOT).trim(), text)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Glob match where * stands for any text. */
+    static boolean matches(String pattern, String text) {
+        StringBuilder regex = new StringBuilder();
+        for (String part : pattern.split("\\*", -1)) {
+            if (!regex.isEmpty()) {
+                regex.append(".*");
+            }
+            regex.append(Pattern.quote(part));
+        }
+        return text.matches(regex.toString());
+    }
+
+    public static boolean wallsStopAttacks() {
+        return get(WALLS_STOP_ATTACKS, true);
+    }
+
+    public static float maxStamina() {
+        return get(MAX_STAMINA, 100);
+    }
+
+    public static float staminaRegenPerTick() {
+        return (float) (double) get(STAMINA_REGEN, 25.0) / 20f;
+    }
+
+    public static float damageMultiplier() {
+        return (float) (double) get(DAMAGE_MULTIPLIER, 1.0);
+    }
+
+    public static boolean attackYells() {
+        return get(ATTACK_YELLS, true);
+    }
+
+    public static boolean heavyAttacks() {
+        return get(HEAVY_ATTACKS, true);
+    }
+
+    public static boolean finishers() {
+        return get(FINISHERS, true);
+    }
+
+    public static boolean weaponThrowing() {
+        return get(WEAPON_THROWING, true);
+    }
+
+    public static boolean dodges() {
+        return get(DODGES, true);
+    }
+
+    public static boolean shields() {
+        return get(SHIELDS, true);
+    }
+
+    public static boolean mountedCharges() {
+        return get(MOUNTED_CHARGES, true);
+    }
+
+    public static boolean twoHandedPutsAwayShield() {
+        return get(TWO_HANDED_PUTS_AWAY_SHIELD, true);
+    }
+
+    public static int battleCryCooldownTicks() {
+        return get(BATTLE_CRY_COOLDOWN, 20) * 20;
+    }
+
+    private static <T> T get(ForgeConfigSpec.ConfigValue<T> value, T fallback) {
+        try {
+            return value.get();
+        } catch (IllegalStateException notLoaded) {
+            return fallback;
+        }
+    }
+}
