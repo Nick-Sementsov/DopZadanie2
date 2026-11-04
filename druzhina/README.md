@@ -24,7 +24,7 @@
 - **Minecraft** 1.20.1, **Forge** 47.x
 - **ID мода:** `druzhina`
 - **Нужны моды** (и на сервере, и у игроков):
-  - «Рыцарский бой» (`knightcombat`) 2.8.0 или новее;
+  - «Рыцарский бой» (`knightcombat`) 2.10.0 или новее;
   - [Epic Knights](https://modrinth.com/mod/epic-knights-shields-armor-and-weapons) (`magistuarmory`) — всё оружие
     и все доспехи воинов из него; ему самому нужны Architectury и Cloth Config.
 - **Желательны аддоны Epic Knights**: [Epic Knights: Slavic Armory](https://modrinth.com/mod/epic-knights-slavic-armory)
@@ -32,7 +32,8 @@
   [Epic Knights: Addon](https://modrinth.com/mod/epic-knights-addon) (ещё десятки мечей, секир, копий и шлемов).
   Если аддон стоит, его вещи сами попадают в снаряжение воинов.
 - Со «Престолом» (`prestol`) воины «Дружины» становятся войском держав MineColonies: гарнизонами башен, ополчением
-  и наёмниками.
+  и наёмниками. Тогда нанимать воинов у вербовочного стола можно, только если в вашей колонии (или в колонии вашей
+  державы) построена казарма.
 
 ## Как играть
 
@@ -131,14 +132,15 @@
 приказы `hold`, `patrol` (обход по точкам), `follow` (за любым игроком), `rank`/`promote`, `setManaged` (жезл не трогает
 воина, отпустить его нельзя), `setName`, атрибут `rangedDamage`. `api.Relations` — кто с кем: `setProvider` задаёт союзы
 и войны между хозяевами (союзники стоят заодно, враги нападают друг на друга и на хозяев), `setRouted` — когда воин бежит.
-Так «Престол» превращает воинов в войско держав.
+`api.Hiring.addCheck` — условие найма у вербовочного стола: проверка возвращает причину отказа (её увидит игрок) или
+`null`. Так «Престол» превращает воинов в войско держав и требует для найма казарму.
 
 ## Сборка
 
 | Команда | Что делает |
 |---------|-----------|
-| `./gradlew :druzhina:build` | Собирает мод в `druzhina/build/libs/druzhina-1.0.0.jar` |
-| `./gradlew :druzhina:runClient` | Запускает Minecraft с «Дружиной» и «Рыцарским боем» |
+| `./gradlew :druzhina:build` | Собирает мод в `druzhina/build/libs/druzhina-1.1.0.jar` |
+| `./gradlew :druzhina:runClient -PepicKnights` | Запускает Minecraft с «Дружиной», «Рыцарским боем» и Epic Knights с аддонами (скачиваются с Modrinth; Epic Knights обязателен) |
 
 ## Устройство проекта
 

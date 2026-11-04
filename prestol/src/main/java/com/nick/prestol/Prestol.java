@@ -5,6 +5,7 @@ import com.minecolonies.api.eventbus.events.colony.ColonyCreatedModEvent;
 import com.minecolonies.api.eventbus.events.colony.ColonyDeletedModEvent;
 import com.mojang.logging.LogUtils;
 import com.nick.prestol.army.Army;
+import com.nick.prestol.army.Barracks;
 import com.nick.prestol.book.Guide;
 import com.nick.prestol.book.PrestolCommand;
 import com.nick.prestol.client.PrestolClient;
@@ -84,6 +85,7 @@ public class Prestol {
    }
 
    private void onSetup(FMLCommonSetupEvent event) {
+      event.enqueueWork(Barracks::hook);
       event.enqueueWork(() -> {
          try {
             IMinecoloniesAPI.getInstance().getEventBus().subscribe(ColonyDeletedModEvent.class, e -> {

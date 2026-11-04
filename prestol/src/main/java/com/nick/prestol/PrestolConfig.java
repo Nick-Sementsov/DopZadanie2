@@ -73,6 +73,7 @@ public final class PrestolConfig {
    public static final IntValue ARMY_ARROWS;
    public static final BooleanValue MILITIA;
    public static final BooleanValue MERCENARIES;
+   public static final BooleanValue HIRE_NEEDS_BARRACKS;
    public static final IntValue MERCENARY_GOLD;
    public static final IntValue MERCENARY_MINUTES;
    public static final IntValue MERCENARY_HAMLET;
@@ -327,6 +328,15 @@ public final class PrestolConfig {
             }
          )
          .define("mercenaries", true);
+      HIRE_NEEDS_BARRACKS = b.comment(
+            new String[]{
+               "Нанимать воинов можно только при казарме: у вербовочного стола «Дружины» — если казарма есть в вашей колонии или",
+               "в колонии вашей державы, наёмников в ратуше — если она есть в этой колонии.",
+               "Soldiers are hired only with a barracks: at Druzhina's muster table if your colony (or one of your realm) has one,",
+               "mercenaries at a town hall if that colony has one."
+            }
+         )
+         .define("hireNeedsBarracks", true);
       MERCENARY_GOLD = b.comment("Золотых слитков за одного наёмника. / Gold ingots per mercenary.").defineInRange("mercenaryGoldEach", 2, 0, 640);
       MERCENARY_MINUTES = b.comment("Сколько минут служат наёмники (20 минут — игровой день). / Minutes of service (20 = one game day).")
          .defineInRange("mercenaryServiceMinutes", 20, 1, 10000);

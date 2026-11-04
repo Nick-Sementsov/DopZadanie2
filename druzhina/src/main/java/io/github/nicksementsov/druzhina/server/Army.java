@@ -1,6 +1,7 @@
 package io.github.nicksementsov.druzhina.server;
 
 import io.github.nicksementsov.druzhina.DruzhinaConfig;
+import io.github.nicksementsov.druzhina.api.Hiring;
 import io.github.nicksementsov.druzhina.entity.Formation;
 import io.github.nicksementsov.druzhina.entity.Orders;
 import io.github.nicksementsov.druzhina.entity.Role;
@@ -67,6 +68,11 @@ public final class Army {
         ServerLevel level = player.serverLevel();
         if (!role.hired() || !level.getBlockState(table).is(DruzhinaRegistry.MUSTER_TABLE.get())
                 || player.distanceToSqr(Vec3.atCenterOf(table)) > 8 * 8) {
+            return false;
+        }
+        Component refusal = Hiring.refusal(player, table);
+        if (refusal != null) {
+            player.displayClientMessage(refusal, false);
             return false;
         }
         int count = of(player).size();

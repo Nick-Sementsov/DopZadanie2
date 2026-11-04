@@ -58,7 +58,10 @@ public final class Mercenaries {
       ServerLevel level = player.serverLevel();
       long now = level.getGameTime();
       long used = colony.getMercenaryUseTime();
-      if (used > 0L && now - used < 48000L) {
+      if (Barracks.on() && !Barracks.has(colony)) {
+         // mercenaries come only where a barracks can quarter them
+         player.sendSystemMessage(Msg.bad("barracks.need_mercenaries", colony.getName()));
+      } else if (used > 0L && now - used < 48000L) {
          long days = (48000L - (now - used) + 23999L) / 24000L;
          player.sendSystemMessage(Msg.bad("mercenary.not_yet", days));
       } else {

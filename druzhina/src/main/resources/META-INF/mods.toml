@@ -29,7 +29,7 @@ description='''${mod_description}'''
 [[dependencies.${mod_id}]]
     modId="knightcombat"
     mandatory=true
-    versionRange="[2.8.0,)"
+    versionRange="[2.10.0,)"
     ordering="AFTER"
     side="BOTH"
 
