@@ -79,7 +79,7 @@ dependencies {
         runtimeOnly fg.deobf("com.ldtteam:minecolonies:${minecolonies_version}") { transitive = false }
         runtimeOnly fg.deobf("com.ldtteam:blockui:${blockui_version}") { transitive = false }
         runtimeOnly fg.deobf("com.ldtteam:structurize:${structurize_version}") { transitive = false }
-        runtimeOnly fg.deobf("com.ldtteam:domum_ornamentum:${domum_ornamentum_version}") { transitive = false }
+        runtimeOnly fg.deobf("com.ldtteam:domum_ornamentum:${domum_ornamentum_version}:universal") { transitive = false }
         runtimeOnly fg.deobf("maven.modrinth:immersive-paintings:${immersive_paintings_version}")
         runtimeOnly fg.deobf("maven.modrinth:betsy-ross:${betsy_ross_version}")
         runtimeOnly fg.deobf("local:druzhina:${druzhina_version}")
