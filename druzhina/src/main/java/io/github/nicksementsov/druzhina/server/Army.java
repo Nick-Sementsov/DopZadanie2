@@ -29,6 +29,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.common.Tags;
 import net.minecraft.world.phys.Vec3;
 
 /** A player's soldiers: hiring them and giving them orders. */
@@ -83,11 +84,11 @@ public final class Army {
         }
         int price = price(role);
         if (!player.getAbilities().instabuild) {
-            if (emeralds(player) < price) {
-                player.displayClientMessage(Component.translatable("druzhina.msg.no_emeralds", price).withStyle(ChatFormatting.RED), false);
+            if (gold(player) < price) {
+                player.displayClientMessage(Component.translatable("druzhina.msg.no_gold", price).withStyle(ChatFormatting.RED), false);
                 return false;
             }
-            takeEmeralds(player, price);
+            takeGold(player, price);
         }
 
         Soldier s = DruzhinaRegistry.SOLDIER.get().create(level);
@@ -121,22 +122,28 @@ public final class Army {
         return player.getInventory().contains(new ItemStack(DruzhinaRegistry.BATON.get()));
     }
 
-    public static int emeralds(Player player) {
+    /** Soldiers are paid in gold ingots (Minecraft's, or any mod's that count as gold ingots). */
+    public static boolean isGold(ItemStack stack) {
+        return stack.is(Tags.Items.INGOTS_GOLD);
+    }
+
+    /** How many gold ingots the player carries. */
+    public static int gold(Player player) {
         int n = 0;
         for (ItemStack stack : player.getInventory().items) {
-            if (stack.is(Items.EMERALD)) {
+            if (isGold(stack)) {
                 n += stack.getCount();
             }
         }
         return n;
     }
 
-    private static void takeEmeralds(Player player, int amount) {
+    private static void takeGold(Player player, int amount) {
         for (ItemStack stack : player.getInventory().items) {
             if (amount <= 0) {
                 break;
             }
-            if (stack.is(Items.EMERALD)) {
+            if (isGold(stack)) {
                 int take = Math.min(amount, stack.getCount());
                 stack.shrink(take);
                 amount -= take;

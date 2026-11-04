@@ -67,7 +67,7 @@ public class MusterTableBlock extends HorizontalDirectionalBlock {
         if (level.isClientSide) {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientHooks.openMuster(pos));
         } else if (player instanceof ServerPlayer serverPlayer) {
-            // Told at once, not only when the hire button is pressed, if something more than emeralds is wanted.
+            // Told at once, not only when the hire button is pressed, if something more than gold is wanted.
             Component refusal = Hiring.refusal(serverPlayer, pos);
             if (refusal != null) {
                 serverPlayer.displayClientMessage(refusal, true);

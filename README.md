@@ -23,7 +23,7 @@ Gradle скачивает и декомпилирует Minecraft.
 | `./gradlew build` | Собирает шахматы, «Рыцарский бой» и «Дружину» и запускает тесты |
 | `./gradlew :chess:build` | Только шахматы → `chess/build/libs/chessmod-1.2.0.jar` |
 | `./gradlew :knightcombat:build` | «Рыцарский бой» → `knightcombat/build/libs/knightcombat-2.10.0.jar` |
-| `./gradlew :druzhina:build` | «Дружина» → `druzhina/build/libs/druzhina-1.1.0.jar` |
+| `./gradlew :druzhina:build` | «Дружина» → `druzhina/build/libs/druzhina-1.2.0.jar` |
 | `cd prestol && ./gradlew build` | «Престол» → `prestol/build/libs/prestol-2.1.0.jar` (сначала соберите «Дружину» и «Рыцарский бой») |
 | `./gradlew :chess:runClient` | Minecraft с модом шахмат (`:knightcombat:runClient` — с боевым модом, `:druzhina:runClient` — с «Дружиной» и «Рыцарским боем») |
 | `./gradlew :chess:runServer` | Выделенный сервер с модом (`:knightcombat:runServer`) |

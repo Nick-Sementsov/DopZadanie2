@@ -26,6 +26,8 @@ public class MusterScreen extends Screen {
     private static final int BG = 0xE0201812;
     private static final int FRAME = 0xFF8B6B3E;
     private static final int GOLD = 0xFFE8C766;
+    /** The colour of the purse and of prices the player can pay. */
+    private static final int COIN = 0xFFF5D255;
 
     private final BlockPos table;
     private final Role[] roles = Role.forHire();
@@ -78,11 +80,11 @@ public class MusterScreen extends Screen {
         if (player == null) {
             return;
         }
-        int emeralds = Army.emeralds(player);
+        int gold = Army.gold(player);
         boolean free = player.getAbilities().instabuild;
         boolean full = this.army(player) >= DruzhinaConfig.MAX_SOLDIERS.get();
         for (int i = 0; i < this.buttons.size(); i++) {
-            this.buttons.get(i).active = !full && (free || emeralds >= Army.price(this.roles[i]));
+            this.buttons.get(i).active = !full && (free || gold >= Army.price(this.roles[i]));
         }
     }
 
@@ -111,11 +113,11 @@ public class MusterScreen extends Screen {
         g.drawCenteredString(this.font, this.title.copy().withStyle(ChatFormatting.BOLD), x + w / 2, y + 8, GOLD);
 
         Player player = Minecraft.getInstance().player;
-        int emeralds = player == null ? 0 : Army.emeralds(player);
+        int gold = player == null ? 0 : Army.gold(player);
         boolean free = player != null && player.getAbilities().instabuild;
         if (player != null) {
-            g.renderItem(new ItemStack(Items.EMERALD), x + 8, y + 20);
-            g.drawString(this.font, Component.translatable("druzhina.gui.purse", emeralds), x + 28, y + 25, 0xFF9FE07A);
+            g.renderItem(new ItemStack(Items.GOLD_INGOT), x + 8, y + 20);
+            g.drawString(this.font, Component.translatable("druzhina.gui.purse", gold), x + 28, y + 25, COIN);
             Component army = Component.translatable("druzhina.gui.army", this.army(player), DruzhinaConfig.MAX_SOLDIERS.get());
             g.drawString(this.font, army, x + w - 8 - this.font.width(army), y + 25, 0xFFD8D0C0);
         }
@@ -134,12 +136,12 @@ public class MusterScreen extends Screen {
             for (int l = 0; l < Math.min(2, lines.size()); l++) {
                 g.drawString(this.font, lines.get(l), x + 32, ry + 14 + l * 10, 0xFFD8D0C0);
             }
-            // the price, with an emerald, red when the purse is too thin
+            // the price in gold ingots, red when the purse is too thin
             int price = Army.price(role);
             String text = String.valueOf(price);
             int px = x + w - 74 - this.font.width(text);
-            g.renderItem(new ItemStack(Items.EMERALD), px - 18, ry + 9);
-            g.drawString(this.font, text, px, ry + 13, free || emeralds >= price ? 0xFF9FE07A : 0xFFE06060);
+            g.renderItem(new ItemStack(Items.GOLD_INGOT), px - 18, ry + 9);
+            g.drawString(this.font, text, px, ry + 13, free || gold >= price ? COIN : 0xFFE06060);
         }
 
         g.drawCenteredString(this.font, Component.translatable("druzhina.gui.baton_hint"), x + w / 2, y + this.panelHeight - 38, 0xFFA09888);

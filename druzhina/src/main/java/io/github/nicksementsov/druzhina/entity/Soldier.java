@@ -539,10 +539,10 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     protected void dropCustomDeathLoot(DamageSource source, int looting, boolean hit) {
         super.dropCustomDeathLoot(source, looting, hit);
         if (this.isBandit()) {
-            // the band's purse
-            int emeralds = this.role() == Role.CHIEFTAIN ? 5 + this.random.nextInt(5 + looting) : 1 + this.random.nextInt(2 + looting);
-            if (emeralds > 0) {
-                this.spawnAtLocation(new ItemStack(Items.EMERALD, emeralds));
+            // the band's purse: gold to hire men with
+            int gold = this.role() == Role.CHIEFTAIN ? 5 + this.random.nextInt(5 + looting) : 1 + this.random.nextInt(2 + looting);
+            if (gold > 0) {
+                this.spawnAtLocation(new ItemStack(Items.GOLD_INGOT, gold));
             }
         }
     }

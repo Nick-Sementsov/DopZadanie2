@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
  * player; the bandits roam the land on their own.
  */
 public enum Role {
-    //            emeralds  health  skill   ranged  bandit  grade
+    //            gold      health  skill   ranged  bandit  grade
     SWORDSMAN(8, 24, 0.5f, false, false, Kits.REGULAR),
     SPEARMAN(8, 24, 0.5f, false, false, Kits.REGULAR),
     AXEMAN(8, 26, 0.45f, false, false, Kits.REGULAR),
@@ -22,7 +22,7 @@ public enum Role {
     BANDIT_ARCHER(0, 16, 0.25f, true, true, Kits.LEVY),
     CHIEFTAIN(0, 30, 0.5f, false, true, Kits.LEVY);
 
-    /** Price of hiring one, in emeralds. */
+    /** Price of hiring one, in gold ingots. */
     public final int cost;
     public final float health;
     /** 0 to 1: how quickly and how often he guards, parries, chains and feints. */

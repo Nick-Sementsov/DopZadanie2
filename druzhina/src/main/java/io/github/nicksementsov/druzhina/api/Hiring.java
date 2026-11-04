@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Who may hire soldiers at a muster table. By itself Druzhina lets anyone with the emeralds hire; a mod with towns
+ * Who may hire soldiers at a muster table. By itself Druzhina lets anyone with the gold hire; a mod with towns
  * (Prestol) may ask for more, such as a barracks to keep the men in.
  */
 public final class Hiring {
