@@ -1,0 +1,12 @@
+.gradle/
+build/
+run/
+out/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+bin/
+# Your Hundred Years War jar (All Rights Reserved upstream) stays local.
+libs/*.jar

@@ -16,4 +16,5 @@ rootProject.name = 'minecraft-mods'
 
 // Every mod lives in its own folder with its own build.gradle and gradle.properties
 include 'chess'
+include 'druzhina'
 include 'knightcombat'

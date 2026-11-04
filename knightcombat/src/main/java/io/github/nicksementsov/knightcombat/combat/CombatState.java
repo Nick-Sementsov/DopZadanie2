@@ -3,7 +3,7 @@ package io.github.nicksementsov.knightcombat.combat;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.item.Item;
 
-/** Combat state of one player on the server. {@link CombatManager} changes it, clients get a copy of the visible part. */
+/** Combat state of one fighter (a player or an NPC) on the server. {@link CombatManager} changes it, clients get a copy of the visible part. */
 public final class CombatState {
     /** The slash goes from left to right (the second slash of a combo). */
     public static final int MIRRORED = 1;
@@ -74,6 +74,8 @@ public final class CombatState {
     long lastStaminaUse = Long.MIN_VALUE / 2;
     /** When a worn-out fighter next pants for breath. */
     long breathAt = Long.MIN_VALUE / 2;
+    /** Until when the shield of an NPC fighter stays down after it was knocked aside (players have an item cooldown). */
+    long shieldDownUntil = Long.MIN_VALUE / 2;
     /** Whether the fighter ran out of breath and has not got it back yet. */
     boolean winded;
     /** Whether the current block caught anything; an empty block is followed by a short pause. */

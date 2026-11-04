@@ -48,7 +48,7 @@ public final class ClientSetup {
     public static void addLayers(EntityRenderersEvent.AddLayers event) {
         for (String skin : event.getSkins()) {
             if (event.getPlayerSkin(skin) instanceof PlayerRenderer renderer) {
-                renderer.addLayer(new WeaponLayer(renderer));
+                renderer.addLayer(new WeaponLayer<>(renderer));
             }
         }
     }

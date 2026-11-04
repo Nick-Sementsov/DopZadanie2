@@ -5,14 +5,14 @@ import com.mojang.math.Axis;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
-import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -28,19 +28,20 @@ import org.joml.Vector3f;
  * The shield in the other hand is drawn here too, where Minecraft would draw it, but always with its model at rest:
  * Minecraft's model of a raised shield would turn it on the arm that this mod raises its own way.
  */
-public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
+public class WeaponLayer<T extends LivingEntity, M extends HumanoidModel<T>> extends RenderLayer<T, M> {
     /** Longest weapons that are still made larger, in blocks from the hand to the tip. */
     private static final float MAX_LENGTH_ONE = 1.3f;
     private static final float MAX_LENGTH_TWO = 2.1f;
     private static final float MAX_LENGTH_POLEARM = 3.2f;
     private static final float TRAIL_OPACITY = 0.5f;
 
-    public WeaponLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
+    /** For the renderer of players, or of any humanoid {@link io.github.nicksementsov.knightcombat.api.CombatFighter}. */
+    public WeaponLayer(RenderLayerParent<T, M> parent) {
         super(parent);
     }
 
     @Override
-    public void render(@NotNull PoseStack poseStack, @NotNull MultiBufferSource buffers, int light, @NotNull AbstractClientPlayer player,
+    public void render(@NotNull PoseStack poseStack, @NotNull MultiBufferSource buffers, int light, @NotNull T player,
                        float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
         ItemStack shield = ThirdPersonAnimator.hiddenShield(player);
         if (shield != null) {
@@ -55,7 +56,7 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
         boolean left = arm == HumanoidArm.LEFT;
         ItemDisplayContext context = left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
         HeldModel.Axes axes = HeldModel.axes(stack, context);
-        PlayerModel<AbstractClientPlayer> model = getParentModel();
+        M model = getParentModel();
         ModelPart part = left ? model.leftArm : model.rightArm;
         float scale = scale(weapon, axes);
 
@@ -91,7 +92,7 @@ public class WeaponLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
     private static final float VANILLA_BLOCK_X = -0.9424779f;
 
     /** The shield in the off hand, placed on the hand as Minecraft's item layer places it. */
-    private void renderShield(PoseStack poseStack, MultiBufferSource buffers, int light, AbstractClientPlayer player, ItemStack shield,
+    private void renderShield(PoseStack poseStack, MultiBufferSource buffers, int light, T player, ItemStack shield,
                               float partialTick) {
         HumanoidArm arm = player.getMainArm().getOpposite();
         boolean left = arm == HumanoidArm.LEFT;

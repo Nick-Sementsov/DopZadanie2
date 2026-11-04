@@ -3,6 +3,7 @@ package io.github.nicksementsov.knightcombat.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.api.CombatFighter;
 import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatState;
 import io.github.nicksementsov.knightcombat.combat.Grip;
@@ -12,15 +13,16 @@ import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -53,8 +55,8 @@ public final class ThirdPersonAnimator {
     private static HumanoidModel.ArmPose shieldPose;
     private static float partialTick;
 
-    // The player being drawn: weapons taken out of their hands and the blade and edge directions of their pose (model space).
-    private static Player posed;
+    // The fighter being drawn: weapons taken out of their hands and the blade and edge directions of their pose (model space).
+    private static LivingEntity posed;
     private static WeaponStats posedStats;
     /** The player being drawn holds a lance (drawn like a weapon, but not one of the melee rules). */
     private static boolean posedLance;
@@ -97,8 +99,36 @@ public final class ThirdPersonAnimator {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderPlayer(RenderPlayerEvent.Pre event) {
+        begin(event.getEntity(), event.getRenderer().getModel(), event.getPoseStack(), event.getPartialTick());
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
+        end(event.getPoseStack());
+    }
+
+    /**
+     * Humanoid NPC fighters are posed like players. Their renderer must set its usual arm poses before it renders (the
+     * way a player renderer does), so that the poses set here are not overwritten.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onRenderLiving(RenderLivingEvent.Pre<?, ?> event) {
+        LivingEntity entity = event.getEntity();
+        if (entity instanceof CombatFighter && !(entity instanceof Player) && event.getRenderer().getModel() instanceof HumanoidModel<?> model) {
+            begin(entity, model, event.getPoseStack(), event.getPartialTick());
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onRenderLivingPost(RenderLivingEvent.Post<?, ?> event) {
+        LivingEntity entity = event.getEntity();
+        if (entity instanceof CombatFighter && !(entity instanceof Player)) {
+            end(event.getPoseStack());
+        }
+    }
+
+    private static void begin(LivingEntity player, HumanoidModel<?> model, PoseStack poseStack, float tick) {
         restore();
-        Player player = event.getEntity();
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         boolean lance = weapon == null && CombatConfig.mountedCharges() && Lances.isLance(player.getMainHandItem());
         if (lance) {
@@ -109,18 +139,15 @@ public final class ThirdPersonAnimator {
                 || player.isFallFlying() || player.isVisuallySwimming() || player.isSpectator()) {
             return;
         }
-        partialTick = event.getPartialTick();
-        PlayerModel<?> model = event.getRenderer().getModel();
+        partialTick = tick;
         boolean rightHanded = player.getMainArm() == HumanoidArm.RIGHT;
-        Inventory inventory = player.getInventory();
         posed = player;
         posedStats = weapon;
         posedLance = lance;
         shieldOnly = weapon == null;
         if (shield) {
             // The shield arm is posed by this mod, raised or not, and the shield drawn by WeaponLayer.
-            hiddenOff = inventory.offhand.get(0);
-            inventory.offhand.set(0, ItemStack.EMPTY);
+            hiddenOff = takeOff(player);
             drawnShield = true;
             if (rightHanded) {
                 model.leftArmPose = shieldOnly ? shieldPose : HumanoidModel.ArmPose.EMPTY;
@@ -144,15 +171,12 @@ public final class ThirdPersonAnimator {
                 model.rightArmPose = armPose;
             }
         }
-        hiddenSlot = inventory.selected;
-        if (HeldModel.measurable(inventory.items.get(hiddenSlot))) {
-            hiddenMain = inventory.items.get(hiddenSlot);
-            inventory.items.set(hiddenSlot, ItemStack.EMPTY);
+        if (HeldModel.measurable(player.getMainHandItem())) {
+            hiddenMain = takeMain(player);
         }
         if (weapon.twoHanded()) {
             // Both hands are on the weapon, so whatever is in the other hand is not drawn.
-            hiddenOff = inventory.offhand.get(0);
-            inventory.offhand.set(0, ItemStack.EMPTY);
+            hiddenOff = takeOff(player);
         }
         FighterAnim anim = ClientCombat.anim(player);
         posedPose = ThirdPersonPoses.current(anim, weapon.grip(), lance, partialTick);
@@ -162,7 +186,6 @@ public final class ThirdPersonAnimator {
         float sink = sink(player, posedPose, flinch);
         Quaternionf turn = bodyTurn(player, anim, partialTick);
         if (turn != null || posedLean != 0 || sink != 0) {
-            PoseStack poseStack = event.getPoseStack();
             poseStack.pushPose();
             if (turn != null) {
                 poseStack.mulPose(turn);
@@ -182,7 +205,7 @@ public final class ThirdPersonAnimator {
      * How far the hips sink, in blocks, so that the feet of a wide stance stay on the ground: straight legs that
      * step apart lift the feet, so the body comes down until the lower foot touches.
      */
-    private static float sink(Player player, ThirdPersonPose pose, float flinch) {
+    private static float sink(LivingEntity player, ThirdPersonPose pose, float flinch) {
         float stance = stance(player);
         if (stance == 0) {
             return 0;
@@ -199,17 +222,41 @@ public final class ThirdPersonAnimator {
     }
 
     /** How much of the fencing stance the legs show: all of it standing, none walking or riding. */
-    private static float stance(Player player) {
+    private static float stance(LivingEntity player) {
         return player.isPassenger() ? 0 : 1 - Mth.clamp(player.walkAnimation.speed(partialTick) * 2.5f, 0, 1);
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
+    private static void end(PoseStack poseStack) {
         if (turned) {
-            event.getPoseStack().popPose();
+            poseStack.popPose();
             turned = false;
         }
         restore();
+    }
+
+    /** Takes the main hand's item out of the hand for the drawing (a player's from the selected slot), and returns it. */
+    private static ItemStack takeMain(LivingEntity fighter) {
+        if (fighter instanceof Player player) {
+            Inventory inventory = player.getInventory();
+            hiddenSlot = inventory.selected;
+            ItemStack stack = inventory.items.get(hiddenSlot);
+            inventory.items.set(hiddenSlot, ItemStack.EMPTY);
+            return stack;
+        }
+        ItemStack stack = fighter.getItemBySlot(EquipmentSlot.MAINHAND);
+        fighter.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        return stack;
+    }
+
+    private static ItemStack takeOff(LivingEntity fighter) {
+        if (fighter instanceof Player player) {
+            ItemStack stack = player.getInventory().offhand.get(0);
+            player.getInventory().offhand.set(0, ItemStack.EMPTY);
+            return stack;
+        }
+        ItemStack stack = fighter.getItemBySlot(EquipmentSlot.OFFHAND);
+        fighter.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        return stack;
     }
 
     /**
@@ -217,7 +264,7 @@ public final class ThirdPersonAnimator {
      * (most of the turn in the release, the rest in the recovery); a turn cut short (a blocked whirlwind) unwinds
      * to the nearest whole turn. A dodge leans the body into the step.
      */
-    private static Quaternionf bodyTurn(Player player, FighterAnim anim, float partialTick) {
+    private static Quaternionf bodyTurn(LivingEntity player, FighterAnim anim, float partialTick) {
         if (anim == null) {
             return null;
         }
@@ -265,12 +312,21 @@ public final class ThirdPersonAnimator {
         if (posed == null) {
             return;
         }
-        Inventory inventory = posed.getInventory();
-        if (!hiddenMain.isEmpty()) {
-            inventory.items.set(hiddenSlot, hiddenMain);
-        }
-        if (!hiddenOff.isEmpty()) {
-            inventory.offhand.set(0, hiddenOff);
+        if (posed instanceof Player player) {
+            Inventory inventory = player.getInventory();
+            if (!hiddenMain.isEmpty()) {
+                inventory.items.set(hiddenSlot, hiddenMain);
+            }
+            if (!hiddenOff.isEmpty()) {
+                inventory.offhand.set(0, hiddenOff);
+            }
+        } else {
+            if (!hiddenMain.isEmpty()) {
+                posed.setItemSlot(EquipmentSlot.MAINHAND, hiddenMain);
+            }
+            if (!hiddenOff.isEmpty()) {
+                posed.setItemSlot(EquipmentSlot.OFFHAND, hiddenOff);
+            }
         }
         posed = null;
         posedStats = null;
@@ -283,12 +339,12 @@ public final class ThirdPersonAnimator {
     }
 
     /** The weapon taken out of the hand of {@code player} for drawing, or {@code null}. */
-    static ItemStack hiddenWeapon(Player player) {
+    static ItemStack hiddenWeapon(LivingEntity player) {
         return player == posed && !hiddenMain.isEmpty() ? hiddenMain : null;
     }
 
     /** The shield taken out of the off hand of {@code player} for drawing, or {@code null}. */
-    static ItemStack hiddenShield(Player player) {
+    static ItemStack hiddenShield(LivingEntity player) {
         return player == posed && drawnShield && !hiddenOff.isEmpty() ? hiddenOff : null;
     }
 
@@ -305,9 +361,10 @@ public final class ThirdPersonAnimator {
     }
 
     private static void pose(HumanoidModel<?> model, LivingEntity entity, HumanoidArm arm) {
-        if (!(entity instanceof Player player) || player != posed || posedStats == null) {
+        if (entity != posed || posedStats == null) {
             return;
         }
+        LivingEntity player = entity;
         WeaponStats weapon = posedStats;
         // Called for the weapon arm, or for the shield arm while the shield is raised; either way both arms are posed.
         boolean left = player.getMainArm() == HumanoidArm.LEFT;

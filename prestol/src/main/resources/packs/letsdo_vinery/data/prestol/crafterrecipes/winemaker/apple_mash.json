@@ -1,0 +1,11 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "minecraft:apple"
+    }
+  ],
+  "result": "vinery:apple_mash",
+  "show-tooltip": true
+}

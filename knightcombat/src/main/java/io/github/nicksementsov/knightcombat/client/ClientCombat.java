@@ -2,6 +2,7 @@ package io.github.nicksementsov.knightcombat.client;
 
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.api.CombatFighter;
 import io.github.nicksementsov.knightcombat.combat.AttackType;
 import io.github.nicksementsov.knightcombat.combat.Combo;
 import io.github.nicksementsov.knightcombat.combat.CombatRules;
@@ -147,6 +148,19 @@ public final class ClientCombat {
         return Lances.power(MOUNT.speedAlong(player.getYRot() * Mth.DEG_TO_RAD));
     }
 
+    /** Fighters with a weapon, a lance or a shield are animated. */
+    private static void animate(LivingEntity other, boolean local) {
+        boolean armed = Weapons.isWeapon(other.getMainHandItem()) || Lances.isLance(other.getMainHandItem())
+                || Shields.isShield(other.getOffhandItem());
+        FighterAnim anim = armed ? animOf(other.getId()) : ANIMS.get(other.getId());
+        if (anim != null) {
+            anim.watchHeld(other);
+            anim.advance(other, local);
+            anim.tickBody(other);
+        }
+        CombatParticles.tick(other, anim);
+    }
+
     // ---------------------------------------------------------------- packets
 
     public static void onState(CombatStatePacket packet) {
@@ -196,16 +210,13 @@ public final class ClientCombat {
         }
         if (event.phase == TickEvent.Phase.END) {
             for (Player other : mc.level.players()) {
-                // Fighters with a weapon, a lance or a shield are animated.
-                boolean armed = Weapons.isWeapon(other.getMainHandItem()) || Lances.isLance(other.getMainHandItem())
-                        || Shields.isShield(other.getOffhandItem());
-                FighterAnim anim = armed ? animOf(other.getId()) : ANIMS.get(other.getId());
-                if (anim != null) {
-                    anim.watchHeld(other);
-                    anim.advance(other, other == player);
-                    anim.tickBody(other);
+                animate(other, other == player);
+            }
+            // NPCs that fight by the rules are animated like players.
+            for (Entity entity : mc.level.entitiesForRendering()) {
+                if (entity instanceof CombatFighter && entity instanceof LivingEntity other && !(entity instanceof Player)) {
+                    animate(other, false);
                 }
-                CombatParticles.tick(other, anim);
             }
             trackMount(player);
             // The own swing that just began its release (or a kick going out) carries the player forward.

@@ -1,0 +1,30 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.nick.prestol.mixin",
+  "plugin": "com.nick.prestol.mixin.MixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "ColonyMixin",
+    "TreeMixin",
+    "EatMixin",
+    "HomeMixin",
+    "SleepMixin",
+    "CrewWalkMixin",
+    "PlacerMixin",
+    "GuardHireMixin",
+    "SecurityMixin",
+    "ManyColoniesMixin",
+    "MercenaryMixin"
+  ],
+  "client": [
+    "GuiMapMixin",
+    "MapWaypointsMixin",
+    "TownHallWindowMixin",
+    "MercenaryWindowMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "refmap": "prestol.refmap.json"
+}

@@ -345,13 +345,32 @@
 | `particleEffects` | true | Искры, вспышки, щепки щитов и копий, пыль из-под ног и копыт |
 | `bloodEffects` | true | Кровь от попаданий и пятна на земле (нужен `particleEffects`) |
 
+## Бойцы-NPC (для других модов)
+
+С версии 2.10.0 по тем же правилам могут драться не только игроки, но и существа других модов. Существо должно
+быть `LivingEntity` и реализовать маркерный интерфейс `api.CombatFighter`; управляют им через `api.KnightCombatApi`
+на сервере — теми же «нажатиями», что шлёт клиент игрока:
+
+| Метод | Что делает |
+|-------|-----------|
+| `input(fighter, CombatAction.SLASH / OVERHEAD / STAB)` | Начать замах; `ATTACK_RELEASE` — «отпустить кнопку» (без него удар станет тяжёлым) |
+| `input(fighter, BLOCK_START / BLOCK_STOP)` | Поднять и опустить блок оружием; щит поднимается как у игрока: `startUsingItem(OFF_HAND)` |
+| `input(fighter, FEINT / KICK / BATTLE_CRY / DODGE_*)` | Финт, пинок (со щитом — удар щитом), боевой клич, уклонение |
+| `state(entity)` | Фаза, удар, тики фазы, флаги и выносливость — своего бойца или противника |
+| `shieldReady(fighter)` | Можно ли поднять щит (выбитый щит какое-то время опущен) |
+| `weapon(stack)` | Характеристики оружия: вид, хват, досягаемость |
+
+Своих бойцы-NPC не задевают: союзники определяются через `isAlliedTo` и хозяина (`OwnableEntity`). Анимации,
+оружие в руках и следы ударов рисуются для любой модели `HumanoidModel`: добавьте в рендерер слой
+`new WeaponLayer<>(this)`. Пример — мод [Дружина](../druzhina/README.md).
+
 ## Сборка
 
 Мод собирается вместе с остальными модами репозитория (см. [README в корне](../README.md)):
 
 | Команда | Что делает |
 |---------|-----------|
-| `./gradlew :knightcombat:build` | Собирает мод в `knightcombat/build/libs/knightcombat-2.9.0.jar` и запускает тесты |
+| `./gradlew :knightcombat:build` | Собирает мод в `knightcombat/build/libs/knightcombat-2.10.0.jar` и запускает тесты |
 | `./gradlew :knightcombat:runClient` | Запускает Minecraft с модом |
 | `./gradlew :knightcombat:runClient -PepicKnights` | То же вместе с Epic Knights, его аддонами Addon, Slavic Armory и Antique Legacy, Architectury и Cloth Config (скачиваются с Modrinth). Epic Knights: Dark Ages есть только на CurseForge: положите его jar в `knightcombat/devmods/epic-knights-dark-ages-1.1.jar` (папка не в git), и он запустится тоже |
 | `./gradlew :knightcombat:runServer` | Запускает выделенный сервер с модом |

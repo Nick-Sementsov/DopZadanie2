@@ -1,0 +1,25 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:white_taiga_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "minecraft:kelp"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:aegis_wine",
+  "show-tooltip": true,
+  "min-building-level": 3
+}

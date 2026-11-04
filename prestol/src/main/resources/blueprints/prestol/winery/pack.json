@@ -1,0 +1,17 @@
+{
+  "icon": "icon.png",
+  "name": "Prestol: Winery",
+  "authors": [
+    "MineColonies team (buildings)",
+    "Prestol"
+  ],
+  "desc": "The winemaker hut of Prestol for Let's Do Vinery, built in the medieval oak style.",
+  "mods": [
+    "structurize",
+    "minecolonies",
+    "prestol",
+    "vinery"
+  ],
+  "version": "1",
+  "pack-format": "1"
+}

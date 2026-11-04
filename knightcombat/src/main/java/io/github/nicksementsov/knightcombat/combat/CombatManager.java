@@ -2,6 +2,7 @@ package io.github.nicksementsov.knightcombat.combat;
 
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
+import io.github.nicksementsov.knightcombat.api.CombatFighter;
 import io.github.nicksementsov.knightcombat.network.CombatAction;
 import io.github.nicksementsov.knightcombat.network.CombatNetwork;
 import io.github.nicksementsov.knightcombat.network.CombatStatePacket;
@@ -50,6 +51,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.entity.PartEntity;
 import net.minecraftforge.event.PlayLevelSoundEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
@@ -71,8 +74,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The combat rules. Runs on the server: reads inputs, advances every player's {@link CombatState} each tick,
- * traces the weapon during releases and resolves hits, blocks, parries, counters and kicks.
+ * The combat rules. Runs on the server: reads inputs, advances every fighter's {@link CombatState} each tick,
+ * traces the weapon during releases and resolves hits, blocks, parries, counters and kicks. Fighters are the players
+ * and the creatures made to fight like them ({@link CombatFighter}), whose AI sends the same inputs.
  */
 @Mod.EventBusSubscriber(modid = KnightCombat.MODID)
 public final class CombatManager {
@@ -91,12 +95,31 @@ public final class CombatManager {
     }
 
     public static CombatState state(Player player) {
-        return STATES.computeIfAbsent(player.getUUID(), id -> new CombatState());
+        return state((LivingEntity) player);
+    }
+
+    public static CombatState state(LivingEntity fighter) {
+        return STATES.computeIfAbsent(fighter.getUUID(), id -> new CombatState());
+    }
+
+    /** Whether {@code entity} fights by the rules: every player, and creatures made to ({@link CombatFighter}). */
+    public static boolean isFighter(Entity entity) {
+        return entity instanceof Player || entity instanceof CombatFighter && entity instanceof LivingEntity;
+    }
+
+    /** {@code entity} when it is a fighter (then always a {@link LivingEntity}), or null. */
+    private static Entity fighter(Entity entity) {
+        return isFighter(entity) ? entity : null;
+    }
+
+    /** Whether the fighter's shield may go up: an NPC's shield knocked aside stays down a while (a player's has an item cooldown). */
+    public static boolean shieldReady(LivingEntity fighter) {
+        return fighter instanceof Player || fighter.level().getGameTime() >= state(fighter).shieldDownUntil;
     }
 
     // ---------------------------------------------------------------- inputs
 
-    public static void handleInput(ServerPlayer player, CombatAction action) {
+    public static void handleInput(LivingEntity player, CombatAction action) {
         if (!player.isAlive() || player.isSpectator()) {
             return;
         }
@@ -146,7 +169,7 @@ public final class CombatManager {
         sync(player, s);
     }
 
-    private static void attackInput(ServerPlayer player, CombatState s, AttackType type, long now) {
+    private static void attackInput(LivingEntity player, CombatState s, AttackType type, long now) {
         if (Weapons.of(player.getMainHandItem()) == null) {
             return;
         }
@@ -175,7 +198,7 @@ public final class CombatManager {
         }
     }
 
-    private static void startWindup(ServerPlayer player, CombatState s, AttackType type, boolean riposte, boolean combo, long now) {
+    private static void startWindup(LivingEntity player, CombatState s, AttackType type, boolean riposte, boolean combo, long now) {
         ItemStack stack = player.getMainHandItem();
         WeaponStats weapon = Weapons.of(stack);
         if (weapon == null) {
@@ -214,7 +237,7 @@ public final class CombatManager {
 
 
     /** Switching to another attack during the wind-up. */
-    private static void morph(ServerPlayer player, CombatState s, AttackType type, long now) {
+    private static void morph(LivingEntity player, CombatState s, AttackType type, long now) {
         if (type == s.attack || s.has(CombatState.RIPOSTE) || s.has(CombatState.HEAVY) || s.phaseTicks >= s.phaseLength * CombatRules.MORPH_LIMIT
                 || s.stamina < CombatRules.MORPH_COST || s.weapon == null) {
             return;
@@ -239,7 +262,7 @@ public final class CombatManager {
         playSound(player, ModSounds.FEINT.get(), 0.4f, 1.2f);
     }
 
-    private static void feint(ServerPlayer player, CombatState s, long now) {
+    private static void feint(LivingEntity player, CombatState s, long now) {
         if (s.phase != Phase.WINDUP || s.phaseTicks >= s.phaseLength - 1 || s.stamina < CombatRules.FEINT_COST) {
             return;
         }
@@ -251,7 +274,7 @@ public final class CombatManager {
         playSound(player, ModSounds.FEINT.get(), 0.6f, 1.0f);
     }
 
-    private static void kickInput(ServerPlayer player, CombatState s, long now) {
+    private static void kickInput(LivingEntity player, CombatState s, long now) {
         // A wind-up can be cancelled into a kick, for the price of a feint.
         boolean cancel = s.phase == Phase.WINDUP;
         boolean free = s.phase == Phase.IDLE || s.phase == Phase.BLOCK || cancel
@@ -274,9 +297,9 @@ public final class CombatManager {
         s.set(Phase.KICK, bash ? CombatRules.SHIELD_BASH_WINDUP : CombatRules.KICK_WINDUP);
     }
 
-    private static void throwInput(ServerPlayer player, CombatState s, long now) {
+    private static void throwInput(LivingEntity player, CombatState s, long now) {
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
-        if (weapon == null || !CombatConfig.weaponThrowing()) {
+        if (weapon == null || !CombatConfig.weaponThrowing() || !(player instanceof Player)) {
             return;
         }
         boolean cancel = s.phase == Phase.WINDUP;
@@ -300,7 +323,7 @@ public final class CombatManager {
     }
 
     /** A quick step: {@code direction} is one of the dodge flags of {@link CombatState}, or 0 for a step back. */
-    private static void dodgeInput(ServerPlayer player, CombatState s, int direction, long now) {
+    private static void dodgeInput(LivingEntity player, CombatState s, int direction, long now) {
         boolean armed = Weapons.of(player.getMainHandItem()) != null || !Shields.carried(player).isEmpty();
         if (!CombatConfig.dodges() || !armed || now < s.dodgeReadyAt || player.isPassenger()
                 || player.isFallFlying() || player.isInWater()) {
@@ -323,11 +346,38 @@ public final class CombatManager {
         s.flags = direction;
         s.set(Phase.DODGE, CombatRules.DODGE_LENGTH);
         s.dodgeReadyAt = now + CombatRules.DODGE_LENGTH + CombatRules.DODGE_COOLDOWN;
+        if (!(player instanceof Player)) {
+            dodgeStep(player, direction);
+        }
         playSound(player, ModSounds.DODGE.get(), 0.7f, 0.92f + player.getRandom().nextFloat() * 0.16f);
         rattle(player, 0.6f);
     }
 
-    private static void blockInput(ServerPlayer player, CombatState s, long now) {
+    /** The step of an NPC's dodge, as strong as the one a player's client makes. */
+    private static void dodgeStep(LivingEntity fighter, int direction) {
+        Vec3 look = fighter.getViewVector(1);
+        double length = Math.sqrt(look.x * look.x + look.z * look.z);
+        if (length < 1.0E-3) {
+            return;
+        }
+        double fx = look.x / length;
+        double fz = look.z / length;
+        double x;
+        double z;
+        if (direction == CombatState.DODGE_LEFT || direction == CombatState.DODGE_RIGHT) {
+            float side = direction == CombatState.DODGE_LEFT ? -0.62f : 0.62f;
+            x = -fz * side;
+            z = fx * side;
+        } else {
+            float forward = direction == CombatState.DODGE_FORWARD ? 0.6f : -0.58f;
+            x = fx * forward;
+            z = fz * forward;
+        }
+        fighter.setDeltaMovement(fighter.getDeltaMovement().add(x, 0.2, z));
+        fighter.hurtMarked = true;
+    }
+
+    private static void blockInput(LivingEntity player, CombatState s, long now) {
         if (!canWeaponBlock(player)) {
             return;
         }
@@ -361,7 +411,7 @@ public final class CombatManager {
     }
 
     /** Blocking with the weapon needs the weapon in the main hand; a one-handed weapon with a shield blocks with the shield. */
-    private static boolean canWeaponBlock(ServerPlayer player) {
+    private static boolean canWeaponBlock(LivingEntity player) {
         WeaponStats weapon = Weapons.of(player.getMainHandItem());
         return weapon != null && (weapon.twoHanded() || !Shields.isShield(player.getOffhandItem()));
     }
@@ -370,7 +420,7 @@ public final class CombatManager {
         return s.has(CombatState.REBOUND) || s.has(CombatState.FEINT) || s.phaseTicks * 2 >= s.phaseLength;
     }
 
-    private static void startBlock(ServerPlayer player, CombatState s, long now, boolean pressed) {
+    private static void startBlock(LivingEntity player, CombatState s, long now, boolean pressed) {
         s.weapon = Weapons.of(player.getMainHandItem());
         s.weaponItem = player.getMainHandItem().getItem();
         s.flags = 0;
@@ -395,7 +445,10 @@ public final class CombatManager {
      * the moment it goes up, so it parries at first; it cannot stay up while the fighter attacks, kicks, throws,
      * dodges or reels.
      */
-    private static void updateShield(ServerPlayer player, CombatState s, long now) {
+    private static void updateShield(LivingEntity player, CombatState s, long now) {
+        if (!(player instanceof Player) && Shields.raised(player) && now < s.shieldDownUntil) {
+            player.stopUsingItem();
+        }
         boolean raised = CombatConfig.shields() && Shields.raised(player);
         if (!raised) {
             if (s.phase == Phase.BLOCK && s.has(CombatState.SHIELD)) {
@@ -415,7 +468,7 @@ public final class CombatManager {
         }
     }
 
-    private static void startShieldBlock(ServerPlayer player, CombatState s, long now) {
+    private static void startShieldBlock(LivingEntity player, CombatState s, long now) {
         s.weapon = Weapons.of(player.getMainHandItem());
         s.weaponItem = player.getMainHandItem().getItem();
         s.flags = CombatState.SHIELD;
@@ -433,21 +486,21 @@ public final class CombatManager {
     }
 
     /** Lowers a raised shield: the fighter is about to do something else. */
-    private static void lowerShield(ServerPlayer player) {
+    private static void lowerShield(LivingEntity player) {
         if (Shields.raised(player)) {
             player.stopUsingItem();
         }
     }
 
     /** Lowers the lance under the arm, if the rider is free to. */
-    private static void couchInput(ServerPlayer player, CombatState s) {
+    private static void couchInput(LivingEntity player, CombatState s) {
         boolean free = s.phase == Phase.IDLE || s.phase == Phase.BLOCK || s.phase == Phase.RECOVERY && canBlockFromRecovery(s);
-        if (free && Lances.canCouch(player)) {
+        if (free && player instanceof Player p && Lances.canCouch(p)) {
             startCouch(player, s);
         }
     }
 
-    private static void startCouch(ServerPlayer player, CombatState s) {
+    private static void startCouch(LivingEntity player, CombatState s) {
         s.weapon = Weapons.of(player.getMainHandItem());
         s.weaponItem = player.getMainHandItem().getItem();
         s.flags = 0;
@@ -458,7 +511,7 @@ public final class CombatManager {
         playSound(player, ModSounds.COUCH.get(), 0.6f, 0.95f + player.getRandom().nextFloat() * 0.1f);
     }
 
-    private static void cryInput(ServerPlayer player, CombatState s, long now) {
+    private static void cryInput(LivingEntity player, CombatState s, long now) {
         if (s.phase != Phase.IDLE && s.phase != Phase.BLOCK || now < s.cryReadyAt) {
             return;
         }
@@ -482,7 +535,7 @@ public final class CombatManager {
         }
     }
 
-    private static void tick(ServerPlayer player) {
+    private static void tick(LivingEntity player) {
         CombatState s = state(player);
         long now = player.level().getGameTime();
         float max = CombatConfig.maxStamina();
@@ -509,8 +562,8 @@ public final class CombatManager {
         }
         s.lastHeld = heldItem;
         s.heldKnown = true;
-        if (CombatConfig.twoHandedPutsAwayShield()) {
-            stowShield(player, s);
+        if (CombatConfig.twoHandedPutsAwayShield() && player instanceof Player p) {
+            stowShield(p, s);
         }
         trackMount(player, s);
         if (CombatConfig.mountedCharges() && EpicKnights.isLance(heldItem)) {
@@ -592,7 +645,7 @@ public final class CombatManager {
         sync(player, s);
     }
 
-    private static void finishPhase(ServerPlayer player, CombatState s, long now) {
+    private static void finishPhase(LivingEntity player, CombatState s, long now) {
         AttackType queued = s.queued;
         s.flags = 0;
         s.queued = null;
@@ -611,14 +664,14 @@ public final class CombatManager {
     }
 
     /** The weapon is drawn back further and the blow gathers strength. */
-    private static void startCharge(ServerPlayer player, CombatState s, long now) {
+    private static void startCharge(LivingEntity player, CombatState s, long now) {
         s.spend(CombatRules.HEAVY_COST, now);
         s.flags |= CombatState.HEAVY;
         s.set(Phase.WINDUP, CombatRules.heavyWindup(s.weapon, s.attack));
         playSound(player, ModSounds.EFFORT.get(), 0.6f, 0.95f + player.getRandom().nextFloat() * 0.1f);
     }
 
-    private static void startRelease(ServerPlayer player, CombatState s) {
+    private static void startRelease(LivingEntity player, CombatState s) {
         AttackStats attack = s.weapon.attack(s.attack);
         s.set(Phase.RELEASE, Math.max(1, attack.release()));
         boolean strong = s.has(CombatState.HEAVY) || s.combo != Combo.NONE && s.combo != Combo.KICK_FOLLOW;
@@ -637,7 +690,7 @@ public final class CombatManager {
     }
 
     /** An effort shout with the given chance, but never two within a second and a half. */
-    private static void yell(ServerPlayer player, CombatState s, float chance) {
+    private static void yell(LivingEntity player, CombatState s, float chance) {
         long now = player.level().getGameTime();
         if (!CombatConfig.attackYells() || now < s.yellReadyAt || player.getRandom().nextFloat() >= chance) {
             return;
@@ -646,7 +699,7 @@ public final class CombatManager {
         playSound(player, ModSounds.ATTACK_YELL.get(), 0.9f, 0.92f + player.getRandom().nextFloat() * 0.16f);
     }
 
-    private static void releaseTick(ServerPlayer player, CombatState s, long now) {
+    private static void releaseTick(LivingEntity player, CombatState s, long now) {
         float p0 = s.phaseTicks / (float) s.phaseLength;
         float p1 = (s.phaseTicks + 1) / (float) s.phaseLength;
         if (sweep(player, s, p0, p1, now)) {
@@ -686,7 +739,7 @@ public final class CombatManager {
     // ---------------------------------------------------------------- tracing the weapon
 
     /** Traces the weapon from release progress p0 to p1. Returns true when the attack was stopped. */
-    private static boolean sweep(ServerPlayer player, CombatState s, float p0, float p1, long now) {
+    private static boolean sweep(LivingEntity player, CombatState s, float p0, float p1, long now) {
         WeaponStats weapon = s.weapon;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1);
@@ -725,7 +778,7 @@ public final class CombatManager {
     private record RayHit(Entity entity, Vec3 point, double distance) {
     }
 
-    private static boolean traceRay(ServerPlayer player, CombatState s, List<Entity> candidates, Vec3 eye,
+    private static boolean traceRay(LivingEntity player, CombatState s, List<Entity> candidates, Vec3 eye,
                                     double[] forward, double[] up, double[] right, float yaw, float pitch, double length,
                                     boolean wallStops, long now) {
         double[] dir = new double[3];
@@ -764,7 +817,7 @@ public final class CombatManager {
         return false;
     }
 
-    private static boolean canTarget(ServerPlayer player, Entity entity) {
+    private static boolean canTarget(LivingEntity player, Entity entity) {
         if (!entity.isAlive() || !entity.isPickable() || entity.isSpectator() || entity == player.getVehicle()
                 || player.isPassengerOfSameVehicle(entity) || entity.isAlliedTo(player)) {
             return false;
@@ -775,7 +828,11 @@ public final class CombatManager {
         if (entity instanceof OwnableEntity pet && player.getUUID().equals(pet.getOwnerUUID())) {
             return false;
         }
-        if (entity instanceof Player other && !player.canHarmPlayer(other)) {
+        // an NPC fighter spares its friends and its master
+        if (player.isAlliedTo(entity) || player instanceof OwnableEntity own && entity.getUUID().equals(own.getOwnerUUID())) {
+            return false;
+        }
+        if (entity instanceof Player other && player instanceof Player me && !me.canHarmPlayer(other)) {
             return false;
         }
         return entity instanceof LivingEntity || entity instanceof PartEntity<?> || entity instanceof EndCrystal;
@@ -807,9 +864,9 @@ public final class CombatManager {
     // ---------------------------------------------------------------- resolving hits
 
     /** Resolves the weapon meeting {@code target}. Returns true when the attack was stopped. */
-    private static boolean resolveHit(ServerPlayer player, CombatState s, Entity target, Vec3 point, long now) {
+    private static boolean resolveHit(LivingEntity player, CombatState s, Entity target, Vec3 point, long now) {
         AttackStats attack = s.weapon.attack(s.attack);
-        if (target instanceof ServerPlayer defender) {
+        if (fighter(target) instanceof LivingEntity defender) {
             CombatState d = state(defender);
             // A shield raised this very tick already counts.
             updateShield(defender, d, now);
@@ -832,7 +889,7 @@ public final class CombatManager {
         return false;
     }
 
-    private static void blocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d,
+    private static void blocked(LivingEntity attacker, CombatState s, LivingEntity defender, CombatState d,
                                 AttackStats attack, Vec3 point, long now) {
         boolean parry = d.phase == Phase.BLOCK && now <= d.parryUntil;
         boolean shield = d.phase == Phase.BLOCK && d.has(CombatState.SHIELD) && Shields.raised(defender);
@@ -851,7 +908,7 @@ public final class CombatManager {
         d.syncState = true;
         if (d.stamina <= 0) {
             if (shield && Shields.raised(defender)) {
-                defender.disableShield(true);
+                disableShield(defender);
                 splinter(attacker, point, 1.0f);
             }
             guardBroken(attacker, s, defender, d, point);
@@ -894,7 +951,7 @@ public final class CombatManager {
         }
     }
 
-    private static void countered(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d,
+    private static void countered(LivingEntity attacker, CombatState s, LivingEntity defender, CombatState d,
                                   AttackStats attack, Vec3 point, long now) {
         WeaponStats guard = d.weapon != null ? d.weapon : s.weapon;
         d.spend(attack.staminaDamage() * drain(s) * CombatRules.COUNTER_FACTOR * guard.blockCost(), now);
@@ -915,14 +972,14 @@ public final class CombatManager {
         impact(attacker, Impact.PARRY, attacker, defender, point, s.weapon.weight());
     }
 
-    private static void shieldBlocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d,
+    private static void shieldBlocked(LivingEntity attacker, CombatState s, LivingEntity defender, CombatState d,
                                       AttackStats attack, Vec3 point, long now) {
         d.spend(attack.staminaDamage() * drain(s) * CombatRules.SHIELD_FACTOR, now);
         ItemStack shield = defender.getUseItem();
         shield.hurtAndBreak(1 + Mth.floor(attack.damage() / 3), defender, p -> p.broadcastBreakEvent(defender.getUsedItemHand()));
         attacker.level().playSound(null, defender.getX(), defender.getY(), defender.getZ(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.0f, 0.9f + attacker.getRandom().nextFloat() * 0.2f);
         if (s.weapon.breaksShields() || d.stamina <= 0) {
-            defender.disableShield(true);
+            disableShield(defender);
             splinter(attacker, point, 0.9f);
         }
         if (d.stamina <= 0) {
@@ -941,8 +998,8 @@ public final class CombatManager {
     }
 
     /** A heavy blow of an axe, a mace or a polearm knocks the shield aside: it cannot be raised for a while and the bearer reels. */
-    private static void shieldKnocked(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d, AttackStats attack, Vec3 point) {
-        defender.disableShield(true);
+    private static void shieldKnocked(LivingEntity attacker, CombatState s, LivingEntity defender, CombatState d, AttackStats attack, Vec3 point) {
+        disableShield(defender);
         stagger(d, CombatRules.SHIELD_KNOCKED, 0);
         rebound(s, Math.max(3, attack.recovery() / 2));
         clash(attacker, point, ModSounds.GUARD_BREAK.get(), 1.0f);
@@ -955,7 +1012,7 @@ public final class CombatManager {
     }
 
     /** The defender ran out of stamina: no damage, but they cannot act for a while and the attacker may follow up. */
-    private static void guardBroken(ServerPlayer attacker, CombatState s, ServerPlayer defender, CombatState d, Vec3 point) {
+    private static void guardBroken(LivingEntity attacker, CombatState s, LivingEntity defender, CombatState d, Vec3 point) {
         stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
         s.queued = null;
         s.flags &= CombatState.MIRRORED;
@@ -969,9 +1026,9 @@ public final class CombatManager {
         impact(attacker, Impact.GUARD_BREAK, attacker, defender, point, s.weapon.weight());
     }
 
-    private static void hitWall(ServerPlayer player, CombatState s, BlockHitResult hit) {
+    private static void hitWall(LivingEntity player, CombatState s, BlockHitResult hit) {
         rebound(s, s.weapon.attack(s.attack).recovery() + CombatRules.REBOUND_WALL);
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = ((ServerLevel) player.level());
         Vec3 point = hit.getLocation();
         level.playSound(null, point.x, point.y, point.z, ModSounds.WALL.get(), SoundSource.PLAYERS, 0.9f, 0.9f + player.getRandom().nextFloat() * 0.2f);
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, level.getBlockState(hit.getBlockPos())),
@@ -1009,7 +1066,7 @@ public final class CombatManager {
         return Math.min(1, force);
     }
 
-    private static void dealDamage(ServerPlayer player, CombatState s, Entity target, Vec3 point) {
+    private static void dealDamage(LivingEntity player, CombatState s, Entity target, Vec3 point) {
         ItemStack weapon = player.getMainHandItem();
         LivingEntity living = target instanceof LivingEntity le ? le
                 : target instanceof PartEntity<?> part && part.getParent() instanceof LivingEntity parent ? parent : null;
@@ -1030,7 +1087,7 @@ public final class CombatManager {
         boolean hurt;
         applyingHit = true;
         try {
-            hurt = target.hurt(player.damageSources().playerAttack(player), damage);
+            hurt = target.hurt(attackSource(player), damage);
         } finally {
             applyingHit = false;
         }
@@ -1041,7 +1098,7 @@ public final class CombatManager {
             return;
         }
 
-        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        float yaw = player.getYHeadRot() * Mth.DEG_TO_RAD;
         float weight = force(s);
         // Heavy weapons push harder than the usual knockback of a hit, overheads the most, heavy attacks more.
         float push = EnchantmentHelper.getKnockbackBonus(player) * 0.5f + weight * switch (s.attack) {
@@ -1064,22 +1121,26 @@ public final class CombatManager {
         EnchantmentHelper.doPostDamageEffects(player, target);
         player.setLastHurtMob(target);
 
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = ((ServerLevel) player.level());
         if (living != null) {
             float dealt = healthBefore - living.getHealth();
-            player.awardStat(Stats.DAMAGE_DEALT, Math.round(dealt * 10));
+            if (player instanceof Player p) {
+                p.awardStat(Stats.DAMAGE_DEALT, Math.round(dealt * 10));
+            }
             int hearts = (int) (dealt * 0.5);
             if (hearts > 0) {
                 level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, target.getX(), target.getY(0.5), target.getZ(), hearts, 0.1, 0, 0.1, 0.2);
             }
         }
-        if (!s.hitSomething && !player.getAbilities().instabuild) {
+        if (!s.hitSomething && !(player instanceof Player p && p.getAbilities().instabuild)) {
             weapon.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
         }
         if (!s.hitSomething && s.attack == AttackType.SLASH) {
             level.sendParticles(ParticleTypes.SWEEP_ATTACK, point.x, point.y, point.z, 1, 0, 0, 0, 0);
         }
-        player.causeFoodExhaustion(0.1f);
+        if (player instanceof Player p) {
+            p.causeFoodExhaustion(0.1f);
+        }
         s.hitSomething = true;
         boolean killed = living != null && living.isDeadOrDying();
         boolean heavy = killed || weight >= 0.6f;
@@ -1098,7 +1159,7 @@ public final class CombatManager {
     }
 
     /** The kick (or a bash with the shield) lands on the nearest creature in front, if any is close enough. */
-    private static void kick(ServerPlayer player, long now, boolean bash) {
+    private static void kick(LivingEntity player, long now, boolean bash) {
         float range = bash ? CombatRules.SHIELD_BASH_RANGE : CombatRules.KICK_RANGE;
         Vec3 pos = player.position();
         Vec3 look = player.getViewVector(1);
@@ -1130,14 +1191,12 @@ public final class CombatManager {
         }
         // The one who was kicked is off balance: an attack right now comes out fast.
         state(player).kickFollowUntil = now + CombatRules.KICK_FOLLOW_WINDOW;
-        if (best instanceof ServerPlayer defender) {
+        if (fighter(best) instanceof LivingEntity defender) {
             CombatState d = state(defender);
             if (d.guarding() || Shields.raised(defender)) {
                 d.spend(CombatRules.KICK_DRAIN, now);
                 if (Shields.raised(defender)) {
-                    defender.getCooldowns().addCooldown(defender.getUseItem().getItem(), CombatRules.SHIELD_KICKED_COOLDOWN);
-                    defender.stopUsingItem();
-                    defender.level().broadcastEntityEvent(defender, (byte) 30);
+                    knockShield(defender, CombatRules.SHIELD_KICKED_COOLDOWN, now);
                 }
                 stagger(d, CombatRules.KICK_STAGGER, 0);
                 feedback(defender, Feedback.KICKED);
@@ -1147,11 +1206,11 @@ public final class CombatManager {
         best.invulnerableTime = 0;
         applyingHit = true;
         try {
-            best.hurt(player.damageSources().playerAttack(player), bash ? CombatRules.SHIELD_BASH_DAMAGE : WeaponStats.KICK.damage());
+            best.hurt(attackSource(player), bash ? CombatRules.SHIELD_BASH_DAMAGE : WeaponStats.KICK.damage());
         } finally {
             applyingHit = false;
         }
-        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        float yaw = player.getYHeadRot() * Mth.DEG_TO_RAD;
         best.knockback(bash ? 0.9 : 0.6, Mth.sin(yaw), -Mth.cos(yaw));
         best.hurtMarked = true;
         player.level().playSound(null, best.getX(), best.getY(0.5), best.getZ(), bash ? ModSounds.SHIELD_BASH.get() : ModSounds.KICK.get(),
@@ -1159,10 +1218,10 @@ public final class CombatManager {
         impact(player, Impact.KICK, player, best, best.position().add(0, best.getBbHeight() * 0.45, 0), 0.6f);
     }
 
-    private static void battleCry(ServerPlayer player, CombatState s, float max) {
+    private static void battleCry(LivingEntity player, CombatState s, float max) {
         s.restore(CombatRules.CRY_STAMINA, max);
         playSound(player, ModSounds.BATTLE_CRY.get(), 1.4f, 0.9f + player.getRandom().nextFloat() * 0.2f);
-        player.serverLevel().sendParticles(ParticleTypes.CLOUD, player.getX(), player.getEyeY() + 0.2, player.getZ(), 6, 0.3, 0.1, 0.3, 0.02);
+        ((ServerLevel) player.level()).sendParticles(ParticleTypes.CLOUD, player.getX(), player.getEyeY() + 0.2, player.getZ(), 6, 0.3, 0.1, 0.3, 0.02);
         feedback(player, Feedback.BATTLE_CRY);
         impact(player, Impact.CRY, player, null, player.getEyePosition(), 0);
     }
@@ -1174,7 +1233,7 @@ public final class CombatManager {
      * inventory (dropped at the feet when there is no room), and once the weapon is put away the shield is taken
      * back into the off hand.
      */
-    private static void stowShield(ServerPlayer player, CombatState s) {
+    private static void stowShield(Player player, CombatState s) {
         Inventory inventory = player.getInventory();
         WeaponStats main = Weapons.of(player.getMainHandItem());
         boolean twoHands = main != null && main.twoHanded();
@@ -1228,7 +1287,7 @@ public final class CombatManager {
 
     // ---------------------------------------------------------------- mounted charges
 
-    private static void trackMount(ServerPlayer player, CombatState s) {
+    private static void trackMount(LivingEntity player, CombatState s) {
         Entity mount = player.getVehicle();
         s.mount.track(mount != null ? mount.position() : null);
     }
@@ -1244,19 +1303,19 @@ public final class CombatManager {
     }
 
     /** The direction a couched lance points: where the rider looks, a little lower, but never far up or down. */
-    private static Vec3 lanceDirection(ServerPlayer player) {
+    private static Vec3 lanceDirection(LivingEntity player) {
         float pitch = Mth.clamp(player.getXRot() + CombatRules.LANCE_DIP, -15, 30) * Mth.DEG_TO_RAD;
-        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        float yaw = player.getYHeadRot() * Mth.DEG_TO_RAD;
         return new Vec3(-Mth.sin(yaw) * Mth.cos(pitch), -Mth.sin(pitch), Mth.cos(yaw) * Mth.cos(pitch));
     }
 
     /** Speed of the mount along the lance, in blocks per tick: running sideways or backwards does not drive it in. */
-    private static float chargeSpeed(ServerPlayer player, CombatState s) {
+    private static float chargeSpeed(LivingEntity player, CombatState s) {
         return s.mount.speedAlong(player.getYRot() * Mth.DEG_TO_RAD);
     }
 
-    private static void couchTick(ServerPlayer player, CombatState s, long now) {
-        if (!s.couchHeld || !Lances.canCouch(player) || player.getMainHandItem().getItem() != s.weaponItem) {
+    private static void couchTick(LivingEntity player, CombatState s, long now) {
+        if (!s.couchHeld || !(player instanceof Player p) || !Lances.canCouch(p) || player.getMainHandItem().getItem() != s.weaponItem) {
             s.flags = 0;
             s.set(Phase.IDLE, 0);
             return;
@@ -1268,10 +1327,10 @@ public final class CombatManager {
     }
 
     /** Traces the couched lance from under the rider's arm; the first creature on it is struck, a wall throws it up. */
-    private static void lanceSweep(ServerPlayer player, CombatState s, float power, long now) {
-        ServerLevel level = player.serverLevel();
+    private static void lanceSweep(LivingEntity player, CombatState s, float power, long now) {
+        ServerLevel level = ((ServerLevel) player.level());
         Vec3 dir = lanceDirection(player);
-        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
+        float yaw = player.getYHeadRot() * Mth.DEG_TO_RAD;
         Vec3 from = player.getEyePosition().add(-Mth.cos(yaw) * 0.3, -0.55, -Mth.sin(yaw) * 0.3);
         float reach = Lances.reach(player.getMainHandItem());
         Vec3 to = from.add(dir.scale(reach));
@@ -1324,13 +1383,13 @@ public final class CombatManager {
      * The couched lance strikes {@code target}: damage, knockback and the chance of throwing a rider out of the saddle
      * grow with the speed of the charge. A raised guard (a shield best) takes the blow at a great cost in stamina.
      */
-    private static void lanceHit(ServerPlayer player, CombatState s, Entity target, Vec3 point, Vec3 dir, float power, long now) {
-        ServerLevel level = player.serverLevel();
+    private static void lanceHit(LivingEntity player, CombatState s, Entity target, Vec3 point, Vec3 dir, float power, long now) {
+        ServerLevel level = ((ServerLevel) player.level());
         ItemStack lance = player.getMainHandItem();
         LivingEntity living = target instanceof LivingEntity le ? le
                 : target instanceof PartEntity<?> part && part.getParent() instanceof LivingEntity parent ? parent : null;
         lanceRecoil(s, now);
-        if (target instanceof ServerPlayer defender) {
+        if (fighter(target) instanceof LivingEntity defender) {
             CombatState d = state(defender);
             updateShield(defender, d, now);
             if (d.guarding() && facing(defender, player.getEyePosition(), guardAngle(defender, d))) {
@@ -1360,7 +1419,7 @@ public final class CombatManager {
                 }
                 // The guard gives way under the lance.
                 if (shield && Shields.raised(defender)) {
-                    defender.disableShield(true);
+                    disableShield(defender);
                     splinter(player, point, 1.0f);
                 }
                 stagger(d, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
@@ -1379,7 +1438,7 @@ public final class CombatManager {
         boolean hurt;
         applyingHit = true;
         try {
-            hurt = target.hurt(player.damageSources().playerAttack(player), damage);
+            hurt = target.hurt(attackSource(player), damage);
         } finally {
             applyingHit = false;
         }
@@ -1395,7 +1454,9 @@ public final class CombatManager {
             living.hurtMarked = true;
             lanceUnhorse(living, power);
             EnchantmentHelper.doPostHurtEffects(living, player);
-            player.awardStat(Stats.DAMAGE_DEALT, Math.round((healthBefore - living.getHealth()) * 10));
+            if (player instanceof Player p) {
+                p.awardStat(Stats.DAMAGE_DEALT, Math.round((healthBefore - living.getHealth()) * 10));
+            }
         }
         EnchantmentHelper.doPostDamageEffects(player, target);
         player.setLastHurtMob(target);
@@ -1411,7 +1472,9 @@ public final class CombatManager {
         if (lance.getDamageValue() == wornBefore) {
             lance.hurtAndBreak(1 + Math.round(2 * power), player, p -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
         }
-        player.causeFoodExhaustion(0.2f);
+        if (player instanceof Player p) {
+            p.causeFoodExhaustion(0.2f);
+        }
         yell(player, s, 0.5f + 0.5f * power);
         feedback(player, Feedback.HIT);
         impact(player, killed ? Impact.KILL : Impact.HIT, player, target, point, 1);
@@ -1434,7 +1497,7 @@ public final class CombatManager {
     // ---------------------------------------------------------------- thrown weapons
 
     /** The throw leaves the hand: the weapon flies where the fighter looks, and the hand is empty (except in creative). */
-    private static void throwWeapon(ServerPlayer player, CombatState s) {
+    private static void throwWeapon(LivingEntity player, CombatState s) {
         ItemStack stack = player.getMainHandItem();
         WeaponStats weapon = Weapons.of(stack);
         s.flags = CombatState.THROWN;
@@ -1442,11 +1505,11 @@ public final class CombatManager {
         if (weapon == null) {
             return;
         }
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = ((ServerLevel) player.level());
         boolean throwingWeapon = Weapons.madeForThrowing(stack);
         float damage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE) * ThrownWeapon.damageFactor(weapon)
                 * (throwingWeapon ? ThrownWeapon.THROWING_WEAPON_DAMAGE : 1) * CombatConfig.damageMultiplier();
-        boolean creative = player.getAbilities().instabuild;
+        boolean creative = player instanceof Player p && p.getAbilities().instabuild;
         ItemStack thrownStack = creative ? stack.copyWithCount(1) : stack.split(1);
         ThrownWeapon thrown = new ThrownWeapon(level, player, thrownStack, weapon, damage);
         // From the hand, aimed so that it crosses the middle of the view a little way ahead.
@@ -1459,7 +1522,9 @@ public final class CombatManager {
         thrown.shoot(aim.x, aim.y + 0.04, aim.z, ThrownWeapon.speed(weapon, throwingWeapon), 0.4f);
         level.addFreshEntity(thrown);
         player.swing(InteractionHand.MAIN_HAND, true);
-        player.awardStat(Stats.ITEM_USED.get(thrownStack.getItem()));
+        if (player instanceof Player p) {
+            p.awardStat(Stats.ITEM_USED.get(thrownStack.getItem()));
+        }
         playSound(player, ModSounds.THROW.get(), 1.0f, 1.1f - 0.3f * weapon.weight() + player.getRandom().nextFloat() * 0.1f);
         yell(player, s, 0.6f);
         s.weapon = null;
@@ -1513,7 +1578,7 @@ public final class CombatManager {
     /** A raised weapon also blocks mobs, arrows and players fighting the vanilla way. */
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onLivingAttack(LivingAttackEvent event) {
-        if (applyingHit || !(event.getEntity() instanceof ServerPlayer player)) {
+        if (applyingHit || !(fighter(event.getEntity()) instanceof LivingEntity player) || player.level().isClientSide) {
             return;
         }
         CombatState s = state(player);
@@ -1541,7 +1606,7 @@ public final class CombatManager {
         if (s.stamina <= 0) {
             // Out of stamina: the guard breaks and the damage goes through.
             if (shield) {
-                player.disableShield(true);
+                disableShield(player);
                 splinter(player, point, 1.0f);
             }
             stagger(s, CombatRules.GUARD_BREAK, CombatState.GUARD_BROKEN);
@@ -1588,7 +1653,8 @@ public final class CombatManager {
     /** Any hit interrupts a wind-up (except a riposte), a kick or a battle cry. */
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onLivingHurt(LivingHurtEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || event.getAmount() <= 0 || event.getSource().getEntity() == null) {
+        if (!(fighter(event.getEntity()) instanceof LivingEntity player) || player.level().isClientSide || event.getAmount() <= 0
+                || event.getSource().getEntity() == null) {
             return;
         }
         CombatState s = state(player);
@@ -1606,9 +1672,26 @@ public final class CombatManager {
 
     @SubscribeEvent
     public static void onDeath(LivingDeathEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            STATES.remove(player.getUUID());
-            removeSlowness(player);
+        if (fighter(event.getEntity()) instanceof LivingEntity fighter && !fighter.level().isClientSide) {
+            STATES.remove(fighter.getUUID());
+            removeSlowness(fighter);
+        }
+    }
+
+    /** NPC fighters are ticked like players. */
+    @SubscribeEvent
+    public static void onLivingTick(LivingEvent.LivingTickEvent event) {
+        LivingEntity entity = event.getEntity();
+        if (entity instanceof CombatFighter && !(entity instanceof Player) && !entity.level().isClientSide) {
+            tick(entity);
+        }
+    }
+
+    /** An NPC fighter that leaves the world (unloaded, killed, carried off) is forgotten. */
+    @SubscribeEvent
+    public static void onLeave(EntityLeaveLevelEvent event) {
+        if (event.getEntity() instanceof CombatFighter && !(event.getEntity() instanceof Player) && !event.getLevel().isClientSide()) {
+            STATES.remove(event.getEntity().getUUID());
         }
     }
 
@@ -1631,14 +1714,14 @@ public final class CombatManager {
     /** A player who starts seeing a fighter gets the fighter's current state. */
     @SubscribeEvent
     public static void onStartTracking(PlayerEvent.StartTracking event) {
-        if (event.getTarget() instanceof ServerPlayer target && event.getEntity() instanceof ServerPlayer viewer) {
+        if (fighter(event.getTarget()) instanceof LivingEntity target && event.getEntity() instanceof ServerPlayer viewer) {
             CombatNetwork.sendToPlayer(viewer, statePacket(target, state(target)));
         }
     }
 
     // ---------------------------------------------------------------- effects and syncing
 
-    private static void updateSlowness(ServerPlayer player, CombatState s) {
+    private static void updateSlowness(LivingEntity player, CombatState s) {
         // Minecraft slows a fighter holding a shield up by itself.
         boolean slow = s.phase == Phase.BLOCK && !s.has(CombatState.SHIELD) || s.phase == Phase.STAGGER && s.has(CombatState.GUARD_BROKEN);
         if (slow == s.slowed) {
@@ -1655,34 +1738,67 @@ public final class CombatManager {
         }
     }
 
-    private static void removeSlowness(ServerPlayer player) {
+    private static void removeSlowness(LivingEntity player) {
         AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed != null) {
             speed.removeModifier(SLOW_ID);
         }
     }
 
-    private static void sync(ServerPlayer player, CombatState s) {
+    private static void sync(LivingEntity player, CombatState s) {
         if (s.syncState) {
             s.syncState = false;
-            CombatNetwork.sendToTrackingAndSelf(player, statePacket(player, s));
+            CombatNetwork.sendAround(player, statePacket(player, s));
+        }
+        if (!(player instanceof ServerPlayer self)) {
+            return;
         }
         int stamina = Math.round(s.stamina() * 4);
         if (stamina != s.sentStamina) {
             s.sentStamina = stamina;
-            CombatNetwork.sendToPlayer(player, new StaminaPacket(s.stamina(), CombatConfig.maxStamina()));
+            CombatNetwork.sendToPlayer(self, new StaminaPacket(s.stamina(), CombatConfig.maxStamina()));
         }
     }
 
-    private static CombatStatePacket statePacket(ServerPlayer player, CombatState s) {
+    private static CombatStatePacket statePacket(LivingEntity player, CombatState s) {
         return new CombatStatePacket(player.getId(), s.phase.ordinal(), s.attack.ordinal(), s.flags, s.combo.ordinal(), s.phaseLength, s.phaseTicks);
     }
 
-    public static void feedback(ServerPlayer player, Feedback feedback) {
-        CombatNetwork.sendToPlayer(player, new FeedbackPacket(feedback));
+    /** What only the fighter feels (the flash of a parry, the jolt of a blocked blow): players have a screen for it, NPCs do not. */
+    public static void feedback(LivingEntity fighter, Feedback feedback) {
+        if (fighter instanceof ServerPlayer player) {
+            CombatNetwork.sendToPlayer(player, new FeedbackPacket(feedback));
+        }
     }
 
-    private static void playSound(ServerPlayer player, SoundEvent sound, float volume, float pitch) {
+    /** Damage in the name of a player, or of a creature. */
+    private static DamageSource attackSource(LivingEntity attacker) {
+        return attacker instanceof Player p ? attacker.damageSources().playerAttack(p) : attacker.damageSources().mobAttack(attacker);
+    }
+
+    /** A shield broken out of the guard goes down: a player's for the item cooldown Minecraft gives, an NPC's for as long. */
+    private static void disableShield(LivingEntity defender) {
+        if (defender instanceof Player p) {
+            p.disableShield(true);
+        } else {
+            knockShield(defender, 100, defender.level().getGameTime());
+            defender.level().playSound(null, defender.getX(), defender.getY(), defender.getZ(), SoundEvents.SHIELD_BREAK, SoundSource.HOSTILE,
+                    0.8f, 0.8f + defender.getRandom().nextFloat() * 0.4f);
+        }
+    }
+
+    /** The shield is struck aside and cannot be raised for {@code ticks}. */
+    private static void knockShield(LivingEntity defender, int ticks, long now) {
+        if (defender instanceof Player p) {
+            p.getCooldowns().addCooldown(defender.getUseItem().getItem(), ticks);
+        } else {
+            state(defender).shieldDownUntil = now + ticks;
+        }
+        defender.stopUsingItem();
+        defender.level().broadcastEntityEvent(defender, (byte) 30);
+    }
+
+    private static void playSound(LivingEntity player, SoundEvent sound, float volume, float pitch) {
         player.level().playSound(null, player.getX(), player.getEyeY(), player.getZ(), sound, SoundSource.PLAYERS, volume, pitch);
     }
 
@@ -1707,7 +1823,7 @@ public final class CombatManager {
     }
 
     /** A worn-out fighter pants for breath until enough stamina comes back. */
-    private static void breathe(ServerPlayer player, CombatState s, float max, long now) {
+    private static void breathe(LivingEntity player, CombatState s, float max, long now) {
         if (s.stamina < max * CombatRules.WINDED) {
             if (!s.winded) {
                 s.breathAt = now;
@@ -1740,16 +1856,16 @@ public final class CombatManager {
     }
 
     /** A shield cracks: the sound of splitting boards and splinters flying. */
-    private static void splinter(ServerPlayer player, Vec3 point, float volume) {
+    private static void splinter(LivingEntity player, Vec3 point, float volume) {
         soundAt(player, point, ModSounds.SHIELD_SPLINTER.get(), volume, 0.9f + player.getRandom().nextFloat() * 0.2f);
     }
 
-    private static void soundAt(ServerPlayer player, Vec3 point, SoundEvent sound, float volume, float pitch) {
-        player.serverLevel().playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, volume, pitch);
+    private static void soundAt(LivingEntity player, Vec3 point, SoundEvent sound, float volume, float pitch) {
+        ((ServerLevel) player.level()).playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, volume, pitch);
     }
 
     /** The sound where two weapons meet (the sparks are made by the clients, from the impact). */
-    private static void clash(ServerPlayer player, Vec3 point, SoundEvent sound, float pitch) {
-        player.serverLevel().playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, 1.0f, pitch + player.getRandom().nextFloat() * 0.1f);
+    private static void clash(LivingEntity player, Vec3 point, SoundEvent sound, float pitch) {
+        ((ServerLevel) player.level()).playSound(null, point.x, point.y, point.z, sound, SoundSource.PLAYERS, 1.0f, pitch + player.getRandom().nextFloat() * 0.1f);
     }
 }

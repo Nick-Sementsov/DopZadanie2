@@ -1,0 +1,21 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "brewery:hops",
+      "count": 3
+    },
+    {
+      "item": "minecraft:water_bucket"
+    }
+  ],
+  "result": "brewery:beer_hops",
+  "show-tooltip": true,
+  "count": 2,
+  "additional-output": [
+    {
+      "item": "minecraft:bucket"
+    }
+  ]
+}

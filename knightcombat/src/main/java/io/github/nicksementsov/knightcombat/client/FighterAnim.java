@@ -11,6 +11,7 @@ import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
 import io.github.nicksementsov.knightcombat.registry.ModSounds;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 
@@ -109,7 +110,7 @@ public final class FighterAnim {
     }
 
     /** Notices the fighter taking another weapon in hand, for the flourish of drawing it. */
-    void watchHeld(Player player) {
+    void watchHeld(LivingEntity player) {
         Item item = player.getMainHandItem().getItem();
         if (heldItem != null && item != heldItem && Weapons.isWeapon(player.getMainHandItem())) {
             drawnAt = ClientCombat.ticks();
@@ -164,13 +165,13 @@ public final class FighterAnim {
      * Follows what the fighter's body does, once a tick: the shield going up or down, running, jumping and standing
      * idle long enough to look the weapon over.
      */
-    void tickBody(Player player) {
+    void tickBody(LivingEntity player) {
         boolean raised = Shields.raised(player);
         shieldRaiseO = shieldRaise;
         shieldRaise = approach(shieldRaise, raised ? 1 : 0, raised ? 0.4f : 0.28f);
         sprintO = sprint;
         sprint = approach(sprint, player.isSprinting() && !player.isPassenger() && !player.isSwimming() ? 1 : 0, 0.2f);
-        boolean airborne = !player.onGround() && !player.isPassenger() && !player.isInWater() && !player.getAbilities().flying;
+        boolean airborne = !player.onGround() && !player.isPassenger() && !player.isInWater() && !(player instanceof Player p && p.getAbilities().flying);
         airO = air;
         air = approach(air, airborne ? 1 : 0, 0.25f);
 
@@ -194,7 +195,7 @@ public final class FighterAnim {
     }
 
     /** The blade rings softly as it is held up to the light and turned over. */
-    private void inspectSounds(Player player) {
+    private void inspectSounds(LivingEntity player) {
         for (float at : INSPECT_SOUNDS) {
             if (inspectO < at && inspect >= at && Weapons.isWeapon(player.getMainHandItem())) {
                 player.level().playLocalSound(player.getX(), player.getEyeY() - 0.4, player.getZ(), ModSounds.INSPECT.get(),
@@ -290,7 +291,7 @@ public final class FighterAnim {
      * goes on into the charge of a heavy attack while the attack key is held; other fighters' wind-ups wait a moment
      * for the server, which knows whether their key is held.
      */
-    void advance(Player player, boolean local) {
+    void advance(LivingEntity player, boolean local) {
         if (length <= 0 || elapsed(0) < length) {
             return;
         }

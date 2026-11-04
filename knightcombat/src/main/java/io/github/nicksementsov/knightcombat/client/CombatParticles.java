@@ -277,7 +277,7 @@ final class CombatParticles {
      * Follows a player once a tick: dust when they dodge, run into an attack or land hard, dust under the hooves of
      * the horse they gallop on, and the clink of mail and plate at each step.
      */
-    static void tick(Player player, @Nullable FighterAnim anim) {
+    static void tick(LivingEntity player, @Nullable FighterAnim anim) {
         Minecraft mc = Minecraft.getInstance();
         if (!(player.level() instanceof ClientLevel level) || mc.cameraEntity == null
                 || player.distanceToSqr(mc.cameraEntity) > FAR * FAR || player.isSpectator()) {
@@ -303,7 +303,7 @@ final class CombatParticles {
             track.peak = Math.max(track.peak, player.getY());
         } else {
             double drop = track.peak - player.getY();
-            if (!track.ground && drop >= 2 && particles && !player.isInWater() && !player.getAbilities().flying) {
+            if (!track.ground && drop >= 2 && particles && !player.isInWater() && !(player instanceof Player p && p.getAbilities().flying)) {
                 landing(level, player, (float) drop, random);
             }
             track.peak = player.getY();
@@ -337,7 +337,7 @@ final class CombatParticles {
     }
 
     /** Mail and plate clink at each step; leather and cloth stay quiet. */
-    private static void armorStep(ClientLevel level, Player player, RandomSource random) {
+    private static void armorStep(ClientLevel level, LivingEntity player, RandomSource random) {
         int metal = Armor.metalPieces(player);
         if (metal < 2) {
             return;
@@ -348,7 +348,7 @@ final class CombatParticles {
     }
 
     /** A hard landing throws up a ring of dust. */
-    private static void landing(ClientLevel level, Player player, float drop, RandomSource random) {
+    private static void landing(ClientLevel level, LivingEntity player, float drop, RandomSource random) {
         int color = groundColor(level, player);
         float strength = Math.min(1, (drop - 2) / 6);
         add(new FightParticles.Ring(level, player.getX(), player.getY(), player.getZ(), 1.2f + 1.6f * strength, color, 0.35f));

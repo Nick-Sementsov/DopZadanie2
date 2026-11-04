@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "druzhina:block/muster_table" },
+    "facing=east": { "model": "druzhina:block/muster_table", "y": 90 },
+    "facing=south": { "model": "druzhina:block/muster_table", "y": 180 },
+    "facing=west": { "model": "druzhina:block/muster_table", "y": 270 }
+  }
+}
