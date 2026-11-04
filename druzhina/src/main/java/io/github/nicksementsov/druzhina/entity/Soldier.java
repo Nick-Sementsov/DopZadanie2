@@ -997,8 +997,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         Player boss = this.commander();
         boolean following = this.orders() == Orders.FOLLOW || this.orders() == Orders.CHARGE;
         Soldier captain = Vessels.captainOf(vessel);
-        boolean brought = captain != null && captain.isAlliedTo(this) && vessel.distanceToSqr(boss == null ? this : boss) > 24 * 24
-                && !captain.helmStalled();
+        // a ship one of ours steers: in a charge she fights (all stay aboard); following, she brings them to him
+        boolean brought = captain != null && captain.isAlliedTo(this) && (this.orders() == Orders.CHARGE
+                || vessel.distanceToSqr(boss == null ? this : boss) > 24 * 24 && !captain.helmStalled());
         if (following && boss != null && boss.level() == this.level() && Vessels.vesselOf(boss) == null && boss.distanceToSqr(this) < 64 * 64
                 && !brought) {
             // the commander has gone ashore: after him (a moment later, not when he only changes his seat)

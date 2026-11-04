@@ -25,6 +25,7 @@ import net.minecraft.world.phys.Vec3;
  * </ul>
  */
 public final class Helm {
+    private static final org.slf4j.Logger LOG = com.mojang.logging.LogUtils.getLogger();
     /** Ticks between two thoughts of the helmsman. */
     public static final int PERIOD = 2;
     /** A broadside is given from this far. */
@@ -158,8 +159,23 @@ public final class Helm {
     private void repelBoarders(Entity ship) {
         for (Entity p : ship.getPassengers()) {
             if (p != this.captain && !(p instanceof Player) && !this.captain.isAlliedTo(p)) {
+                // over the side he sits on, into the water beside her
+                float h = ship.getYRot() * Mth.DEG_TO_RAD;
+                double fx = -Mth.sin(h);
+                double fz = Mth.cos(h);
+                double rx = -fz;
+                double rz = fx;
+                double dx = p.getX() - ship.getX();
+                double dz = p.getZ() - ship.getZ();
+                double side = dx * rx + dz * rz >= 0 ? 1 : -1;
+                double along = dx * fx + dz * fz;
+                double beam = this.profile != null && this.profile.getFloat("Beam") > 0 ? this.profile.getFloat("Beam") / 2 : ship.getBbWidth() / 2;
+                double out = beam + p.getBbWidth() / 2 + 0.6;
                 p.stopRiding();
-                p.setDeltaMovement(p.getDeltaMovement().add((p.getX() - ship.getX()) * 0.15, 0.3, (p.getZ() - ship.getZ()) * 0.15));
+                p.teleportTo(ship.getX() + rx * side * out + fx * along, ship.getY() + 0.6, ship.getZ() + rz * side * out + fz * along);
+                p.setDeltaMovement(rx * side * 0.3, 0.1, rz * side * 0.3);
+                p.hurtMarked = true;
+                LOG.debug("Druzhina: {} throws {} overboard", this.captain.getName().getString(), p.getType().toShortString());
             }
         }
     }
