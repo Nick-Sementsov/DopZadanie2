@@ -21,6 +21,13 @@ Forge 1.20.1, Java 17. Исходники восстановлены из `prest
 
 Готовый мод: `build/libs/prestol-<версия>.jar`.
 
+3. Чтобы попробовать мод в игре, запустите Minecraft со всеми нужными модами (MineColonies, Structurize, BlockUI,
+   Domum Ornamentum, Immersive Paintings, Betsy Ross, «Дружина», «Рыцарский бой», Epic Knights — скачиваются сами):
+
+```bash
+./gradlew runClient -PdevGame
+```
+
 ## Зависимости
 
 | Мод | Как подключён | Где берётся |
