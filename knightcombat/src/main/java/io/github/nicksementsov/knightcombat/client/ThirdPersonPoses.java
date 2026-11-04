@@ -250,10 +250,11 @@ final class ThirdPersonPoses {
         return new ThirdPersonPose(arm, blade, edge, off, bodyYaw);
     }
 
-    /** Slow breathing while standing in guard: the weapon rises and sinks a little. */
+    /** Slow breathing while standing in guard: the weapon rises and sinks a little, the body sways with it. */
     private static ThirdPersonPose breathe(ThirdPersonPose pose, float time) {
         float b = (float) Math.sin(time * 0.1f) * 0.035f;
         ThirdPersonPose p = pose.copy();
+        p.lean += 0.4f * b + 0.012f * (float) Math.sin(time * 0.043f + 1.3f);
         p.arm.y -= b;
         p.arm.normalize();
         p.blade.y -= b * 0.6f;
@@ -460,7 +461,7 @@ final class ThirdPersonPoses {
 
     /** The pose {@code p} of the way through the release of an attack that may be a finisher. */
     static ThirdPersonPose release(AttackType attack, Grip grip, boolean mirrored, Combo combo, float p) {
-        float t = smooth(p);
+        float t = PoseMath.swing(p);
         // Weight goes forward through the middle of the swing.
         float push = (float) Math.sin(Math.PI * p);
         return switch (attack) {

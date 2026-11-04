@@ -1,5 +1,6 @@
 package io.github.nicksementsov.knightcombat.client;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import io.github.nicksementsov.knightcombat.CombatConfig;
 import io.github.nicksementsov.knightcombat.KnightCombat;
 import io.github.nicksementsov.knightcombat.combat.Combo;
@@ -37,7 +38,9 @@ import org.joml.Vector3f;
  * out of the hand while the player is drawn and {@link WeaponLayer} draws it at the angle of the pose. Weapons with
  * their own renderer stay in the hand and are drawn by Minecraft.
  * <p>
- * The whole model turns too: it spins with a whirlwind and leans into a dodge.
+ * The whole model turns too: it spins with a whirlwind and leans into a dodge. The upper body bends at the hips
+ * (Minecraft keeps the body of its model upright, so the model is tilted about the hips and the legs are turned
+ * back to stand on the ground), and in a wide stance the hips sink so that the feet stay on the ground.
  * <p>
  * A shield in the other hand is posed by this mod too, with or without a weapon: held before the body, raised to
  * block (driven back by the blows it takes, punched out against a parried one) and thrust out in a bash. It is taken
@@ -70,6 +73,18 @@ public final class ThirdPersonAnimator {
     private static final float SPIN_IN_RELEASE = 0.7f;
     /** Whether the pose stack of the player being drawn was turned, to be put back afterwards. */
     private static boolean turned;
+    /** The pose of the player being drawn, worked out once before Minecraft poses the model. */
+    private static ThirdPersonPose posedPose;
+    /** How far the upper body of the player being drawn leans forward at the hips, in radians. */
+    private static float posedLean;
+    /** Height of the hips above the feet, in blocks (12 of the model's 24 pixels, at the player's scale of 0.9375). */
+    private static final float HIP = 12 / 16f * 0.9375f;
+    /**
+     * How much of a pose's lean bends the body at the hips (more than all of it: a whole body bending reads stronger
+     * than shoulders moving), and how much still moves the shoulders.
+     */
+    private static final float LEAN = 1.25f;
+    private static final float SHOULDER_LEAN = 0.15f;
 
     private ThirdPersonAnimator() {
     }
@@ -139,12 +154,53 @@ public final class ThirdPersonAnimator {
             hiddenOff = inventory.offhand.get(0);
             inventory.offhand.set(0, ItemStack.EMPTY);
         }
-        Quaternionf turn = bodyTurn(player, ClientCombat.anim(player), partialTick);
-        if (turn != null) {
-            event.getPoseStack().pushPose();
-            event.getPoseStack().mulPose(turn);
+        FighterAnim anim = ClientCombat.anim(player);
+        posedPose = ThirdPersonPoses.current(anim, weapon.grip(), lance, partialTick);
+        float flinch = anim != null ? anim.flinch(partialTick) : 0;
+        // Struck, the body is thrown back a little at the hips.
+        posedLean = player.isCrouching() ? 0 : LEAN * posedPose.lean - 0.12f * flinch;
+        float sink = sink(player, posedPose, flinch);
+        Quaternionf turn = bodyTurn(player, anim, partialTick);
+        if (turn != null || posedLean != 0 || sink != 0) {
+            PoseStack poseStack = event.getPoseStack();
+            poseStack.pushPose();
+            if (turn != null) {
+                poseStack.mulPose(turn);
+            }
+            if (posedLean != 0 || sink != 0) {
+                // Bent forward about the hips: about the right of the body, whose forward is (-sin yaw, cos yaw).
+                float yaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot) * Mth.DEG_TO_RAD;
+                poseStack.translate(0, HIP - sink, 0);
+                poseStack.mulPose(new Quaternionf().rotateAxis(-posedLean, -Mth.cos(yaw), 0, -Mth.sin(yaw)));
+                poseStack.translate(0, -HIP, 0);
+            }
             turned = true;
         }
+    }
+
+    /**
+     * How far the hips sink, in blocks, so that the feet of a wide stance stay on the ground: straight legs that
+     * step apart lift the feet, so the body comes down until the lower foot touches.
+     */
+    private static float sink(Player player, ThirdPersonPose pose, float flinch) {
+        float stance = stance(player);
+        if (stance == 0) {
+            return 0;
+        }
+        float step = pose.step - 0.25f * flinch;
+        float front = (0.22f + step) * stance;
+        float back = (0.2f + step * 0.4f) * stance;
+        if (pose.legWeight > 0) {
+            // The kicking leg is the one on the weapon side: the back one.
+            back = Mth.lerp(pose.legWeight, back, pose.leg);
+        }
+        float lower = Math.min(Math.abs(front), Math.abs(back));
+        return HIP * (1 - Mth.cos(lower));
+    }
+
+    /** How much of the fencing stance the legs show: all of it standing, none walking or riding. */
+    private static float stance(Player player) {
+        return player.isPassenger() ? 0 : 1 - Mth.clamp(player.walkAnimation.speed(partialTick) * 2.5f, 0, 1);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -218,6 +274,8 @@ public final class ThirdPersonAnimator {
         }
         posed = null;
         posedStats = null;
+        posedPose = null;
+        posedLean = 0;
         hiddenMain = ItemStack.EMPTY;
         hiddenOff = ItemStack.EMPTY;
         drawnShield = false;
@@ -259,7 +317,7 @@ public final class ThirdPersonAnimator {
         float walkMain = main.xRot;
         float walkOff = off.xRot;
         FighterAnim anim = ClientCombat.anim(player);
-        ThirdPersonPose pose = ThirdPersonPoses.current(anim, weapon.grip(), posedLance, partialTick);
+        ThirdPersonPose pose = posedPose != null ? posedPose : ThirdPersonPoses.current(anim, weapon.grip(), posedLance, partialTick);
         // Struck: the body twists away from the blow, the head snaps back, the shoulders are driven back.
         float flinch = anim != null ? anim.flinch(partialTick) : 0;
         float flinchSide = anim != null ? anim.hurtSide : 0;
@@ -270,9 +328,9 @@ public final class ThirdPersonAnimator {
         model.rightArm.z = Mth.sin(yaw) * 5;
         model.leftArm.x = Mth.cos(yaw) * 5;
         model.leftArm.z = -Mth.sin(yaw) * 5;
-        // Minecraft resets the tilt of the body after the arms are posed, so a lean moves the shoulders and the head instead.
-        model.rightArm.z -= pose.lean * 10 - 1.5f * flinch;
-        model.leftArm.z -= pose.lean * 10 - 1.5f * flinch;
+        // The lean bends the whole model at the hips (see onRenderPlayer) and moves the shoulders a little more.
+        model.rightArm.z -= pose.lean * SHOULDER_LEAN * 10 - 1.5f * flinch;
+        model.leftArm.z -= pose.lean * SHOULDER_LEAN * 10 - 1.5f * flinch;
         main.z -= pose.lunge;
 
         Quaternionf body = PoseMath.yaw(pose.bodyYaw);
@@ -308,7 +366,7 @@ public final class ThirdPersonAnimator {
 
         // A fencing stance while standing: feet apart, the off-hand foot in front. Attacks step into it, staggers
         // step back. Walking takes over the legs as the fighter starts to move.
-        float stance = player.isPassenger() ? 0 : 1 - Mth.clamp(player.walkAnimation.speed(partialTick) * 2.5f, 0, 1);
+        float stance = stance(player);
         if (stance > 0) {
             ModelPart front = left ? model.rightLeg : model.leftLeg;
             ModelPart back = left ? model.leftLeg : model.rightLeg;
@@ -322,7 +380,11 @@ public final class ThirdPersonAnimator {
             ModelPart leg = left ? model.leftLeg : model.rightLeg;
             leg.xRot = Mth.lerp(pose.legWeight, leg.xRot, pose.leg);
         }
-        model.head.xRot += pose.head + pose.lean * 0.5f - 0.35f * flinch;
+        // The legs are turned back against the bend of the body, so they still stand on the ground; the head keeps
+        // most of its look ahead.
+        model.leftLeg.xRot -= posedLean;
+        model.rightLeg.xRot -= posedLean;
+        model.head.xRot += pose.head + pose.lean * 0.5f - posedLean * 0.8f - 0.35f * flinch;
         model.head.yRot += flinchSide * 0.25f * flinch;
     }
 
@@ -379,7 +441,7 @@ public final class ThirdPersonAnimator {
     static Matrix4f weaponTransform(ThirdPersonPose pose, boolean left, HeldModel.Axes axes, float scale) {
         float yaw = left ? -pose.bodyYaw : pose.bodyYaw;
         float side = left ? 1 : -1;
-        Vector3f shoulder = new Vector3f(side * Mth.cos(yaw) * 5, 2, -side * Mth.sin(yaw) * 5 - pose.lean * 10 - pose.lunge);
+        Vector3f shoulder = new Vector3f(side * Mth.cos(yaw) * 5, 2, -side * Mth.sin(yaw) * 5 - pose.lean * SHOULDER_LEAN * 10 - pose.lunge);
         Vector3f armDir = mirrored(PoseMath.yaw(pose.bodyYaw).transform(new Vector3f(pose.arm)), left);
         Vector3f blade = new Vector3f();
         Vector3f edge = new Vector3f();
