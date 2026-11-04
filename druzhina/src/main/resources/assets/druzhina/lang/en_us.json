@@ -164,5 +164,6 @@
   "subtitles.druzhina.war_elephant.attack": "Elephant gores",
   "subtitles.druzhina.war_elephant.hurt": "Elephant hurts",
   "subtitles.druzhina.war_elephant.death": "Elephant dies",
-  "item.druzhina.war_elephant_spawn_egg": "War Elephant Spawn Egg"
+  "item.druzhina.war_elephant_spawn_egg": "War Elephant Spawn Egg",
+  "druzhina.msg.no_seats": "No seats left aboard: some of your men wait on the shore"
 }

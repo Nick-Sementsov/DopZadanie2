@@ -1,5 +1,7 @@
 package io.github.nicksementsov.druzhina.entity;
 
+import io.github.nicksementsov.druzhina.compat.Vessels;
+import io.github.nicksementsov.druzhina.entity.ai.BoardGoal;
 import io.github.nicksementsov.druzhina.entity.ai.CommanderTargetGoal;
 import io.github.nicksementsov.druzhina.entity.ai.DuelGoal;
 import io.github.nicksementsov.druzhina.entity.ai.ElephantDriveGoal;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -76,6 +79,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
+import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkHooks;
@@ -136,6 +142,11 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private ItemStack spare = ItemStack.EMPTY;
     /** His own things, put aside while he uses what the commander gave him instead; he takes them back after. */
     private final ItemStack[] stowed = new ItemStack[GEAR];
+    /** The ship he is on his way aboard (BoardGoal), or null. */
+    @Nullable
+    private Entity boardingTo;
+    /** How many checks in a row his commander has been ashore while he is still aboard. */
+    private int ashoreChecks;
 
     public Soldier(EntityType<? extends Soldier> type, Level level) {
         super(type, level);
@@ -176,6 +187,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.goalSelector.addGoal(1, new LanceChargeGoal(this));
         this.goalSelector.addGoal(1, new ElephantDriveGoal(this));
         this.goalSelector.addGoal(1, new DuelGoal(this));
+        this.goalSelector.addGoal(2, new BoardGoal(this));
         this.goalSelector.addGoal(1, new VolleyGoal(this));
         this.goalSelector.addGoal(2, new OpenDoorGoal(this, true));
         this.goalSelector.addGoal(3, new HoldPostGoal(this));
@@ -264,7 +276,60 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     /** He rides on a beast that someone else drives (the archer in an elephant's howdah): he does not walk. */
     public boolean isCrew() {
-        return this.getVehicle() instanceof Mob v && v.getControllingPassenger() != this;
+        Entity v = this.getVehicle();
+        return v != null && !(v instanceof Mob m && m.getControllingPassenger() == this);
+    }
+
+    /** He may climb into a vessel at once, though he has just got off his horse. */
+    public void readyToBoard() {
+        this.boardingCooldown = 0;
+    }
+
+    /** Whether he is on his way aboard his commander's ship (then he does not go back to his horse). */
+    public boolean boarding() {
+        return this.boardingTo != null;
+    }
+
+    /** The vessel he is on his way to, or null. */
+    @Nullable
+    public Entity boardingTo() {
+        return this.boardingTo;
+    }
+
+    public void setBoardingTo(@Nullable Entity vessel) {
+        this.boardingTo = vessel;
+    }
+
+    /**
+     * Somewhere free a few blocks from the commander, where he is moved at once (a man who fell far behind, or one who
+     * comes ashore from a ship). Returns whether a place was found.
+     */
+    public boolean teleportNear(Player boss) {
+        Mob steed = this.steed();
+        BlockPos at = boss.blockPosition();
+        Entity body = steed != null ? steed : this;
+        int spread = steed != null ? 5 : 3;
+        for (int i = 0; i < 12; i++) {
+            int x = at.getX() + this.random.nextInt(2 * spread + 1) - spread;
+            int z = at.getZ() + this.random.nextInt(2 * spread + 1) - spread;
+            int y = at.getY() + this.random.nextInt(3) - 1;
+            if (Math.abs(x - at.getX()) < 2 && Math.abs(z - at.getZ()) < 2) {
+                continue;
+            }
+            BlockPos pos = new BlockPos(x, y, z);
+            if (WalkNodeEvaluator.getBlockPathTypeStatic(this.level(), pos.mutable()) == BlockPathTypes.WALKABLE
+                    && !(this.level().getBlockState(pos.below()).getBlock() instanceof LeavesBlock)
+                    && this.level().noCollision(body, body.getBoundingBox().move(pos.getCenter().subtract(body.position()).add(0, -0.5, 0)))) {
+                if (steed != null) {
+                    this.relocate(x + 0.5, y, z + 0.5);
+                } else {
+                    this.moveTo(x + 0.5, y, z + 0.5, this.getYRot(), this.getXRot());
+                }
+                this.getNavigation().stop();
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The one he drives: his horse or elephant when he sits on it in front, or null. */
@@ -601,6 +666,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         super.aiStep();
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % 10 == 3) {
             this.tickArms();
+            this.tickVoyage();
         }
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % 40 == 0 && !this.fightingRecently() && this.getHealth() < this.getMaxHealth()) {
             // wounds close out of the fight
@@ -856,9 +922,43 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (riding && !Lances.couchable(hand) && Lances.isLance(this.spare)) {
             this.switchArms();
         } else if (!riding && Lances.isLance(hand) && KnightCombatApi.weapon(hand) == null && KnightCombatApi.weapon(this.spare) != null
-                && (this.mountEntity() == null || this.getTarget() != null && this.getTarget().distanceToSqr(this) < 6 * 6)) {
+                && (this.mountEntity() == null || this.mountEntity().distanceToSqr(this) > 32 * 32 || this.isPassenger()
+                    || this.getTarget() != null && this.getTarget().distanceToSqr(this) < 6 * 6)) {
             this.switchArms();
         }
+    }
+
+    /**
+     * At sea: he stays aboard while his commander is aboard (or while he was told to hold), goes ashore after him
+     * when he lands, and mans a cannon if he sits at one. On land: Small Ships does not lead him off a deck he was
+     * told to stand on.
+     */
+    private void tickVoyage() {
+        if (this.isBandit() || this.getOwnerUUID() == null) {
+            return;
+        }
+        this.addTag(Vessels.STAY_ON_DECK);
+        Entity vessel = Vessels.vesselOf(this);
+        if (vessel == null) {
+            this.ashoreChecks = 0;
+            return;
+        }
+        Player boss = this.commander();
+        boolean following = this.orders() == Orders.FOLLOW || this.orders() == Orders.CHARGE;
+        if (following && boss != null && boss.level() == this.level() && Vessels.vesselOf(boss) == null && boss.distanceToSqr(this) < 64 * 64) {
+            // the commander has gone ashore: after him (a moment later, not when he only changes his seat)
+            if (++this.ashoreChecks >= 2) {
+                this.ashoreChecks = 0;
+                this.stopRiding();
+                if (!boss.isInWater() && boss.distanceToSqr(this) < 32 * 32) {
+                    this.teleportNear(boss);
+                }
+                return;
+            }
+        } else {
+            this.ashoreChecks = 0;
+        }
+        Vessels.tickGunner(this, vessel);
     }
 
     /** What he says when asked: who he is, how he is, what he does. */

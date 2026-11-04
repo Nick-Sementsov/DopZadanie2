@@ -95,6 +95,12 @@ dependencies {
         }
     }
 
+    // Small Ships in the development game, to sail with the soldiers: ./gradlew :druzhina:runClient -PepicKnights -PsmallShips
+    // (Druzhina needs nothing of it to build: it reaches Small Ships' ShipBridge by name when the mod is there)
+    if (project.hasProperty('smallShips')) {
+        runtimeOnly fg.deobf('maven.modrinth:small-ships:9KNCbtCC') // 2.0.2 for Forge
+    }
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }

@@ -22,6 +22,8 @@ public class RemountGoal extends Goal {
     private Mob beast;
     private int pathDelay;
     private int ticks;
+    /** Goals are tried every other tick: he looks for his mount every few of those. */
+    private int checkDelay;
 
     public RemountGoal(Soldier soldier) {
         this.soldier = soldier;
@@ -30,7 +32,11 @@ public class RemountGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (this.soldier.isPassenger() || this.soldier.mountId() == null || this.soldier.routed() || this.soldier.tickCount % 10 != 0) {
+        if (--this.checkDelay > 0) {
+            return false;
+        }
+        this.checkDelay = 5;
+        if (this.soldier.isPassenger() || this.soldier.mountId() == null || this.soldier.routed() || this.soldier.boarding()) {
             return false;
         }
         Mob m = this.soldier.mountEntity();

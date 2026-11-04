@@ -96,6 +96,10 @@ public class DuelGoal extends Goal {
         if (!this.soldier.isPassenger()) {
             return true;
         }
+        if (io.github.nicksementsov.druzhina.compat.Vessels.vesselOf(this.soldier) != null) {
+            // in a boat or aboard a ship: he strikes at whoever comes within reach of his seat
+            return true;
+        }
         return this.soldier.steed() instanceof net.minecraft.world.entity.animal.horse.AbstractHorse && !this.soldier.lancer();
     }
 
@@ -178,6 +182,8 @@ public class DuelGoal extends Goal {
         net.minecraft.world.entity.Mob horse = this.soldier.steed();
         if (horse != null) {
             this.ride(horse, t, gap, reach, rnd);
+        } else if (this.soldier.isPassenger()) {
+            // seated: no footwork
         } else if (gap > reach + 2.5 || !sees) {
             this.soldier.setSprinting(gap > 6 && me.phase() == Phase.IDLE);
             if (--this.pathDelay <= 0) {

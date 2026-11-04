@@ -1,5 +1,6 @@
 package io.github.nicksementsov.druzhina.entity.ai;
 
+import io.github.nicksementsov.druzhina.compat.Vessels;
 import io.github.nicksementsov.druzhina.entity.Soldier;
 import io.github.nicksementsov.druzhina.entity.WarElephant;
 import java.util.EnumSet;
@@ -155,6 +156,13 @@ public class VolleyGoal extends Goal {
         for (LivingEntity e : this.soldier.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this.soldier && e != t && this.soldier.isAlliedTo(e)
                 && e != this.soldier.getVehicle() && !this.soldier.isPassengerOfSameVehicle(e))) {
             if (e.getBoundingBox().inflate(0.3).clip(from, to).isPresent() && e.distanceToSqr(this.soldier) < t.distanceToSqr(this.soldier)) {
+                return false;
+            }
+        }
+        // nor a boat or ship of his side (its hull would take the arrow)
+        for (net.minecraft.world.entity.Entity v : this.soldier.level().getEntities(this.soldier, box, v -> Vessels.isVessel(v)
+                && v != this.soldier.getVehicle() && v != t.getVehicle() && v.getPassengers().stream().anyMatch(this.soldier::isAlliedTo))) {
+            if (v.getBoundingBox().inflate(0.3).clip(from, to).isPresent() && v.distanceToSqr(this.soldier) < t.distanceToSqr(this.soldier)) {
                 return false;
             }
         }

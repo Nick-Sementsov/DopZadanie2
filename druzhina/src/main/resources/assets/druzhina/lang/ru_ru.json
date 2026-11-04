@@ -164,5 +164,6 @@
   "subtitles.druzhina.war_elephant.attack": "Слон бьёт бивнями",
   "subtitles.druzhina.war_elephant.hurt": "Слон ранен",
   "subtitles.druzhina.war_elephant.death": "Слон погибает",
-  "item.druzhina.war_elephant_spawn_egg": "Яйцо призыва боевого слона"
+  "item.druzhina.war_elephant_spawn_egg": "Яйцо призыва боевого слона",
+  "druzhina.msg.no_seats": "На корабле нет мест: часть воинов ждёт на берегу"
 }
