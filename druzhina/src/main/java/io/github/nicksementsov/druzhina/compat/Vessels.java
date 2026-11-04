@@ -6,12 +6,21 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import javax.annotation.Nullable;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.Container;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -19,6 +28,9 @@ import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.entity.vehicle.ChestBoat;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -43,6 +55,16 @@ public final class Vessels {
     private static final Bridge BRIDGE = Bridge.load();
     private static final String SOLDIER_ID = "druzhina:soldier";
     private static volatile boolean helmAllowed;
+    /** Ticks between two mends of one ship: one man works at a time, as a player mends with a nugget and a plank. */
+    private static final int MEND_PERIOD = 40;
+    /** Ticks between two reminders that the hold has nothing to mend her with. */
+    private static final int WARN_PERIOD = 20 * 60;
+    /** Sails are patched by hand while they are torn below this part of their strength (Small Ships' rule). */
+    private static final float SAIL_PATCH_LIMIT = 0.33f;
+    /** How far from a dockyard a ship may lie to be repaired there (Small Ships' rule). */
+    private static final int DOCKYARD_RANGE = 16;
+    /** For each ship being mended: when the next mend may be, when the commander was last told of the empty hold. */
+    private static final Map<Entity, long[]> MENDING = new WeakHashMap<>();
 
     private Vessels() {
     }
@@ -323,11 +345,128 @@ public final class Vessels {
         return (float) Mth.clamp(angle, -10, 30);
     }
 
+    // ------------------------------------------------------------------ the ship's carpenter
+
+    /**
+     * The crew mend their ship (Small Ships 2.0.1 or newer). A man aboard patches the hull with a plank and an iron
+     * nugget, and the torn sails with string and a nugget, as far as mending by hand goes (the same rules as for a
+     * player), paying from her hold or, when the commander is aboard, from his pack. Lying still within reach of a
+     * dockyard, they have her repaired there in full. One man works at a time on one ship, and not the helmsman while
+     * another can.
+     */
+    public static void tickCarpenter(Soldier s, Entity ship) {
+        if (BRIDGE == null || BRIDGE.yard == null || !isShip(ship) || !(s.level() instanceof ServerLevel level)) {
+            return;
+        }
+        if (BRIDGE.isHelmsman(ship, s) && ship.getPassengers().stream().anyMatch(p -> p != s && p instanceof Soldier o && o.isAlliedTo(s))) {
+            return;
+        }
+        long now = level.getGameTime();
+        long[] times = MENDING.computeIfAbsent(ship, k -> new long[2]);
+        if (now < times[0]) {
+            return;
+        }
+        times[0] = now + MEND_PERIOD;
+        Yard yard = BRIDGE.yard;
+        CompoundTag c = yard.condition(ship);
+        if (c.isEmpty() || c.getBoolean("Sinking") || c.getBoolean("Sunken") || c.getBoolean("DockyardWork")) {
+            return;
+        }
+        float damage = c.getFloat("Damage");
+        float sailMax = c.getFloat("SailMaxHealth");
+        float sail = c.getFloat("SailHealth");
+        boolean hullByHand = damage > c.getFloat("HandRepairFloor") + 0.5f;
+        boolean sailsByHand = sailMax > 0 && sail < sailMax * SAIL_PATCH_LIMIT - 0.5f;
+        boolean hullWorn = damage > 0.5f;
+        boolean sailsWorn = sailMax > 0 && sail < sailMax - 0.5f;
+        if (!hullWorn && !sailsWorn) {
+            return;
+        }
+        List<Container> payers = payers(s, ship);
+        if (payers.isEmpty()) {
+            return;
+        }
+        if (Math.abs(speed(ship)) < 0.01f && !(BRIDGE.helmsman(ship) instanceof Player) && toDockyard(level, ship, payers, hullWorn, sailsWorn)) {
+            s.swing(InteractionHand.MAIN_HAND);
+            return;
+        }
+        if (hullByHand) {
+            for (Container payer : payers) {
+                if (yard.repairHull(ship, payer)) {
+                    s.getLookControl().setLookAt(ship.getX(), s.getY() - 0.6, ship.getZ());
+                    s.swing(InteractionHand.MAIN_HAND);
+                    level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_PLANKS.defaultBlockState()),
+                            s.getX(), s.getY() + 0.2, s.getZ(), 12, 0.5, 0.2, 0.5, 0.15);
+                    return;
+                }
+            }
+        }
+        if (sailsByHand) {
+            for (Container payer : payers) {
+                if (yard.patchSails(ship, payer)) {
+                    s.getLookControl().setLookAt(ship.getX(), ship.getY() + 5, ship.getZ());
+                    s.swing(InteractionHand.MAIN_HAND);
+                    level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.WHITE_WOOL.defaultBlockState()),
+                            ship.getX(), ship.getY() + 4.5, ship.getZ(), 16, 0.6, 1.2, 0.6, 0.1);
+                    return;
+                }
+            }
+        }
+        Player boss = s.commander();
+        if ((hullByHand || sailsByHand) && now >= times[1] && boss != null && boss.distanceToSqr(ship) < 64 * 64) {
+            // nothing to mend her with: the commander hears of it now and then
+            times[1] = now + WARN_PERIOD;
+            boss.displayClientMessage(Component.translatable(hullByHand ? "druzhina.msg.no_timber" : "druzhina.msg.no_cloth", ship.getDisplayName()), true);
+        }
+    }
+
+    /** What the crew pay with: the ship's hold, then the pack of their commander when he is aboard. */
+    private static List<Container> payers(Soldier s, Entity ship) {
+        List<Container> payers = new java.util.ArrayList<>(2);
+        if (ship instanceof Container hold) {
+            payers.add(hold);
+        }
+        Player boss = s.commander();
+        if (boss != null && boss.getVehicle() == ship && !boss.isCreative()) {
+            payers.add(boss.getInventory());
+        }
+        return payers;
+    }
+
+    /** Has her repaired at a dockyard within reach, if one is free and the payer can afford it. */
+    private static boolean toDockyard(ServerLevel level, Entity ship, List<Container> payers, boolean hull, boolean sails) {
+        Yard yard = BRIDGE.yard;
+        AABB reach = ship.getBoundingBox().inflate(DOCKYARD_RANGE + 1);
+        int x0 = Mth.floor(reach.minX) >> 4, x1 = Mth.floor(reach.maxX) >> 4;
+        int z0 = Mth.floor(reach.minZ) >> 4, z1 = Mth.floor(reach.maxZ) >> 4;
+        for (int cx = x0; cx <= x1; cx++) {
+            for (int cz = z0; cz <= z1; cz++) {
+                LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+                if (chunk == null) {
+                    continue;
+                }
+                for (BlockPos pos : List.copyOf(chunk.getBlockEntities().keySet())) {
+                    if (!reach.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) || !yard.isDockyard(level, pos)) {
+                        continue;
+                    }
+                    for (Container payer : payers) {
+                        // all of it, or what can be paid for
+                        if (yard.dockyard(level, pos, ship, payer, hull, sails)
+                                || hull && sails && (yard.dockyard(level, pos, ship, payer, true, false) || yard.dockyard(level, pos, ship, payer, false, true))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /** Small Ships' bridge for other mods, from version 2.0. */
     private record Bridge(MethodHandle seats, MethodHandle takeSeat, MethodHandle cannons, MethodHandle fire, MethodHandle aim,
                           MethodHandle helmsman, MethodHandle hull, MethodHandle shipOf, MethodHandle isHelmsman, MethodHandle keys,
                           MethodHandle sail, MethodHandle sailState, MethodHandle speed, MethodHandle rotSpeed, MethodHandle canMakeWay,
-                          MethodHandle profile) {
+                          MethodHandle profile, @Nullable Yard yard) {
         @Nullable
         static Bridge load() {
             try {
@@ -349,7 +488,8 @@ public final class Vessels {
                     l.findStatic(c, "getSpeed", MethodType.methodType(float.class, Entity.class)),
                     l.findStatic(c, "getRotSpeed", MethodType.methodType(float.class, Entity.class)),
                     l.findStatic(c, "canMakeWay", MethodType.methodType(boolean.class, Entity.class)),
-                    l.findStatic(c, "getProfile", MethodType.methodType(CompoundTag.class, Entity.class)));
+                    l.findStatic(c, "getProfile", MethodType.methodType(CompoundTag.class, Entity.class)),
+                    Yard.load(c, l));
             } catch (ClassNotFoundException e) {
                 return null;
             } catch (ReflectiveOperationException | LinkageError e) {
@@ -487,6 +627,65 @@ public final class Vessels {
                 return (List<AABB>) this.hull.invokeExact(ship);
             } catch (Throwable t) {
                 return List.of();
+            }
+        }
+    }
+
+    /** Mending ships: by hand and at a dockyard (Small Ships 2.0.1 or newer). */
+    private record Yard(MethodHandle condition, MethodHandle repairHull, MethodHandle patchSails, MethodHandle isDockyard, MethodHandle dockyard) {
+        @Nullable
+        static Yard load(Class<?> c, MethodHandles.Lookup l) {
+            try {
+                return new Yard(
+                    l.findStatic(c, "getCondition", MethodType.methodType(CompoundTag.class, Entity.class)),
+                    l.findStatic(c, "repairHullByHand", MethodType.methodType(boolean.class, Entity.class, Container.class)),
+                    l.findStatic(c, "patchSails", MethodType.methodType(boolean.class, Entity.class, Container.class)),
+                    l.findStatic(c, "isDockyard", MethodType.methodType(boolean.class, Level.class, BlockPos.class)),
+                    l.findStatic(c, "startDockyardRepair",
+                        MethodType.methodType(boolean.class, Level.class, BlockPos.class, Entity.class, Container.class, boolean.class, boolean.class)));
+            } catch (ReflectiveOperationException | LinkageError e) {
+                LOG.info("Druzhina: this Small Ships has no mending for other mods, soldiers do not mend ships");
+                return null;
+            }
+        }
+
+        CompoundTag condition(Entity ship) {
+            try {
+                return (CompoundTag) this.condition.invokeExact(ship);
+            } catch (Throwable t) {
+                return new CompoundTag();
+            }
+        }
+
+        boolean repairHull(Entity ship, Container payer) {
+            try {
+                return (boolean) this.repairHull.invokeExact(ship, payer);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        boolean patchSails(Entity ship, Container payer) {
+            try {
+                return (boolean) this.patchSails.invokeExact(ship, payer);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        boolean isDockyard(Level level, BlockPos pos) {
+            try {
+                return (boolean) this.isDockyard.invokeExact(level, pos);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        boolean dockyard(Level level, BlockPos pos, Entity ship, Container payer, boolean hull, boolean sails) {
+            try {
+                return (boolean) this.dockyard.invokeExact(level, pos, ship, payer, hull, sails);
+            } catch (Throwable t) {
+                return false;
             }
         }
     }

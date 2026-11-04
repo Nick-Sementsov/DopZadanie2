@@ -100,6 +100,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final EntityDataAccessor<Optional<UUID>> OWNER = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Boolean> MANAGED_DATA = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> KILLS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> KEEP_RANKS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
     public static final int SKINS = 8;
     public static final int BANDIT_SKINS = 4;
     public static final int NAMES = 40;
@@ -155,6 +156,12 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     @Nullable
     private UUID boardShip;
     private long boardUntil;
+    /** The march he is on (from the commander's view), or null. */
+    @Nullable
+    private March march;
+    /** The one he was told to fall upon from the commander's view: he goes after him wherever he goes. */
+    @Nullable
+    private UUID hunt;
 
     public Soldier(EntityType<? extends Soldier> type, Level level) {
         super(type, level);
@@ -186,6 +193,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.define(OWNER, Optional.empty());
         this.entityData.define(MANAGED_DATA, false);
         this.entityData.define(KILLS, 0);
+        this.entityData.define(KEEP_RANKS, false);
     }
 
     @Override
@@ -237,6 +245,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (this.isBandit() || this.getOwnerUUID() == null) {
             return true;
         }
+        if (this.hunt != null && this.hunt.equals(e.getUUID())) {
+            return true;
+        }
         // archers shoot far, riders ride far
         double leash = this.shooter() ? 26 : this.isPassenger() ? 24 : 16;
         return switch (this.orders()) {
@@ -248,7 +259,21 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
                 }
                 yield best < (leash + 4) * (leash + 4);
             }
-            case HOLD -> this.post == null || e.distanceToSqr(this.post) < leash * leash;
+            case HOLD -> {
+                if (this.march != null && this.march.moving()) {
+                    // on the march: an attack on the move falls upon what it meets; a plain march only fights back
+                    // (against whoever strikes him or goes for one of his comrades close by)
+                    yield this.march.aggressive() ? e.distanceToSqr(this) < leash * leash
+                            : e.distanceToSqr(this) < 8 * 8 && (e == this.getLastHurtByMob()
+                                || e instanceof Mob m && m.getTarget() != null && (m.getTarget() == this || m.getTarget().isAlliedTo(this)));
+                }
+                if (this.post == null) {
+                    yield true;
+                }
+                // keeping the ranks, a man with a blade fights only at his place
+                double reach = this.keepRanks() && !this.shooter() ? 3.5 : leash;
+                yield e.distanceToSqr(this.post) < reach * reach;
+            }
             case FOLLOW -> {
                 Player boss = this.commander();
                 yield boss == null ? e.distanceToSqr(this) < leash * leash : e.distanceToSqr(boss) < (leash + 4) * (leash + 4);
@@ -536,12 +561,50 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.post = post;
         this.postYaw = yaw;
         this.leader = null;
+        this.march = null;
+        this.hunt = null;
         if (orders != Orders.PATROL) {
             this.patrol.clear();
         }
         if (orders != Orders.CHARGE) {
             this.setTarget(null);
         }
+    }
+
+    /** His place at the end of the present stage of his march (he stays on the march). */
+    public void setPost(Vec3 post, float yaw) {
+        this.post = post;
+        this.postYaw = yaw;
+    }
+
+    @Nullable
+    public March march() {
+        return this.march;
+    }
+
+    public void joinMarch(March march) {
+        this.march = march;
+    }
+
+    public void leaveMarch(March march) {
+        if (this.march == march) {
+            this.march = null;
+        }
+    }
+
+    /** Fall upon {@code foe} and stay after him till he is down (then stand where the fight ended). */
+    public void hunt(LivingEntity foe) {
+        this.hunt = foe.getUUID();
+        this.setTarget(foe);
+    }
+
+    /** Whether he keeps his place in the ranks (fights only there) rather than going out to fight. */
+    public boolean keepRanks() {
+        return this.entityData.get(KEEP_RANKS);
+    }
+
+    public void setKeepRanks(boolean keep) {
+        this.entityData.set(KEEP_RANKS, keep);
     }
 
     /** Follow {@code leader} (null: his commander). */
@@ -707,6 +770,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % 10 == 3) {
             this.tickArms();
             this.tickVoyage();
+            this.tickHunt();
         }
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % Helm.PERIOD == 0) {
             Entity vessel = Vessels.vesselOf(this);
@@ -979,9 +1043,26 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         }
     }
 
+    /** After the one he was told to fall upon; when he is down or gone, the man stands where the fight ended. */
+    private void tickHunt() {
+        if (this.hunt == null || !(this.level() instanceof ServerLevel server)) {
+            return;
+        }
+        Entity e = server.getEntity(this.hunt);
+        if (!(e instanceof LivingEntity foe) || !foe.isAlive() || foe.distanceToSqr(this) > 96 * 96) {
+            this.hunt = null;
+            if (this.orders() == Orders.HOLD && !this.isCrew()) {
+                this.post = this.position();
+                this.postYaw = this.getYRot();
+            }
+        } else if (this.getTarget() == null || !this.getTarget().isAlive()) {
+            this.setTarget(foe);
+        }
+    }
+
     /**
      * At sea: he stays aboard while his commander is aboard (or while he was told to hold), goes ashore after him
-     * when he lands, and mans a cannon if he sits at one. On land: Small Ships does not lead him off a deck he was
+     * when he lands, mans a cannon if he sits at one, and mends the ship. On land: Small Ships does not lead him off a deck he was
      * told to stand on.
      */
     private void tickVoyage() {
@@ -1015,6 +1096,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.ashoreChecks = 0;
         }
         Vessels.tickGunner(this, vessel);
+        Vessels.tickCarpenter(this, vessel);
     }
 
     /** What he says when asked: who he is, how he is, what he does. */
@@ -1110,6 +1192,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             tag.putUUID("Leader", this.leader);
         }
         tag.putBoolean("Managed", this.managed());
+        tag.putBoolean("KeepRanks", this.keepRanks());
         if (this.mount != null) {
             tag.putUUID("Mount", this.mount);
         }
@@ -1179,6 +1262,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.postYaw = tag.getFloat("PostYaw");
         this.leader = tag.hasUUID("Leader") ? tag.getUUID("Leader") : null;
         this.entityData.set(MANAGED_DATA, tag.getBoolean("Managed") || this.getPersistentData().getBoolean(MANAGED));
+        this.entityData.set(KEEP_RANKS, tag.getBoolean("KeepRanks"));
         this.patrol.clear();
         for (Tag t : tag.getList("Patrol", Tag.TAG_COMPOUND)) {
             CompoundTag c = (CompoundTag) t;
