@@ -495,7 +495,7 @@ public final class CombatManager {
     /** Lowers the lance under the arm, if the rider is free to. */
     private static void couchInput(LivingEntity player, CombatState s) {
         boolean free = s.phase == Phase.IDLE || s.phase == Phase.BLOCK || s.phase == Phase.RECOVERY && canBlockFromRecovery(s);
-        if (free && player instanceof Player p && Lances.canCouch(p)) {
+        if (free && Lances.canCouch(player)) {
             startCouch(player, s);
         }
     }
@@ -1315,7 +1315,7 @@ public final class CombatManager {
     }
 
     private static void couchTick(LivingEntity player, CombatState s, long now) {
-        if (!s.couchHeld || !(player instanceof Player p) || !Lances.canCouch(p) || player.getMainHandItem().getItem() != s.weaponItem) {
+        if (!s.couchHeld || !Lances.canCouch(player) || player.getMainHandItem().getItem() != s.weaponItem) {
             s.flags = 0;
             s.set(Phase.IDLE, 0);
             return;

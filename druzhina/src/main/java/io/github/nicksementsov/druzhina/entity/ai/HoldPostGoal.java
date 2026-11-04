@@ -5,6 +5,7 @@ import io.github.nicksementsov.druzhina.entity.Soldier;
 import java.util.EnumSet;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 
 /** A soldier told to hold goes to his place in the line and stands there, facing where he was told to face. */
@@ -19,7 +20,7 @@ public class HoldPostGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return this.soldier.orders() == Orders.HOLD && this.soldier.post() != null && this.soldier.getTarget() == null;
+        return this.soldier.orders() == Orders.HOLD && this.soldier.post() != null && this.soldier.getTarget() == null && !this.soldier.isCrew();
     }
 
     @Override
@@ -51,7 +52,7 @@ public class HoldPostGoal extends Goal {
                 this.pathDelay = 10;
                 if (dist > 100 * 100) {
                     // far away (a new post across the land): he gets there at once
-                    this.soldier.teleportTo(post.x, post.y, post.z);
+                    this.soldier.relocate(post.x, post.y, post.z);
                 } else if (dist > 1.5 * 1.5) {
                     this.soldier.getNavigation().moveTo(post.x, post.y, post.z, dist > 64 ? 1.15 : 0.9);
                 }
@@ -69,6 +70,14 @@ public class HoldPostGoal extends Goal {
             this.soldier.setYHeadRot(yaw);
             this.soldier.yBodyRot = yaw;
             this.soldier.setXRot(0);
+            Mob steed = this.soldier.steed();
+            if (steed != null) {
+                // and so does his horse
+                float turn = Mth.approachDegrees(steed.getYRot(), this.soldier.postYaw(), 6);
+                steed.setYRot(turn);
+                steed.yBodyRot = turn;
+                steed.setYHeadRot(turn);
+            }
         }
     }
 }

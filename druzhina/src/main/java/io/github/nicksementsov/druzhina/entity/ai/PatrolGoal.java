@@ -22,7 +22,7 @@ public class PatrolGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return this.soldier.orders() == Orders.PATROL && this.soldier.getTarget() == null && !this.soldier.patrol().isEmpty();
+        return this.soldier.orders() == Orders.PATROL && this.soldier.getTarget() == null && !this.soldier.patrol().isEmpty() && !this.soldier.isCrew();
     }
 
     @Override
@@ -58,7 +58,7 @@ public class PatrolGoal extends Goal {
         if (--this.pathDelay <= 0) {
             this.pathDelay = 20;
             if (!this.soldier.getNavigation().moveTo(this.to.x, this.to.y, this.to.z, 0.7) && dx * dx + dz * dz > 100 * 100) {
-                this.soldier.teleportTo(this.to.x, this.to.y, this.to.z);
+                this.soldier.relocate(this.to.x, this.to.y, this.to.z);
             }
         }
     }

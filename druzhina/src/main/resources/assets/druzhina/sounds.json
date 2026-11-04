@@ -1,0 +1,31 @@
+{
+  "entity.war_elephant.ambient": {
+    "subtitle": "subtitles.druzhina.war_elephant.ambient",
+    "sounds": [
+      {"name": "druzhina:elephant/trumpet", "pitch": 1.0, "attenuation_distance": 48},
+      {"name": "druzhina:elephant/trumpet", "pitch": 0.88, "attenuation_distance": 48},
+      {"name": "mob/ravager/idle1", "pitch": 0.5, "volume": 0.6},
+      {"name": "mob/ravager/idle3", "pitch": 0.5, "volume": 0.6}
+    ]
+  },
+  "entity.war_elephant.attack": {
+    "subtitle": "subtitles.druzhina.war_elephant.attack",
+    "sounds": [
+      {"name": "druzhina:elephant/trumpet", "pitch": 1.05, "attenuation_distance": 48},
+      {"name": "druzhina:elephant/trumpet", "pitch": 0.94, "attenuation_distance": 48}
+    ]
+  },
+  "entity.war_elephant.hurt": {
+    "subtitle": "subtitles.druzhina.war_elephant.hurt",
+    "sounds": [
+      {"name": "druzhina:elephant/trumpet_short", "pitch": 1.0},
+      {"name": "druzhina:elephant/trumpet_short", "pitch": 0.9}
+    ]
+  },
+  "entity.war_elephant.death": {
+    "subtitle": "subtitles.druzhina.war_elephant.death",
+    "sounds": [
+      {"name": "druzhina:elephant/trumpet_dying", "attenuation_distance": 48}
+    ]
+  }
+}

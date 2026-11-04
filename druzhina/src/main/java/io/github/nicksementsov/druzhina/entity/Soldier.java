@@ -2,6 +2,10 @@ package io.github.nicksementsov.druzhina.entity;
 
 import io.github.nicksementsov.druzhina.entity.ai.CommanderTargetGoal;
 import io.github.nicksementsov.druzhina.entity.ai.DuelGoal;
+import io.github.nicksementsov.druzhina.entity.ai.ElephantDriveGoal;
+import io.github.nicksementsov.druzhina.entity.ai.LanceChargeGoal;
+import io.github.nicksementsov.druzhina.entity.ai.RemountGoal;
+import io.github.nicksementsov.druzhina.menu.SoldierMenu;
 import io.github.nicksementsov.druzhina.entity.ai.FollowCommanderGoal;
 import io.github.nicksementsov.druzhina.entity.ai.HoldPostGoal;
 import io.github.nicksementsov.druzhina.entity.ai.PatrolGoal;
@@ -10,6 +14,7 @@ import io.github.nicksementsov.druzhina.registry.DruzhinaAttributes;
 import io.github.nicksementsov.druzhina.entity.ai.VolleyGoal;
 import io.github.nicksementsov.knightcombat.api.CombatFighter;
 import io.github.nicksementsov.knightcombat.api.KnightCombatApi;
+import io.github.nicksementsov.knightcombat.combat.Lances;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +30,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -32,6 +38,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -41,6 +48,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -52,6 +60,7 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.RangedAttackMob;
@@ -62,12 +71,14 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.network.NetworkHooks;
 
 /**
  * A soldier: a man with a weapon who fights by the rules of Knightly Combat, as a player does — wind-ups, blocks,
@@ -81,6 +92,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final EntityDataAccessor<Integer> RANK = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Optional<UUID>> OWNER = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Boolean> MANAGED_DATA = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> KILLS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
     public static final int SKINS = 8;
     public static final int BANDIT_SKINS = 4;
     public static final int NAMES = 40;
@@ -89,6 +101,17 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final int HEAL_DELAY = 200;
     private static final String MANAGED = "druzhina.managed";
     private static final String NAMED = "druzhina.named";
+    /**
+     * What he carries, as the equipment window shows it: head, body, legs, feet, the main and the other hand, the
+     * spare weapon (a rider's sword, while he charges with the lance) and the armour of his horse.
+     */
+    public static final int GEAR = 8;
+    public static final int MAIN = 4;
+    public static final int OFF = 5;
+    public static final int SPARE = 6;
+    public static final int BARDING = 7;
+    private static final EquipmentSlot[] GEAR_SLOTS = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET,
+        EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
 
     @Nullable
     private Vec3 post;
@@ -106,6 +129,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private final List<Vec3> patrol = new ArrayList<>();
     private int patrolIndex;
     private int patrolStep = 1;
+    /** His horse or his elephant, or null for a man on foot. */
+    @Nullable
+    private UUID mount;
+    /** A second weapon he carries: the sword of a lancer, for when the lance is no use. */
+    private ItemStack spare = ItemStack.EMPTY;
+    /** His own things, put aside while he uses what the commander gave him instead; he takes them back after. */
+    private final ItemStack[] stowed = new ItemStack[GEAR];
 
     public Soldier(EntityType<? extends Soldier> type, Level level) {
         super(type, level);
@@ -113,6 +143,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (this.getNavigation() instanceof GroundPathNavigation nav) {
             nav.setCanOpenDoors(true);
         }
+        java.util.Arrays.fill(this.stowed, ItemStack.EMPTY);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -135,11 +166,15 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.define(RANK, 0);
         this.entityData.define(OWNER, Optional.empty());
         this.entityData.define(MANAGED_DATA, false);
+        this.entityData.define(KILLS, 0);
     }
 
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(0, new RemountGoal(this));
+        this.goalSelector.addGoal(1, new LanceChargeGoal(this));
+        this.goalSelector.addGoal(1, new ElephantDriveGoal(this));
         this.goalSelector.addGoal(1, new DuelGoal(this));
         this.goalSelector.addGoal(1, new VolleyGoal(this));
         this.goalSelector.addGoal(2, new OpenDoorGoal(this, true));
@@ -161,7 +196,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     }
 
     /** Whom this soldier attacks on sight. */
-    private boolean isFoe(LivingEntity e) {
+    public boolean isFoe(LivingEntity e) {
         if (!this.withinReach(e) || this.routed()) {
             return false;
         } else if (e instanceof Soldier other) {
@@ -182,7 +217,8 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (this.isBandit() || this.getOwnerUUID() == null) {
             return true;
         }
-        double leash = this.role().ranged ? 26 : 16;
+        // archers shoot far, riders ride far
+        double leash = this.shooter() ? 26 : this.isPassenger() ? 24 : 16;
         return switch (this.orders()) {
             case CHARGE -> true;
             case PATROL -> {
@@ -210,6 +246,62 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         return this.role().bandit;
     }
 
+    /** A bow or a crossbow in his hand: he fights from afar. */
+    public boolean shooter() {
+        Item item = this.getMainHandItem().getItem();
+        return item instanceof BowItem || item instanceof CrossbowItem;
+    }
+
+    /** A weapon of the melee rules in his hand. */
+    public boolean hasMeleeWeapon() {
+        return KnightCombatApi.weapon(this.getMainHandItem()) != null;
+    }
+
+    /** A lance in his hand on a horse: he charges with it couched. */
+    public boolean lancer() {
+        return this.getVehicle() instanceof AbstractHorse && Lances.couchable(this.getMainHandItem());
+    }
+
+    /** He rides on a beast that someone else drives (the archer in an elephant's howdah): he does not walk. */
+    public boolean isCrew() {
+        return this.getVehicle() instanceof Mob v && v.getControllingPassenger() != this;
+    }
+
+    /** The one he drives: his horse or elephant when he sits on it in front, or null. */
+    @Nullable
+    public Mob steed() {
+        return this.getVehicle() instanceof Mob v && v.getControllingPassenger() == this ? v : null;
+    }
+
+    @Nullable
+    public UUID mountId() {
+        return this.mount;
+    }
+
+    public void setMount(@Nullable UUID mount) {
+        this.mount = mount;
+    }
+
+    /** His own horse or elephant, if it is alive in this world. */
+    @Nullable
+    public Mob mountEntity() {
+        if (this.mount != null && this.level() instanceof ServerLevel server && server.getEntity(this.mount) instanceof Mob m && m.isAlive()) {
+            return m;
+        }
+        return null;
+    }
+
+    /** Moves him at once, with the beast he drives. */
+    public void relocate(double x, double y, double z) {
+        Mob steed = this.steed();
+        if (steed != null) {
+            steed.teleportTo(x, y, z);
+            steed.getNavigation().stop();
+        } else if (!this.isPassenger()) {
+            this.teleportTo(x, y, z);
+        }
+    }
+
     public int skin() {
         return this.entityData.get(SKIN);
     }
@@ -223,7 +315,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     }
 
     public int kills() {
-        return this.kills;
+        return this.level().isClientSide ? this.entityData.get(KILLS) : this.kills;
     }
 
     /** How well he fights: his role's skill and a tenth more for every rank. */
@@ -392,6 +484,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     }
 
     private void applyRank() {
+        this.entityData.set(KILLS, this.kills);
         var health = this.getAttribute(Attributes.MAX_HEALTH);
         if (health != null) {
             health.setBaseValue(this.role().health + 2.0 * this.rank());
@@ -478,6 +571,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         }
 
         this.kills++;
+        this.entityData.set(KILLS, this.kills);
         int rank = this.rank();
         if (rank < RANK_KILLS.length && this.kills >= RANK_KILLS[rank]) {
             this.entityData.set(RANK, rank + 1);
@@ -505,6 +599,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.enlist(this.role(), this.getOwnerUUID(), this.random);
         }
         super.aiStep();
+        if (!this.level().isClientSide && this.isAlive() && this.tickCount % 10 == 3) {
+            this.tickArms();
+        }
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % 40 == 0 && !this.fightingRecently() && this.getHealth() < this.getMaxHealth()) {
             // wounds close out of the fight
             this.heal(1.0f);
@@ -557,7 +654,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             return InteractionResult.SUCCESS;
         } else {
             ItemStack held = player.getItemInHand(hand);
-            EquipmentSlot slot = slotFor(held);
+            int gear = this.gearFor(held);
             if (held.isEmpty() && player.isShiftKeyDown() && !this.managed()) {
                 // Shift and an empty hand, twice: he is let go
                 long now = this.level().getGameTime();
@@ -567,18 +664,20 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
                     this.dismissAsked = now;
                     player.displayClientMessage(Component.translatable("druzhina.msg.dismiss_confirm", this.getDisplayName()).withStyle(ChatFormatting.YELLOW), true);
                 }
-            } else if (slot != null) {
+            } else if (held.isEmpty() && player instanceof ServerPlayer sp) {
+                // an empty hand: his things, to look at and to change
+                NetworkHooks.openScreen(sp, new SimpleMenuProvider((id, inv, p) -> new SoldierMenu(id, inv, this), this.getDisplayName()),
+                        buf -> buf.writeVarInt(this.getId()));
+            } else if (gear >= 0) {
                 // a weapon, a shield or a piece of armour from the commander's hand
-                ItemStack old = this.getItemBySlot(slot);
-                this.setItemSlot(slot, held.copyWithCount(1));
+                ItemStack old = this.hand(gear, held.copyWithCount(1));
                 held.shrink(1);
-                this.given |= 1 << slot.ordinal();
                 if (!old.isEmpty() && !player.getInventory().add(old)) {
                     player.drop(old, false);
                 }
 
                 this.playSound(SoundEvents.ARMOR_EQUIP_IRON, 0.8f, 1.0f);
-                player.displayClientMessage(Component.translatable("druzhina.msg.equipped", this.plainName(), this.getItemBySlot(slot).getHoverName()), true);
+                player.displayClientMessage(Component.translatable("druzhina.msg.equipped", this.plainName(), this.gear(gear).getHoverName()), true);
             } else {
                 player.displayClientMessage(this.status(), false);
             }
@@ -587,7 +686,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         }
     }
 
-    /** Lets him go home: what the commander gave him is left behind. */
+    /** Lets him go home: what the commander gave him is left behind, and his horse goes with him. */
     private void dismiss(Player player) {
         this.dropGiven();
         player.displayClientMessage(Component.translatable("druzhina.msg.dismissed", this.getDisplayName()).withStyle(ChatFormatting.GRAY), false);
@@ -595,37 +694,170 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             server.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, this.getX(), this.getY() + 1, this.getZ(), 12, 0.3, 0.5, 0.3, 0.02);
         }
         this.playSound(SoundEvents.ARMOR_EQUIP_LEATHER, 1.0f, 0.8f);
+        Mob beast = this.mountEntity();
+        if (beast != null && !(beast.getControllingPassenger() instanceof Player) && beast.getPassengers().stream().noneMatch(e -> e instanceof Player)) {
+            beast.ejectPassengers();
+            beast.discard();
+        }
         this.discard();
     }
 
     /** Puts what the commander handed over on the ground. */
     private void dropGiven() {
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if ((this.given & 1 << slot.ordinal()) != 0) {
-                ItemStack stack = this.getItemBySlot(slot);
+        for (int i = 0; i < GEAR; i++) {
+            if (this.given(i)) {
+                ItemStack stack = this.gear(i);
                 if (!stack.isEmpty()) {
                     this.spawnAtLocation(stack.copy());
-                    this.setItemSlot(slot, ItemStack.EMPTY);
+                    this.setGear(i, ItemStack.EMPTY);
                 }
             }
         }
         this.given = 0;
     }
 
-    /** Where an item handed over goes, or null when it is nothing a soldier carries. */
-    @Nullable
-    private EquipmentSlot slotFor(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return null;
-        } else if (stack.getItem() instanceof ArmorItem armor) {
-            return armor.getEquipmentSlot();
-        } else if (stack.getItem() instanceof ShieldItem && !this.role().ranged) {
-            return EquipmentSlot.OFFHAND;
-        } else if (this.role() == Role.CROSSBOWMAN ? stack.getItem() instanceof CrossbowItem
-                : this.role().ranged ? stack.getItem() instanceof BowItem : KnightCombatApi.weapon(stack) != null) {
-            return EquipmentSlot.MAINHAND;
+    // ------------------------------------------------------------------ his things
+
+    /** What he carries at {@code i} (see {@link #GEAR}). */
+    public ItemStack gear(int i) {
+        if (i < GEAR_SLOTS.length) {
+            return this.getItemBySlot(GEAR_SLOTS[i]);
+        } else if (i == SPARE) {
+            return this.spare;
         } else {
-            return null;
+            SlotAccess barding = this.barding();
+            return barding == null ? ItemStack.EMPTY : barding.get();
+        }
+    }
+
+    public void setGear(int i, ItemStack stack) {
+        if (i < GEAR_SLOTS.length) {
+            this.setItemSlot(GEAR_SLOTS[i], stack);
+        } else if (i == SPARE) {
+            this.spare = stack;
+        } else {
+            SlotAccess barding = this.barding();
+            if (barding != null) {
+                barding.set(stack);
+            }
+        }
+    }
+
+    /** The armour slot of the horse he rides, or null when he rides none that wears armour. */
+    @Nullable
+    private SlotAccess barding() {
+        return this.horse() != null ? this.horse().getSlot(401) : null;
+    }
+
+    /** The horse he rides, if it can wear armour. */
+    @Nullable
+    public AbstractHorse horse() {
+        return this.getVehicle() instanceof AbstractHorse horse && horse.canWearArmor() ? horse : null;
+    }
+
+    /** Whether the thing at {@code i} was handed over by the commander (and so may be taken back). */
+    public boolean given(int i) {
+        return (this.given & 1 << i) != 0;
+    }
+
+    public int givenMask() {
+        return this.given;
+    }
+
+    /** What may be put at {@code i}. */
+    public boolean fits(int i, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return true;
+        }
+        return switch (i) {
+            case MAIN, OFF -> true;
+            case SPARE -> KnightCombatApi.weapon(stack) != null || Lances.isLance(stack) || stack.getItem() instanceof BowItem
+                    || stack.getItem() instanceof CrossbowItem;
+            case BARDING -> this.horse() != null && this.horse().isArmor(stack);
+            default -> getEquipmentSlotForItem(stack) == GEAR_SLOTS[i];
+        };
+    }
+
+    /**
+     * Hands {@code stack} to him at {@code i}: what he had there of his own he puts aside, what the commander had
+     * given him before comes back, and is returned.
+     */
+    public ItemStack hand(int i, ItemStack stack) {
+        ItemStack old = this.gear(i);
+        ItemStack back = ItemStack.EMPTY;
+        if (!old.isEmpty()) {
+            if (this.given(i)) {
+                back = old;
+            } else {
+                this.stowed[i] = old;
+            }
+        }
+        this.setGear(i, stack);
+        this.given |= 1 << i;
+        return back;
+    }
+
+    /** Takes back what the commander gave him at {@code i}; he takes up his own thing again. Returns what was taken. */
+    public ItemStack takeBack(int i) {
+        if (!this.given(i)) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack out = this.gear(i);
+        this.setGear(i, this.stowed[i]);
+        this.stowed[i] = ItemStack.EMPTY;
+        this.given &= ~(1 << i);
+        return out;
+    }
+
+    /** Where an item handed over goes (see {@link #GEAR}), or -1 when it is nothing a soldier carries. */
+    private int gearFor(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return -1;
+        } else if (stack.getItem() instanceof ArmorItem armor) {
+            return switch (armor.getEquipmentSlot()) {
+                case HEAD -> 0;
+                case CHEST -> 1;
+                case LEGS -> 2;
+                default -> 3;
+            };
+        } else if (this.horse() != null && this.horse().isArmor(stack)) {
+            return BARDING;
+        } else if (stack.getItem() instanceof ShieldItem) {
+            return OFF;
+        } else if (stack.getItem() instanceof BowItem || stack.getItem() instanceof CrossbowItem || Lances.isLance(stack)
+                || KnightCombatApi.weapon(stack) != null) {
+            return MAIN;
+        } else {
+            return -1;
+        }
+    }
+
+    /** Swaps the weapon in hand and the spare one. */
+    private void switchArms() {
+        ItemStack hand = this.getMainHandItem();
+        this.setItemSlot(EquipmentSlot.MAINHAND, this.spare);
+        this.spare = hand;
+        boolean a = this.given(MAIN);
+        boolean b = this.given(SPARE);
+        this.given = this.given & ~(1 << MAIN | 1 << SPARE) | (b ? 1 << MAIN : 0) | (a ? 1 << SPARE : 0);
+        ItemStack st = this.stowed[MAIN];
+        this.stowed[MAIN] = this.stowed[SPARE];
+        this.stowed[SPARE] = st;
+        this.playSound(SoundEvents.ARMOR_EQUIP_GENERIC, 0.6f, 1.1f);
+    }
+
+    /** A lancer takes the lance up on horseback and his sword on foot when his horse is lost. */
+    private void tickArms() {
+        if (this.spare.isEmpty() || this.isUsingItem() || KnightCombatApi.state(this).phase() != io.github.nicksementsov.knightcombat.combat.Phase.IDLE) {
+            return;
+        }
+        ItemStack hand = this.getMainHandItem();
+        boolean riding = this.getVehicle() instanceof AbstractHorse;
+        if (riding && !Lances.couchable(hand) && Lances.isLance(this.spare)) {
+            this.switchArms();
+        } else if (!riding && Lances.isLance(hand) && KnightCombatApi.weapon(hand) == null && KnightCombatApi.weapon(this.spare) != null
+                && (this.mountEntity() == null || this.getTarget() != null && this.getTarget().distanceToSqr(this) < 6 * 6)) {
+            this.switchArms();
         }
     }
 
@@ -684,6 +916,12 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         return 0.9f + this.random.nextFloat() * 0.15f;
     }
 
+    /** He sits in the saddle as a player does. */
+    @Override
+    public double getMyRidingOffset() {
+        return -0.35;
+    }
+
     // ------------------------------------------------------------------ spawning and saving
 
     @Nullable
@@ -706,7 +944,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         tag.putInt("Rank", this.rank());
         tag.putInt("Kills", this.kills);
         tag.putInt("NameIndex", this.nameIndex);
-        tag.putInt("Given", this.given);
+        tag.putInt("GivenGear", this.given);
         UUID owner = this.getOwnerUUID();
         if (owner != null) {
             tag.putUUID("Commander", owner);
@@ -716,6 +954,23 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             tag.putUUID("Leader", this.leader);
         }
         tag.putBoolean("Managed", this.managed());
+        if (this.mount != null) {
+            tag.putUUID("Mount", this.mount);
+        }
+        if (!this.spare.isEmpty()) {
+            tag.put("Spare", this.spare.save(new CompoundTag()));
+        }
+        ListTag stowedTag = new ListTag();
+        for (int i = 0; i < GEAR; i++) {
+            if (!this.stowed[i].isEmpty()) {
+                CompoundTag t = this.stowed[i].save(new CompoundTag());
+                t.putByte("Gear", (byte) i);
+                stowedTag.add(t);
+            }
+        }
+        if (!stowedTag.isEmpty()) {
+            tag.put("Stowed", stowedTag);
+        }
         if (!this.patrol.isEmpty()) {
             ListTag round = new ListTag();
             for (Vec3 p : this.patrol) {
@@ -751,7 +1006,18 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.set(RANK, tag.getInt("Rank"));
         this.kills = tag.getInt("Kills");
         this.nameIndex = tag.contains("NameIndex") ? tag.getInt("NameIndex") : -1;
-        this.given = tag.getInt("Given");
+        if (tag.contains("GivenGear")) {
+            this.given = tag.getInt("GivenGear");
+        } else {
+            // saved before 2.0: by equipment slot
+            int old = tag.getInt("Given");
+            this.given = 0;
+            for (int i = 0; i < GEAR_SLOTS.length; i++) {
+                if ((old & 1 << GEAR_SLOTS[i].ordinal()) != 0) {
+                    this.given |= 1 << i;
+                }
+            }
+        }
         this.entityData.set(OWNER, tag.hasUUID("Commander") ? Optional.of(tag.getUUID("Commander")) : Optional.empty());
         this.post = tag.contains("PostX") ? new Vec3(tag.getDouble("PostX"), tag.getDouble("PostY"), tag.getDouble("PostZ")) : null;
         this.postYaw = tag.getFloat("PostYaw");
@@ -763,6 +1029,16 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.patrol.add(new Vec3(c.getDouble("X"), c.getDouble("Y"), c.getDouble("Z")));
         }
         this.patrolIndex = tag.getInt("PatrolIndex");
+        this.mount = tag.hasUUID("Mount") ? tag.getUUID("Mount") : null;
+        this.spare = tag.contains("Spare") ? ItemStack.of(tag.getCompound("Spare")) : ItemStack.EMPTY;
+        java.util.Arrays.fill(this.stowed, ItemStack.EMPTY);
+        for (Tag t : tag.getList("Stowed", Tag.TAG_COMPOUND)) {
+            CompoundTag c = (CompoundTag) t;
+            int i = c.getByte("Gear");
+            if (i >= 0 && i < GEAR) {
+                this.stowed[i] = ItemStack.of(c);
+            }
+        }
         this.applyRank();
         if (this.nameIndex >= 0) {
             this.rename();

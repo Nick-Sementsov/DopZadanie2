@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github.nicksementsov.druzhina.entity.Mounts;
 import io.github.nicksementsov.druzhina.entity.Orders;
 import io.github.nicksementsov.druzhina.entity.Role;
 import io.github.nicksementsov.druzhina.entity.Soldier;
@@ -21,7 +22,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.MobSpawnType;
 
 /**
- * {@code /druzhina army}: the player's soldiers and how they are. For operators: {@code /druzhina hire <role> [n]}
+ * {@code /druzhina army}: the player's soldiers and how they are; {@code /druzhina order follow|hold|charge}: the
+ * baton's orders by word. For operators: {@code /druzhina hire <role> [n]}
  * gives soldiers for free, {@code /druzhina bandits [n]} and {@code /druzhina raid} bring bandits.
  */
 public final class DruzhinaCommands {
@@ -31,6 +33,10 @@ public final class DruzhinaCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("druzhina")
                 .then(Commands.literal("army").executes(DruzhinaCommands::army))
+                .then(Commands.literal("order")
+                        .then(Commands.argument("orders", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"follow", "hold", "charge"}, b))
+                                .executes(DruzhinaCommands::order)))
                 .then(Commands.literal("hire").requires(s -> s.hasPermission(2))
                         .then(Commands.argument("role", StringArgumentType.word())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(java.util.Arrays.stream(Role.values()).map(Role::id), b))
@@ -49,6 +55,22 @@ public final class DruzhinaCommands {
             c.getSource().sendSuccess(s::status, false);
         }
         return army.size();
+    }
+
+    /** «За мной!», «Стоять!» or «В атаку!» to the soldiers within earshot, as with the baton. */
+    private static int order(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        ServerPlayer player = c.getSource().getPlayerOrException();
+        String id = StringArgumentType.getString(c, "orders");
+        for (Orders o : Orders.values()) {
+            if (o.id().equals(id) && o != Orders.PATROL) {
+                if (o == Orders.HOLD) {
+                    return Army.formLine(player, player.blockPosition().relative(player.getDirection(), 3), player.getYRot());
+                }
+                return Army.order(player, o);
+            }
+        }
+        c.getSource().sendFailure(Component.literal("follow | hold | charge"));
+        return 0;
     }
 
     /** Soldiers of a role next to the player: his own, or a band of bandits when the role is a bandit one. */
@@ -73,6 +95,7 @@ public final class DruzhinaCommands {
                 s.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.COMMAND, null, null);
                 s.order(Orders.FOLLOW, null, 0);
                 level.addFreshEntity(s);
+                Mounts.mount(level, s, level.random);
             }
         }
         return count;

@@ -1,6 +1,7 @@
 package io.github.nicksementsov.druzhina.entity.ai;
 
 import io.github.nicksementsov.druzhina.entity.Soldier;
+import io.github.nicksementsov.druzhina.entity.WarElephant;
 import java.util.EnumSet;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,7 +33,7 @@ public class VolleyGoal extends Goal {
     @Override
     public boolean canUse() {
         LivingEntity t = this.soldier.getTarget();
-        return t != null && t.isAlive() && this.soldier.role().ranged && this.launcher()
+        return t != null && t.isAlive() && this.launcher() && !(this.soldier.steed() instanceof WarElephant)
                 && this.soldier.canAttack(t) && this.soldier.withinReach(t) && !this.soldier.routed();
     }
 
@@ -84,7 +85,12 @@ public class VolleyGoal extends Goal {
         this.soldier.getLookControl().setLookAt(t, 30, 30);
 
         // feet: close in until he is in range and seen, keep away from blades
-        if (dist > RANGE || !sees && this.seeTime < -20) {
+        net.minecraft.world.entity.Mob horse = this.soldier.steed();
+        if (this.soldier.isCrew()) {
+            // in a howdah: he only shoots
+        } else if (horse != null) {
+            this.circle(horse, t, dist);
+        } else if (dist > RANGE || !sees && this.seeTime < -20) {
             if (--this.pathDelay <= 0) {
                 this.pathDelay = 10;
                 this.soldier.getNavigation().moveTo(t, 1.0);
@@ -119,12 +125,35 @@ public class VolleyGoal extends Goal {
         }
     }
 
+    /**
+     * A mounted archer rides round the enemy at a bowshot, shooting as he goes, and never lets him come close.
+     */
+    private void circle(net.minecraft.world.entity.Mob horse, LivingEntity t, double dist) {
+        if (--this.pathDelay > 0 && dist > 6) {
+            return;
+        }
+        this.pathDelay = 12;
+        if (this.strafe == 0) {
+            this.strafe = this.soldier.getRandom().nextBoolean() ? 1 : -1;
+        }
+        double radius = RANGE * 0.6;
+        double angle = Math.atan2(horse.getZ() - t.getZ(), horse.getX() - t.getX()) + this.strafe * 0.7;
+        double r = dist < 8 ? radius + 4 : radius;
+        double x = t.getX() + Math.cos(angle) * r;
+        double z = t.getZ() + Math.sin(angle) * r;
+        if (!this.soldier.getNavigation().moveTo(x, t.getY(), z, dist < 8 ? 1.25 : 0.95) || horse.horizontalCollision && this.soldier.getRandom().nextInt(4) == 0) {
+            // something in the way: the other way round
+            this.strafe = -this.strafe;
+        }
+    }
+
     /** No friend standing right in the line of fire. */
     private boolean clearShot(LivingEntity t) {
         var from = this.soldier.getEyePosition();
         var to = t.getEyePosition();
         var box = this.soldier.getBoundingBox().expandTowards(to.subtract(from)).inflate(1);
-        for (LivingEntity e : this.soldier.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this.soldier && e != t && this.soldier.isAlliedTo(e))) {
+        for (LivingEntity e : this.soldier.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this.soldier && e != t && this.soldier.isAlliedTo(e)
+                && e != this.soldier.getVehicle() && !this.soldier.isPassengerOfSameVehicle(e))) {
             if (e.getBoundingBox().inflate(0.3).clip(from, to).isPresent() && e.distanceToSqr(this.soldier) < t.distanceToSqr(this.soldier)) {
                 return false;
             }

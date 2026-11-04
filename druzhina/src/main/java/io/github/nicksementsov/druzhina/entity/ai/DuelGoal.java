@@ -69,14 +69,15 @@ public class DuelGoal extends Goal {
     @Override
     public boolean canUse() {
         LivingEntity t = this.soldier.getTarget();
-        return t != null && t.isAlive() && !this.soldier.role().ranged && this.weapon() != null && this.soldier.canAttack(t)
-                && this.soldier.withinReach(t) && !this.soldier.routed();
+        return t != null && t.isAlive() && this.weapon() != null && this.soldier.canAttack(t) && this.soldier.withinReach(t)
+                && !this.soldier.routed() && this.canFightFromWhereHeIs();
     }
 
     @Override
     public boolean canContinueToUse() {
         LivingEntity t = this.soldier.getTarget();
-        if (t == null || !t.isAlive() || this.weapon() == null || !this.soldier.canAttack(t) || this.soldier.routed()) {
+        if (t == null || !t.isAlive() || this.weapon() == null || !this.soldier.canAttack(t) || this.soldier.routed()
+                || !this.canFightFromWhereHeIs()) {
             return false;
         }
         if (!this.soldier.withinReach(t)) {
@@ -85,6 +86,17 @@ public class DuelGoal extends Goal {
             return false;
         }
         return true;
+    }
+
+    /**
+     * On foot or on a horse with a blade; not in an elephant's howdah, not as its driver, and not with a lance on a
+     * horse (that is a charge: {@link LanceChargeGoal}).
+     */
+    private boolean canFightFromWhereHeIs() {
+        if (!this.soldier.isPassenger()) {
+            return true;
+        }
+        return this.soldier.steed() instanceof net.minecraft.world.entity.animal.horse.AbstractHorse && !this.soldier.lancer();
     }
 
     @Override
@@ -163,7 +175,10 @@ public class DuelGoal extends Goal {
             // out of breath: keep away from the blade and get the wind back
             ideal = reach + 1.6f;
         }
-        if (gap > reach + 2.5 || !sees) {
+        net.minecraft.world.entity.Mob horse = this.soldier.steed();
+        if (horse != null) {
+            this.ride(horse, t, gap, reach, rnd);
+        } else if (gap > reach + 2.5 || !sees) {
             this.soldier.setSprinting(gap > 6 && me.phase() == Phase.IDLE);
             if (--this.pathDelay <= 0) {
                 this.pathDelay = PATH_DELAY + rnd.nextInt(5);
@@ -238,6 +253,27 @@ public class DuelGoal extends Goal {
 
         // ------------------------------------------------------------ own blows
         this.tickAttack(t, foe, me, weapon, gap, reach, skill, stamina, winded, rnd);
+    }
+
+    /**
+     * A rider's feet are his horse's: he rides up to the enemy and, close enough to strike, turns the horse to have him
+     * on his sword side.
+     */
+    private void ride(net.minecraft.world.entity.Mob horse, LivingEntity t, double gap, float reach, RandomSource rnd) {
+        if (gap > reach - 0.4) {
+            if (--this.pathDelay <= 0) {
+                this.pathDelay = PATH_DELAY / 2 + rnd.nextInt(3);
+                this.soldier.getNavigation().moveTo(t, gap > 6 ? 1.2 : 0.8);
+            }
+        } else {
+            this.soldier.getNavigation().stop();
+            float toward = (float) (Mth.atan2(t.getZ() - horse.getZ(), t.getX() - horse.getX()) * Mth.RAD_TO_DEG) - 90;
+            // the enemy a little to the right, where the sword is
+            float yaw = Mth.approachDegrees(horse.getYRot(), toward - 30, 8);
+            horse.setYRot(yaw);
+            horse.yBodyRot = yaw;
+            horse.setYHeadRot(yaw);
+        }
     }
 
     /** Sees a new wind-up of the enemy and decides how to meet it. */

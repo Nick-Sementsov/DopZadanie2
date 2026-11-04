@@ -1,5 +1,6 @@
 package io.github.nicksementsov.druzhina.api;
 
+import io.github.nicksementsov.druzhina.entity.Mounts;
 import io.github.nicksementsov.druzhina.entity.Orders;
 import io.github.nicksementsov.druzhina.entity.Role;
 import io.github.nicksementsov.druzhina.entity.Soldier;
@@ -27,7 +28,9 @@ public final class DruzhinaApi {
     }
 
     /**
-     * Raises a soldier of {@code role} (a role id: swordsman, spearman, axeman, archer, crossbowman, knight, militia)
+     * Raises a soldier of {@code role} (a role id: swordsman, druzhinnik, spearman, shieldbearer, axeman, maceman, warrior,
+     * foot_knight, knight, archer, crossbowman, horseman, lancer, horse_archer, mahout, militia; riders come on their
+     * horses, a mahout on his elephant with an archer in its howdah)
      * for {@code owner} at {@code at}, armed as the given grade (0 levies, 1 men at arms, 2 picked men) and of the
      * given rank (0 to {@link #maxRank()}). Returns null when the role is unknown or he could not be placed.
      */
@@ -48,7 +51,14 @@ public final class DruzhinaApi {
             s.setRank(rank);
         }
         s.order(Orders.HOLD, Vec3.atBottomCenterOf(at), s.getYRot());
-        return level.addFreshEntity(s) ? s : null;
+        if (!level.addFreshEntity(s)) {
+            return null;
+        }
+        // riders come with their horses, drivers with their elephants
+        for (Soldier crew : Mounts.mount(level, s, level.random)) {
+            crew.setManaged(s.managed());
+        }
+        return s;
     }
 
     /** A soldier who serves someone: not a bandit, not a free company. */

@@ -3,6 +3,7 @@ package io.github.nicksementsov.druzhina.server;
 import io.github.nicksementsov.druzhina.DruzhinaConfig;
 import io.github.nicksementsov.druzhina.api.Hiring;
 import io.github.nicksementsov.druzhina.entity.Formation;
+import io.github.nicksementsov.druzhina.entity.Mounts;
 import io.github.nicksementsov.druzhina.entity.Orders;
 import io.github.nicksementsov.druzhina.entity.Role;
 import io.github.nicksementsov.druzhina.entity.Soldier;
@@ -78,7 +79,7 @@ public final class Army {
         }
         int count = of(player).size();
         int max = DruzhinaConfig.MAX_SOLDIERS.get();
-        if (count >= max) {
+        if (count + role.crew() > max) {
             player.displayClientMessage(Component.translatable("druzhina.msg.army_full", max).withStyle(ChatFormatting.RED), false);
             return false;
         }
@@ -101,10 +102,12 @@ public final class Army {
         s.finalizeSpawn(level, level.getCurrentDifficultyAt(at), MobSpawnType.MOB_SUMMONED, null, null);
         s.order(Orders.FOLLOW, null, 0);
         level.addFreshEntity(s);
+        // riders come with their horses, drivers with their elephants (and the archer for its howdah)
+        int men = 1 + Mounts.mount(level, s, level.random).size();
         s.spawnAnim();
         level.playSound(null, at, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.NEUTRAL, 1.0f, 0.9f);
         level.playSound(null, at, SoundEvents.VILLAGER_CELEBRATE, SoundSource.NEUTRAL, 0.6f, 0.8f);
-        player.displayClientMessage(Component.translatable("druzhina.msg.hired", s.getDisplayName(), count + 1, max).withStyle(ChatFormatting.GREEN), false);
+        player.displayClientMessage(Component.translatable("druzhina.msg.hired", s.getDisplayName(), count + men, max).withStyle(ChatFormatting.GREEN), false);
 
         // the first soldier comes with the baton to lead him
         if (!player.getPersistentData().getBoolean("druzhina.baton") && !hasBaton(player)) {
@@ -211,8 +214,20 @@ public final class Army {
      * further to the right takes a place further to the right, so that nobody crosses the others on the way.
      */
     public static void form(ServerLevel level, List<Soldier> men, Vec3 center, float yaw, double width, Formation formation) {
-        List<Soldier> order = new ArrayList<>(men);
-        order.sort(Comparator.comparing((Soldier s) -> s.role().ranged));
+        List<Soldier> order = new ArrayList<>();
+        for (Soldier s : men) {
+            if (s.isCrew()) {
+                // in a howdah: he goes where the beast goes
+                s.order(Orders.HOLD, null, yaw);
+            } else {
+                order.add(s);
+            }
+        }
+        if (order.isEmpty()) {
+            return;
+        }
+        // blades in front, then bows, then the riders
+        order.sort(Comparator.comparingInt((Soldier s) -> s.isPassenger() ? 2 : s.shooter() ? 1 : 0));
         List<Vec3> slots = formation.slots(order.size(), center, yaw, width);
         double rx = -Mth.cos(yaw * Mth.DEG_TO_RAD);
         double rz = -Mth.sin(yaw * Mth.DEG_TO_RAD);

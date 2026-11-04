@@ -5,7 +5,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -50,10 +49,13 @@ public final class Lances {
         return weapon != null && weapon.kind() == WeaponKind.SPEAR;
     }
 
-    /** Whether the player rides something alive (a horse, a donkey, a camel) with a lance or spear in the main hand. */
-    public static boolean canCouch(Player player) {
-        Entity vehicle = player.getVehicle();
-        return CombatConfig.mountedCharges() && vehicle instanceof LivingEntity && couchable(player.getMainHandItem());
+    /**
+     * Whether the rider (a player or an NPC fighter) rides something alive (a horse, a donkey, a camel) with a lance or
+     * spear in the main hand.
+     */
+    public static boolean canCouch(LivingEntity rider) {
+        Entity vehicle = rider.getVehicle();
+        return CombatConfig.mountedCharges() && vehicle instanceof LivingEntity && couchable(rider.getMainHandItem());
     }
 
     /** How far a couched lance reaches ahead of the rider's shoulder, in blocks. */

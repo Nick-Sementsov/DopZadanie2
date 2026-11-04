@@ -1,0 +1,10 @@
+Sounds of Druzhina
+
+elephant/trumpet.ogg, elephant/trumpet_short.ogg, elephant/trumpet_dying.ogg: cut, normalized, made mono and
+resampled for the mod from "Elephant voice - trumpeting" by தகவலுழவன் (Wikimedia Commons user), an Asian
+elephant's trumpet, dedicated to the public domain (CC0 1.0):
+https://commons.wikimedia.org/wiki/File:Elephant_voice_-_trumpeting.ogg
+
+The war elephant's low rumble when it stands is Minecraft's own ravager, pitched down.
+
+CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
