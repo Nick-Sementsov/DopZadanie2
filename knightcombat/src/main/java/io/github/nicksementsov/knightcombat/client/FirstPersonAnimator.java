@@ -12,6 +12,7 @@ import io.github.nicksementsov.knightcombat.combat.Phase;
 import io.github.nicksementsov.knightcombat.combat.Shields;
 import io.github.nicksementsov.knightcombat.combat.WeaponStats;
 import io.github.nicksementsov.knightcombat.combat.Weapons;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -29,6 +30,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -50,13 +52,26 @@ public final class FirstPersonAnimator {
     private static final float MAX_LENGTH_TWO = 1.5f;
     private static final float MAX_LENGTH_POLEARM = 2.3f;
     private static final float MAX_LENGTH_LANCE = 4.5f;
-    /** Where the arms come from, beyond the lower corner of the view (right arm; the left one is mirrored). */
+    /** Where the arm holding the weapon comes from, beyond the lower corner of the view (for the right hand). */
     private static final Vector3f SHOULDER = new Vector3f(0.95f, -0.95f, 0.1f);
-    /** The arms are drawn a little slimmer than the model's, so they frame the view without filling it. */
-    private static final float ARM_WIDTH = 0.85f;
+    /**
+     * Where the other arm comes from when both hands hold the weapon: from below the view, so it reaches up to the
+     * grip instead of crossing the whole view.
+     */
+    private static final Vector3f OTHER_SHOULDER = new Vector3f(-0.4f, -1.15f, 0.05f);
+    /** The arms are drawn slimmer than the model's, so they frame the view without filling it. */
+    private static final float ARM_WIDTH = 0.72f;
+    /** How hard the spring that carries the weapon pulls it back, and how much of its swing it damps (1 stops it dead). */
+    private static final float SWAY_STIFFNESS = 110;
+    private static final float SWAY_DAMPING = 0.5f;
     private static final float TRAIL_OPACITY = 0.45f;
     /** How long a hit shakes the weapon, in ticks. */
     private static final float IMPACT_TICKS = 4;
+
+    /** Where the spring holds the weapon off its pose, and how fast it moves (blocks, blocks per second). */
+    private static final Vector3f SWAY = new Vector3f();
+    private static final Vector3f SWAY_SPEED = new Vector3f();
+    private static long swayAt;
 
     private FirstPersonAnimator() {
     }
@@ -108,6 +123,8 @@ public final class FirstPersonAnimator {
         hand.y -= 0.6f * event.getEquipProgress();
         impact(hand, blade, ClientCombat.ticks() - ClientCombat.hitAt() + partialTick);
         weight(hand, blade, player, anim, weapon, partialTick);
+        sway(hand, blade, player, weapon, partialTick);
+        steps(hand, blade, player, partialTick);
         adjust(hand, blade, edge, weapon, left);
         float scale = scale(weapon, axes);
 
@@ -115,12 +132,12 @@ public final class FirstPersonAnimator {
         MultiBufferSource buffers = event.getMultiBufferSource();
         int light = event.getPackedLight();
         if (CombatConfig.FIRST_PERSON_ARMS.get()) {
-            renderArm(poseStack, buffers, light, player, !left, hand, blade);
+            renderArm(poseStack, buffers, light, player, !left, hand, blade, SHOULDER);
             boolean couched = anim != null && (anim.phase() == Phase.COUCH || anim.phase() == Phase.RECOVERY && anim.has(CombatState.LANCE));
             if (weapon.twoHanded() && !couched) {
                 float along = (weapon.grip() == Grip.POLEARM ? 0.42f : -0.17f) * scale;
                 Vector3f offHand = new Vector3f(blade).mul(along).add(hand);
-                renderArm(poseStack, buffers, light, player, left, offHand, blade);
+                renderArm(poseStack, buffers, light, player, left, offHand, blade, OTHER_SHOULDER);
             }
         }
 
@@ -184,9 +201,9 @@ public final class FirstPersonAnimator {
     /** Places a pose for the weapon: long weapons a little further away, and everything mirrored for left-handed players. */
     private static void adjust(Vector3f hand, Vector3f blade, Vector3f edge, WeaponStats weapon, boolean left) {
         if (weapon.twoHanded()) {
-            // Long weapons are held further from the eyes and lower, so their hilts do not fill the view.
-            hand.z -= 0.1f;
-            hand.y -= 0.04f;
+            // Long weapons are held further from the eyes and lower, so their hilts and both arms do not fill the view.
+            hand.z -= 0.12f;
+            hand.y -= 0.1f;
         }
         if (left) {
             hand.x = -hand.x;
@@ -239,6 +256,48 @@ public final class FirstPersonAnimator {
         }
     }
 
+    /**
+     * The weapon is carried on a spring: when the player strafes, runs, jumps or falls it lags behind the body and
+     * swings back past its place before it settles, heavy weapons slower. Landing dips it and it bounces back up.
+     */
+    private static void sway(Vector3f hand, Vector3f blade, LocalPlayer player, WeaponStats weapon, float partialTick) {
+        long now = Util.getNanos();
+        float dt = swayAt == 0 ? 0 : Math.min(0.05f, (now - swayAt) / 1.0E9f);
+        swayAt = now;
+        Vec3 motion = player.getDeltaMovement();
+        float yaw = player.getViewYRot(partialTick) * Mth.DEG_TO_RAD;
+        // The right of a player looking along (-sin yaw, cos yaw) is (-cos yaw, -sin yaw).
+        float right = (float) (-motion.x * Mth.cos(yaw) - motion.z * Mth.sin(yaw));
+        float forward = (float) (-motion.x * Mth.sin(yaw) + motion.z * Mth.cos(yaw));
+        float up = player.onGround() || player.getAbilities().flying ? 0 : (float) motion.y;
+        Vector3f target = new Vector3f(Mth.clamp(-right * 0.3f, -0.05f, 0.05f), Mth.clamp(-up * 0.16f, -0.06f, 0.06f),
+                Mth.clamp(forward * 0.2f, -0.04f, 0.04f));
+        float stiffness = SWAY_STIFFNESS / (0.7f + 0.6f * weapon.weight());
+        float damping = 2 * SWAY_DAMPING * Mth.sqrt(stiffness);
+        // A few small steps, so a long frame does not throw the spring off.
+        for (float left = dt; left > 0; left -= 0.01f) {
+            float step = Math.min(0.01f, left);
+            Vector3f pull = new Vector3f(target).sub(SWAY).mul(stiffness).sub(new Vector3f(SWAY_SPEED).mul(damping));
+            SWAY_SPEED.fma(step, pull);
+            SWAY.fma(step, SWAY_SPEED);
+        }
+        hand.add(SWAY);
+        // The point trails further than the hand.
+        blade.add(SWAY.x * 1.6f, SWAY.y * 1.6f, 0).normalize();
+    }
+
+    /** Walking, the weapon swings a little from side to side with the steps, its point most. */
+    private static void steps(Vector3f hand, Vector3f blade, LocalPlayer player, float partialTick) {
+        float walked = player.walkDist + (player.walkDist - player.walkDistO) * partialTick;
+        float bob = Mth.lerp(partialTick, player.oBob, player.bob);
+        if (bob <= 0 || !Minecraft.getInstance().options.bobView().get()) {
+            return;
+        }
+        float phase = walked * Mth.PI;
+        hand.add(Mth.sin(phase) * bob * 0.12f, -Math.abs(Mth.cos(phase)) * bob * 0.12f, 0);
+        blade.add(Mth.sin(phase) * bob * 0.9f, Math.abs(Mth.cos(phase)) * bob * 0.3f, 0).normalize();
+    }
+
     /** A blow that lands jolts the weapon: it stops for a moment and shakes. */
     private static void impact(Vector3f hand, Vector3f blade, float age) {
         if (age < 0 || age >= IMPACT_TICKS) {
@@ -255,14 +314,16 @@ public final class FirstPersonAnimator {
      * The fist faces along the blade, as it does when the player is seen from outside.
      */
     private static void renderArm(PoseStack poseStack, MultiBufferSource buffers, int light, AbstractClientPlayer player,
-                                  boolean right, Vector3f hand, Vector3f blade) {
+                                  boolean right, Vector3f hand, Vector3f blade, Vector3f rightShoulder) {
         if (!(Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player) instanceof PlayerRenderer renderer)) {
             return;
         }
         PlayerModel<AbstractClientPlayer> model = renderer.getModel();
         ModelPart arm = right ? model.rightArm : model.leftArm;
         ModelPart sleeve = right ? model.rightSleeve : model.leftSleeve;
-        Vector3f shoulder = new Vector3f(right ? SHOULDER.x : -SHOULDER.x, SHOULDER.y, SHOULDER.z);
+        // The shoulders are given for a right-handed player; a left-handed one has them mirrored.
+        boolean mirrored = player.getMainArm() == HumanoidArm.LEFT;
+        Vector3f shoulder = new Vector3f(mirrored ? -rightShoulder.x : rightShoulder.x, rightShoulder.y, rightShoulder.z);
         Quaternionf rotation = PoseMath.armFrame(new Vector3f(hand).sub(shoulder).normalize(), blade);
         Vector3f grip = right ? PoseMath.RIGHT_GRIP : PoseMath.LEFT_GRIP;
 

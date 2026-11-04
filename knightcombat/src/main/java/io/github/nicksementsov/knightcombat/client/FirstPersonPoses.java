@@ -208,34 +208,35 @@ final class FirstPersonPoses {
         return new FirstPersonPose(hand, blade, pose.edge);
     }
 
-    /** The weapon rises and sinks a little with the breath. */
+    /** The weapon rises and sinks with the breath, and the point wanders a little, never quite still. */
     private static FirstPersonPose breathe(FirstPersonPose pose, float time) {
         float b = (float) Math.sin(time * 0.1f);
-        Vector3f hand = new Vector3f(pose.hand).add(0, b * 0.008f, 0);
-        Vector3f blade = new Vector3f(pose.blade).add(b * 0.012f, 0, 0);
+        float w = (float) Math.sin(time * 0.043f + 1.3f);
+        Vector3f hand = new Vector3f(pose.hand).add(0.004f * w, b * 0.01f, 0);
+        Vector3f blade = new Vector3f(pose.blade).add(b * 0.012f + w * 0.02f, 0.01f * w, 0);
         return new FirstPersonPose(hand, blade, pose.edge);
     }
 
     static FirstPersonPose guard(Grip grip) {
         Vector3f lead = new Vector3f(-1, 0, -0.3f);
         return switch (grip) {
-            // Upright, right of the crosshair, so the enemy in front stays in sight.
-            case ONE_HANDED -> facing(0.42f, -0.3f, -0.8f, -0.12f, 0.9f, -0.4f, TO_CAMERA, lead);
-            case TWO_HANDED -> facing(0.36f, -0.26f, -0.82f, -0.14f, 0.85f, -0.5f, TO_CAMERA, lead);
+            // Raised at the right of the crosshair, the point leaning in towards the enemy, who stays in sight.
+            case ONE_HANDED -> facing(0.46f, -0.36f, -0.88f, -0.2f, 0.88f, -0.42f, TO_CAMERA, lead);
+            case TWO_HANDED -> facing(0.4f, -0.3f, -0.86f, -0.22f, 0.85f, -0.5f, TO_CAMERA, lead);
             case POLEARM -> aimed(0.36f, -0.38f, -0.72f, 1.0f);
         };
     }
 
     private static FirstPersonPose block(Grip grip) {
         // Raised across the upper half of the view, edge up, so the enemy stays visible below the blade.
-        float y = grip == Grip.POLEARM ? -0.02f : 0.06f;
-        return facing(0.3f, y, -0.8f, -1f, 0.32f, -0.25f, new Vector3f(0, 0.25f, 1), new Vector3f(0, 1, 0));
+        float y = grip == Grip.POLEARM ? -0.04f : 0.02f;
+        return facing(0.32f, y, -0.9f, -1f, 0.32f, -0.25f, new Vector3f(0, 0.25f, 1), new Vector3f(0, 1, 0));
     }
 
     /** Behind a raised shield a one-handed weapon is held high at the right, point forward over the shield. */
     private static FirstPersonPose shieldGuard(Grip grip) {
         return grip == Grip.ONE_HANDED
-                ? facing(0.5f, -0.14f, -0.8f, -0.1f, 0.28f, -1, new Vector3f(0.25f, 1, 0.35f), new Vector3f(0, -1, 0))
+                ? facing(0.52f, -0.2f, -0.9f, -0.1f, 0.28f, -1, new Vector3f(0.25f, 1, 0.35f), new Vector3f(0, -1, 0))
                 : guard(grip);
     }
 
@@ -314,24 +315,45 @@ final class FirstPersonPoses {
      */
     private static FirstPersonPose windupEnd(AttackType attack, Grip grip, boolean mirrored, Combo combo, float charge) {
         float deep = 1.4f * charge + (combo != Combo.NONE && combo != Combo.KICK_FOLLOW ? 0.4f : 0);
+        if (grip == Grip.POLEARM && attack != AttackType.STAB && combo != Combo.HAMSTRING) {
+            return polearmWindupEnd(attack, mirrored, deep);
+        }
         return switch (attack) {
-            // The blade is raised beside the head and cocked back, edge towards the side the swing goes to.
+            // The blade is raised beside the head and cocked back, edge towards the side the swing goes to; the hand
+            // stays low enough for the blade to be seen.
             case SLASH -> {
                 if (combo == Combo.HAMSTRING) {
                     // Low at the right, point down and back, ready to cut at the legs.
                     yield facing(0.6f, -0.42f, -0.74f, 0.4f, -0.55f, 0.45f, new Vector3f(-0.3f, 0.2f, 1), new Vector3f(-1, 0, 0));
                 }
                 yield mirrored
-                        ? facing(-0.48f - 0.08f * deep, 0.03f * deep, -0.8f + 0.06f * deep, -0.35f - 0.1f * deep, 0.9f, 0.25f + 0.25f * deep,
+                        ? facing(-0.52f - 0.08f * deep, -0.1f + 0.03f * deep, -0.92f + 0.06f * deep, -0.4f - 0.1f * deep, 0.88f, 0.22f + 0.25f * deep,
                         new Vector3f(0.4f, 0, 1), new Vector3f(1, 0, 0))
-                        : facing(0.6f + 0.08f * deep, 0.02f + 0.03f * deep, -0.8f + 0.06f * deep, 0.3f + 0.1f * deep, 0.9f, 0.25f + 0.25f * deep,
+                        : facing(0.68f + 0.08f * deep, -0.1f + 0.03f * deep, -0.92f + 0.06f * deep, 0.34f + 0.1f * deep, 0.88f, 0.22f + 0.25f * deep,
                         new Vector3f(-0.4f, 0, 1), new Vector3f(-1, 0, 0));
             }
-            case OVERHEAD -> facing(0.3f, 0.2f + 0.07f * deep, -0.85f + 0.05f * deep, 0.12f, 0.85f - 0.15f * deep, 0.5f + 0.35f * deep,
-                    new Vector3f(1, 0, 0), new Vector3f(0, 0.8f, -0.6f));
+            case OVERHEAD -> facing(0.32f, 0.1f + 0.07f * deep, -0.95f + 0.05f * deep, 0.14f, 0.85f - 0.15f * deep, 0.42f + 0.35f * deep,
+                    new Vector3f(0.6f, 0, 1), new Vector3f(0, 0.8f, -0.6f));
             case STAB -> aimed(0.42f + 0.04f * deep, -0.42f - 0.03f * deep, -0.62f + 0.14f * deep, 0);
             case KICK -> guard(grip);
         };
+    }
+
+    /**
+     * The end of the wind-up of a polearm: the hands stay low, and the head is swung out to the side (or raised high
+     * in front for an overhead), where it is seen.
+     */
+    private static FirstPersonPose polearmWindupEnd(AttackType attack, boolean mirrored, float deep) {
+        if (attack == AttackType.OVERHEAD) {
+            // The flat of the head is half turned to the eyes: seen edge on, a flat weapon all but disappears.
+            return facing(0.4f, -0.26f + 0.03f * deep, -0.82f + 0.05f * deep, 0.32f, 0.66f + 0.15f * deep, -0.68f + 0.35f * deep,
+                    new Vector3f(0.5f, 0, 1), new Vector3f(0, 0.6f, -0.8f));
+        }
+        // A long shaft reaches far: turned this far aside, the head is still in the view.
+        float side = mirrored ? -1 : 1;
+        float angle = (40 + 8 * deep) * DEG;
+        return facing(mirrored ? 0.12f : 0.5f + 0.04f * deep, -0.36f, -0.78f + 0.04f * deep,
+                side * (float) Math.sin(angle), 0.35f, -(float) Math.cos(angle), new Vector3f(0, 0.3f, 1), new Vector3f(-side, 0, 0));
     }
 
     /** The pose {@code p} of the way through the release of an attack. */
@@ -341,7 +363,10 @@ final class FirstPersonPoses {
 
     /** The pose {@code p} of the way through the release of an attack that may be a finisher. */
     static FirstPersonPose release(AttackType attack, Grip grip, boolean mirrored, Combo combo, float p) {
-        float t = smooth(p);
+        float t = PoseMath.swing(p);
+        if (grip == Grip.POLEARM && attack != AttackType.STAB && attack != AttackType.KICK && combo != Combo.HAMSTRING) {
+            return attack == AttackType.OVERHEAD ? polearmChop(t) : polearmSweep(mirrored, combo == Combo.WHIRLWIND, t);
+        }
         return switch (attack) {
             case SLASH -> slash(grip, mirrored, combo, t);
             case OVERHEAD -> {
@@ -351,8 +376,8 @@ final class FirstPersonPoses {
                 float theta = lerp(big ? 0 : 10, big ? 160 : 148, t) * DEG;
                 float sin = (float) Math.sin(theta);
                 float cos = (float) Math.cos(theta);
-                Vector3f hand = new Vector3f(lerp(0.3f, 0.1f, t), lerp(big ? 0.34f : 0.26f, big ? -0.38f : -0.32f, t),
-                        lerp(-0.8f, -0.9f, t) - 0.1f * (float) Math.sin(Math.PI * t));
+                Vector3f hand = new Vector3f(lerp(0.32f, 0.1f, t), lerp(big ? 0.22f : 0.14f, big ? -0.44f : -0.38f, t),
+                        lerp(-0.95f, -0.98f, t) - 0.1f * (float) Math.sin(Math.PI * t));
                 Vector3f blade = new Vector3f(-0.45f * sin, cos, -0.85f * sin);
                 Vector3f motion = new Vector3f(-0.45f * cos, -sin, -0.85f * cos);
                 yield facing(hand, blade, new Vector3f(0.4f, 0.2f, 1), motion);
@@ -379,14 +404,38 @@ final class FirstPersonPoses {
         boolean low = combo == Combo.HAMSTRING;
         float reach = (grip == Grip.ONE_HANDED ? 0.62f : 0.5f) + (wide ? 0.2f : 0);
         float bow = (float) Math.sin(t * Math.PI);
-        Vector3f hand = new Vector3f(side * lerp(reach, -reach, t), lerp(0.02f, -0.32f, t) + 0.04f * bow - (low ? 0.2f : 0),
-                lerp(-0.78f, -0.86f, t) - 0.16f * bow);
+        Vector3f hand = new Vector3f(side * lerp(reach, -reach, t), lerp(-0.08f, -0.36f, t) + 0.05f * bow - (low ? 0.2f : 0),
+                lerp(-0.9f, -0.95f, t) - 0.16f * bow);
         float psi = lerp(wide ? -15 : -25, wide ? -140 : -120, t) * DEG;
         float sin = (float) Math.sin(psi);
         float cos = (float) Math.cos(psi);
         Vector3f blade = new Vector3f(side * sin, low ? lerp(-0.35f, -0.7f, t) : lerp(0.32f, -0.28f, t), -cos);
         Vector3f motion = new Vector3f(-side * cos, 0, -sin);
         return facing(hand, blade, new Vector3f(0, 1, 0.9f), motion);
+    }
+
+    /**
+     * A polearm sweeping across: the hands stay low and move a little, the head runs in a wide arc from one side
+     * of the view to the other, falling a little on the way.
+     */
+    private static FirstPersonPose polearmSweep(boolean mirrored, boolean wide, float t) {
+        float side = mirrored ? -1 : 1;
+        float phi = lerp(wide ? 48 : 40, wide ? -58 : -46, t) * DEG;
+        float bow = (float) Math.sin(t * Math.PI);
+        Vector3f hand = new Vector3f(mirrored ? lerp(0.12f, 0.5f, t) : lerp(0.5f, 0.02f, t),
+                -0.36f - 0.06f * t + 0.03f * bow, -0.78f - 0.12f * bow);
+        Vector3f blade = new Vector3f(side * (float) Math.sin(phi), lerp(0.35f, 0.02f, t), -(float) Math.cos(phi));
+        Vector3f motion = new Vector3f(-side * (float) Math.cos(phi), 0, -(float) Math.sin(phi));
+        return facing(hand, blade, new Vector3f(0, 0.3f, 1), motion);
+    }
+
+    /** A polearm chopping down: the head falls from high in front to the ground ahead, the hands push forward. */
+    private static FirstPersonPose polearmChop(float t) {
+        float theta = lerp(46, 102, t) * DEG;
+        Vector3f hand = new Vector3f(lerp(0.4f, 0.22f, t), lerp(-0.26f, -0.44f, t), lerp(-0.82f, -0.92f, t) - 0.08f * (float) Math.sin(Math.PI * t));
+        Vector3f blade = new Vector3f(lerp(0.32f, -0.04f, t), (float) Math.cos(theta), -(float) Math.sin(theta));
+        Vector3f motion = new Vector3f(0, -(float) Math.sin(theta), -(float) Math.cos(theta));
+        return facing(hand, blade, new Vector3f(0.5f, 0, 1), motion);
     }
 
     /** A weapon held at the given point and pointing at the middle of the view, a little above it by {@code lift}. */

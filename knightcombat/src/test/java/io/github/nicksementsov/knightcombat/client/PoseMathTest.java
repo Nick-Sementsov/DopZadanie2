@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PoseMathTest {
     @Test
@@ -48,6 +49,21 @@ class PoseMathTest {
         Quaternionf q = PoseMath.frame(a, b, ta, tb);
         assertVector(ta, q.transform(new Vector3f(a)));
         assertVector(tb, q.transform(new Vector3f(b)));
+    }
+
+    @Test
+    void swingsLeaveFastAndComeToRest() {
+        assertEquals(0, PoseMath.swing(0), 1.0E-6f);
+        assertEquals(1, PoseMath.swing(1), 1.0E-6f);
+        float previous = 0;
+        for (int i = 1; i <= 20; i++) {
+            float value = PoseMath.swing(i / 20f);
+            assertTrue(value > previous, "a swing never goes back");
+            previous = value;
+        }
+        // Faster than an even ease at the start, and nearly still at the end.
+        assertTrue(PoseMath.swing(0.15f) > PoseMath.smooth(0.15f));
+        assertTrue(PoseMath.swing(1) - PoseMath.swing(0.97f) < 0.01f);
     }
 
     private static void assertVector(Vector3f expected, Vector3f actual) {

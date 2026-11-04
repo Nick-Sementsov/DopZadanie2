@@ -102,6 +102,16 @@ public final class PoseMath {
         return 1 + 2.4f * t * t * t + 1.4f * t * t;
     }
 
+    /**
+     * The course of a swing: it leaves the wind-up fast, carried by the drawn-back weight, and slows gently towards
+     * its end, where it comes to rest.
+     */
+    public static float swing(float t) {
+        t = clamp01(t);
+        float rest = 1 - t;
+        return 0.5f * smooth(t) + 0.5f * (1 - rest * rest * (float) Math.sqrt(rest));
+    }
+
     public static float easeOut(float t) {
         t = clamp01(t);
         return 1 - (1 - t) * (1 - t);

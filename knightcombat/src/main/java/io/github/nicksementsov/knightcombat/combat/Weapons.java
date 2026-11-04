@@ -8,10 +8,14 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.PickaxeItem;
+import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraftforge.common.ForgeMod;
+import net.minecraftforge.common.ToolActions;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Locale;
@@ -20,8 +24,9 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Turns items into weapons for the combat rules. The mod has no weapons of its own: swords and axes of Minecraft,
- * the weapons of Epic Knights and its addons, and swords, axes and other weapons of other mods fight with it.
+ * Turns items into weapons for the combat rules. The mod has no weapons of its own: swords of Minecraft, the weapons
+ * of Epic Knights and its addons, and swords, battle axes and other weapons of other mods fight with it. Tools do not:
+ * pickaxes, shovels, hoes and (unless the server allows them) the plain axes that chop wood.
  * <p>
  * The family of a weapon comes from Epic Knights' weapon data and from its name (a "halberd" is a polearm,
  * a "mace" is blunt); its speed, damage and reach come from the item's own attributes, so the timings follow
@@ -41,6 +46,11 @@ public final class Weapons {
     private static final String[] BLUNT = {"mace", "hammer", "club", "flail", "morgenstern", "morningstar", "morning_star",
             "eveningstar", "evening_star", "beak", "maul", "cudgel", "warpick", "war_pick", "pernach", "shestopyor", "kanabo"};
     private static final String[] THRUSTING = {"estoc", "rapier", "smallsword", "small_sword", "tuck", "koncerz"};
+    /** Names of tools that dig; "pickaxe" has an "axe" in it, but a pickaxe is no weapon. */
+    private static final String[] TOOLS = {"pickaxe", "paxel", "shovel", "spade", "mattock", "excavator", "drill", "hoe"};
+    /** Names that make an axe a weapon rather than a tool for chopping wood. */
+    private static final String[] BATTLE_AXES = {"battle", "war", "bearded", "dane", "danish", "broad", "great", "double",
+            "long", "tabar", "francisca", "throwing", "berserk", "viking"};
     /** Weapons made to be thrown: javelins and throwing axes. */
     private static final String[] THROWING = {"javelin", "pilum", "angon", "sulica", "francisca", "throwing"};
     /** A spear this much longer than an arm's reach (a sarissa, a pike) is held in both hands, whatever its mod says. */
@@ -86,6 +96,9 @@ public final class Weapons {
         }
         EpicKnights.Info epic = EpicKnights.info(item);
         ItemStack stack = new ItemStack(item);
+        if (epic == null && isTool(item, stack, path)) {
+            return Optional.empty();
+        }
         float damage = (float) attribute(stack, Attributes.ATTACK_DAMAGE, 1.0);
         boolean weaponItem = item instanceof SwordItem || item instanceof AxeItem || epic != null;
         // Items that are neither swords nor axes count when their name says they are a weapon and they deal damage.
@@ -161,6 +174,29 @@ public final class Weapons {
             return WeaponKind.SPEAR;
         }
         return WeaponKind.SWORD;
+    }
+
+    /**
+     * Whether the item is a tool rather than a weapon: anything that digs stone, earth or crops, and a plain axe
+     * (unless the server lets those fight).
+     */
+    private static boolean isTool(Item item, ItemStack stack, String path) {
+        if (item instanceof PickaxeItem || item instanceof ShovelItem || item instanceof HoeItem || toolName(path)
+                || item.canPerformAction(stack, ToolActions.PICKAXE_DIG) || item.canPerformAction(stack, ToolActions.SHOVEL_DIG)
+                || item.canPerformAction(stack, ToolActions.HOE_DIG)) {
+            return true;
+        }
+        return item instanceof AxeItem && !CombatConfig.toolAxes() && !battleAxeName(path);
+    }
+
+    /** Whether the name is that of a digging tool. */
+    static boolean toolName(String path) {
+        return contains(path, TOOLS);
+    }
+
+    /** Whether the name of an axe says it is made for battle. */
+    static boolean battleAxeName(String path) {
+        return contains(path, BATTLE_AXES);
     }
 
     /** The family a weapon name points to, or {@code null}. Checked in this order: "lucernhammer" is a polearm. */

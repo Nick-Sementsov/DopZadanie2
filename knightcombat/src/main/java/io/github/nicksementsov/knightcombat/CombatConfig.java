@@ -14,6 +14,7 @@ public final class CombatConfig {
 
     private static final ForgeConfigSpec.BooleanValue VANILLA_WEAPONS;
     private static final ForgeConfigSpec.BooleanValue MODDED_WEAPONS;
+    private static final ForgeConfigSpec.BooleanValue TOOL_AXES;
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> EXCLUDED_WEAPONS;
     private static final ForgeConfigSpec.BooleanValue WALLS_STOP_ATTACKS;
     private static final ForgeConfigSpec.IntValue MAX_STAMINA;
@@ -48,12 +49,16 @@ public final class CombatConfig {
     static {
         ForgeConfigSpec.Builder server = new ForgeConfigSpec.Builder();
         VANILLA_WEAPONS = server
-                .comment("Swords and axes from Minecraft fight with slashes, overheads, stabs and blocks")
+                .comment("Swords from Minecraft fight with slashes, overheads, stabs and blocks (and its axes, with toolAxes)")
                 .define("vanillaWeapons", true);
         MODDED_WEAPONS = server
                 .comment("Weapons of other mods fight with the combat rules too: Epic Knights and its addons, and swords, axes,",
                         "maces, spears and the like of any mod")
                 .define("moddedWeapons", true);
+        TOOL_AXES = server
+                .comment("Plain axes, the tools of Minecraft and other mods, fight as weapons too. Pickaxes, shovels, hoes and other",
+                        "tools never do; battle axes (Epic Knights' and any axe named as a weapon: battle, war, bearded, broad...) always do")
+                .define("toolAxes", false);
         EXCLUDED_WEAPONS = server
                 .comment("Items that keep their own way of fighting. Item ids, * matches any text: \"magistuarmory:*\" leaves out",
                         "all of Epic Knights, \"*:wooden_sword\" every wooden sword. Lances of Epic Knights are always left out")
@@ -164,6 +169,10 @@ public final class CombatConfig {
 
     public static boolean moddedWeapons() {
         return get(MODDED_WEAPONS, true);
+    }
+
+    public static boolean toolAxes() {
+        return get(TOOL_AXES, false);
     }
 
     /** Whether the item with this id is left out of the combat rules by the server settings. */
