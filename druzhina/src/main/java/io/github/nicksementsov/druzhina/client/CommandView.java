@@ -92,6 +92,8 @@ public final class CommandView {
     /** Where each man ordered from the view is going (from the server), and the stages of his march. */
     private static final Map<Integer, Vec3> DESTS = new HashMap<>();
     private static final Map<Integer, Route> ROUTES = new HashMap<>();
+    /** The enemies around, as the server's scouts name them (bandits, and all who fight for a side at war with his). */
+    static final Set<Integer> HOSTILE = new java.util.HashSet<>();
 
     record Route(List<Vec3> points, long at) {
     }
@@ -214,6 +216,19 @@ public final class CommandView {
     }
 
     /** What the server says the men just ordered are doing: where each goes, and the stages of the march. */
+    /** The scouts' word: who around is an enemy. */
+    public static void hostiles(int[] ids) {
+        HOSTILE.clear();
+        for (int id : ids) {
+            HOSTILE.add(id);
+        }
+    }
+
+    /** One of those the server named an enemy, or a bandit. */
+    static boolean hostile(Entity e) {
+        return HOSTILE.contains(e.getId()) || e instanceof Soldier s && s.isBandit();
+    }
+
     public static void echo(OrdersEchoPacket p) {
         Route route = p.route().isEmpty() ? null : new Route(List.copyOf(p.route()), System.currentTimeMillis());
         for (int i = 0; i < p.ids().length; i++) {
@@ -545,6 +560,14 @@ public final class CommandView {
                 i++;
             }
         }
+        // the enemies in sight: red rings under them
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (e instanceof LivingEntity living && living.isAlive() && hostile(e) && e.distanceToSqr(cam) < 128 * 128) {
+                Vec3 at = e.getPosition(partial);
+                double r = e.getVehicle() != null ? 1.0 : 0.6;
+                ring(pose, lines, at.x, (e.getVehicle() != null ? e.getVehicle().getY() : at.y) + 0.06, at.z, r, 1.0f, 0.2f, 0.15f, 0.85f);
+            }
+        }
         if (hovered != null && hovered.isAlive()) {
             Vec3 at = hovered.getPosition(partial);
             boolean friend = mine(hovered) || hovered.isAlliedTo(player);
@@ -638,5 +661,6 @@ public final class CommandView {
         GROUPS.clear();
         DESTS.clear();
         ROUTES.clear();
+        HOSTILE.clear();
     }
 }

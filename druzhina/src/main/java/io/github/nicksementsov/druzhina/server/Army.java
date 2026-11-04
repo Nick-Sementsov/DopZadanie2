@@ -59,6 +59,24 @@ public final class Army {
         return out;
     }
 
+    /** How many men the player leads himself (not the garrisons a realm keeps in his name). */
+    public static int led(ServerPlayer player) {
+        int n = 0;
+        for (Soldier s : of(player)) {
+            if (!s.managed()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Tells the player's muster window how many men he leads and how many he may. */
+    public static void tellMuster(ServerPlayer player) {
+        Hiring.Limit limit = Hiring.limit(player);
+        io.github.nicksementsov.druzhina.network.DruzhinaNetwork.CHANNEL.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
+                new io.github.nicksementsov.druzhina.network.MusterInfoPacket(led(player), limit.unlimited() ? -1 : limit.max(), limit.why()));
+    }
+
     /** The player's soldiers within earshot. */
     public static List<Soldier> near(Player player) {
         return player.level().getEntitiesOfClass(Soldier.class, player.getBoundingBox().inflate(VOICE),
@@ -81,10 +99,14 @@ public final class Army {
             player.displayClientMessage(refusal, false);
             return false;
         }
-        int count = of(player).size();
-        int max = DruzhinaConfig.MAX_SOLDIERS.get();
-        if (count + role.crew() > max) {
-            player.displayClientMessage(Component.translatable("druzhina.msg.army_full", max).withStyle(ChatFormatting.RED), false);
+        int count = led(player);
+        Hiring.Limit limit = Hiring.limit(player);
+        if (!limit.unlimited() && count + role.crew() > limit.max()) {
+            player.displayClientMessage(Component.translatable("druzhina.msg.army_full", limit.max()).withStyle(ChatFormatting.RED), false);
+            if (limit.why() != null) {
+                // what the limit comes from (with Prestol: the realm's people, barracks and towers)
+                player.displayClientMessage(limit.why().copy().withStyle(ChatFormatting.GRAY), false);
+            }
             return false;
         }
         int price = price(role);
@@ -111,7 +133,8 @@ public final class Army {
         s.spawnAnim();
         level.playSound(null, at, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.NEUTRAL, 1.0f, 0.9f);
         level.playSound(null, at, SoundEvents.VILLAGER_CELEBRATE, SoundSource.NEUTRAL, 0.6f, 0.8f);
-        player.displayClientMessage(Component.translatable("druzhina.msg.hired", s.getDisplayName(), count + men, max).withStyle(ChatFormatting.GREEN), false);
+        player.displayClientMessage((limit.unlimited() ? Component.translatable("druzhina.msg.hired_free", s.getDisplayName(), count + men)
+                : Component.translatable("druzhina.msg.hired", s.getDisplayName(), count + men, limit.max())).withStyle(ChatFormatting.GREEN), false);
 
         // the first soldier comes with the baton to lead him
         if (!player.getPersistentData().getBoolean("druzhina.baton") && !hasBaton(player)) {

@@ -74,6 +74,13 @@ public final class PrestolConfig {
    public static final BooleanValue MILITIA;
    public static final BooleanValue MERCENARIES;
    public static final BooleanValue HIRE_NEEDS_BARRACKS;
+   public static final BooleanValue ARMY_BY_REALM;
+   public static final IntValue ARMY_BASE;
+   public static final IntValue ARMY_CITIZENS;
+   public static final IntValue ARMY_PER_BARRACKS;
+   public static final IntValue ARMY_PER_TOWER;
+   public static final IntValue ARMY_KINGDOM_BONUS;
+   public static final IntValue ARMY_EMPIRE_BONUS;
    public static final IntValue MERCENARY_GOLD;
    public static final IntValue MERCENARY_MINUTES;
    public static final IntValue MERCENARY_HAMLET;
@@ -337,7 +344,28 @@ public final class PrestolConfig {
             }
          )
          .define("hireNeedsBarracks", true);
-      MERCENARY_GOLD = b.comment("Золотых слитков за одного наёмника. / Gold ingots per mercenary.").defineInRange("mercenaryGoldEach", 2, 0, 640);
+      ARMY_BY_REALM = b.comment(
+            new String[]{
+               "Сколько воинов можно водить (нанимать у вербовочного стола «Дружины»), зависит от развития державы: свои люди",
+               "лорда, плюс жители её поселений, уровни казарм и башен, плюс надбавка королевству и империи. Выключено — без предела",
+               "(или по настройке «Дружины»). Гарнизоны башен в предел не входят.",
+               "The army a lord may lead grows with his realm: his retinue, its people, barracks and towers, and a bonus for a kingdom",
+               "or an empire. Off: no limit (or Druzhina's setting). Tower garrisons do not count."
+            }
+         )
+         .define("armyByRealm", true);
+      ARMY_BASE = b.comment("Свои люди лорда: столько воинов можно водить и без поселений. / A lord's own retinue.")
+         .defineInRange("armyBase", 6, 0, 10000);
+      ARMY_CITIZENS = b.comment("Один воин на столько жителей державы. / One soldier per this many citizens of the realm.")
+         .defineInRange("armyCitizensPerSoldier", 3, 1, 1000);
+      ARMY_PER_BARRACKS = b.comment("Воинов за каждый уровень казармы. / Soldiers per barracks level.")
+         .defineInRange("armyPerBarracksLevel", 4, 0, 1000);
+      ARMY_PER_TOWER = b.comment("Воинов за каждый уровень башни казармы и сторожевой башни. / Soldiers per barracks tower or guard tower level.")
+         .defineInRange("armyPerTowerLevel", 2, 0, 1000);
+      ARMY_KINGDOM_BONUS = b.comment("Королевство держит больше на столько процентов, империя — на столько. / Percent more for a kingdom, for an empire.")
+         .defineInRange("armyKingdomBonusPercent", 25, 0, 1000);
+      ARMY_EMPIRE_BONUS = b.defineInRange("armyEmpireBonusPercent", 50, 0, 1000);
+      MERCENARY_GOLD = b.comment("Золотых слитков за одного наёмника. / Gold ingots per mercenary.").defineInRange("mercenaryGold", 8, 0, 640);
       MERCENARY_MINUTES = b.comment("Сколько минут служат наёмники (20 минут — игровой день). / Minutes of service (20 = one game day).")
          .defineInRange("mercenaryServiceMinutes", 20, 1, 10000);
       MERCENARY_HAMLET = b.comment("Наёмников в отряде у хутора, села, города. / Squad size for a hamlet, village, town.")

@@ -226,5 +226,7 @@
   "druzhina.command.attack_move": "Идут с боем: %s",
   "druzhina.command.patrol": "В дозор: %s",
   "druzhina.command.keep_ranks": "Держат строй: %s",
-  "druzhina.command.fight_freely": "Бьются вольно: %s"
+  "druzhina.command.fight_freely": "Бьются вольно: %s",
+  "druzhina.msg.hired_free": "%s вступает в дружину (воинов: %s)",
+  "druzhina.gui.army_free": "Дружина: %s / ∞"
 }

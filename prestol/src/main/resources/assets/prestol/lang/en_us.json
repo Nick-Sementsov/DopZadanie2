@@ -1093,5 +1093,8 @@
   "prestol.war.tribute_short": "The treasury fell short of the tribute to \"%s\": %s coins unpaid. One more such day and the treaty is broken.",
   "prestol.war.tribute_short_them": "\"%s\" paid %s coins less tribute than due.",
   "prestol.war.truce": "Truce with «%s» until day %s.",
-  "prestol.war.weary": "The people are weary of war (%s%%): the settlements grumble."
+  "prestol.war.weary": "The people are weary of war (%s%%): the settlements grumble.",
+  "prestol.army.limit_realm": "The realm of %2$s can keep %1$s soldiers: the lord's own men %3$s, its people %4$s (of %5$s), barracks %6$s (levels: %7$s), towers %8$s (levels: %9$s)%10$s. Grow your settlements and build and raise barracks and towers to lead more.",
+  "prestol.army.limit_own": "Your settlements can keep %1$s soldiers: your own men %3$s, the people %4$s (of %5$s), barracks %6$s (levels: %7$s), towers %8$s (levels: %9$s)%10$s. Grow your settlements and build and raise barracks and towers to lead more.",
+  "prestol.army.limit_bonus": ", and %2$s%% more as a %1$s"
 }

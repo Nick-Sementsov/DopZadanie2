@@ -15,7 +15,8 @@
     "GuardHireMixin",
     "SecurityMixin",
     "ManyColoniesMixin",
-    "MercenaryMixin"
+    "MercenaryMixin",
+    "GuardTargetMixin"
   ],
   "client": [
     "GuiMapMixin",

@@ -24,6 +24,7 @@ public record HirePacket(BlockPos table, int role) {
         Role[] roles = Role.values();
         if (player != null && p.role >= 0 && p.role < roles.length && roles[p.role].hired()) {
             Army.hire(player, p.table, roles[p.role]);
+            Army.tellMuster(player);
         }
         ctx.get().setPacketHandled(true);
     }

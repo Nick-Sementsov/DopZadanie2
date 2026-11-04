@@ -6,7 +6,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class DruzhinaNetwork {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(Druzhina.id("main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
     private DruzhinaNetwork() {
@@ -22,5 +22,14 @@ public final class DruzhinaNetwork {
         CHANNEL.messageBuilder(OrdersEchoPacket.class, 2, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(OrdersEchoPacket::encode).decoder(OrdersEchoPacket::decode)
                 .consumerNetworkThread(OrdersEchoPacket::handle).add();
+        CHANNEL.messageBuilder(ScoutPacket.class, 3, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(ScoutPacket::encode).decoder(ScoutPacket::decode)
+                .consumerMainThread(ScoutPacket::handle).add();
+        CHANNEL.messageBuilder(HostilesPacket.class, 4, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(HostilesPacket::encode).decoder(HostilesPacket::decode)
+                .consumerNetworkThread(HostilesPacket::handle).add();
+        CHANNEL.messageBuilder(MusterInfoPacket.class, 5, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(MusterInfoPacket::encode).decoder(MusterInfoPacket::decode)
+                .consumerNetworkThread(MusterInfoPacket::handle).add();
     }
 }

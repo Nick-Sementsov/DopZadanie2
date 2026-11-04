@@ -1,6 +1,9 @@
 package com.nick.prestol.compat;
 
+import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.core.colony.jobs.AbstractJobGuard;
 import com.nick.prestol.Prestol;
 import com.nick.prestol.army.Morale;
 import com.nick.prestol.realm.Court;
@@ -10,6 +13,7 @@ import com.nick.prestol.realm.Realm;
 import com.nick.prestol.realm.RealmData;
 import com.nick.prestol.realm.Realms;
 import com.nick.prestol.realm.Settlements;
+import com.nick.prestol.war.Wars;
 import io.github.nicksementsov.druzhina.api.DruzhinaApi;
 import io.github.nicksementsov.druzhina.api.Relations;
 import java.util.HashMap;
@@ -26,11 +30,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * The soldiers of the realms are the soldiers of Druzhina: men who fight by the rules of Knightly Combat, armed from
  * Epic Knights. Garrisons, militia, mercenaries and caravan guards are raised, ordered and trained through here, and
- * the realms' alliances, wars and outlaws decide whom they fight.
+ * the realms' alliances, wars and outlaws decide whom they fight: once a war is on (after the mobilisation), the
+ * soldiers of each side fall upon everyone who fights for the other on sight, its lords and its colonies' guards too,
+ * and the guards of each side's colonies fall upon the other's soldiers.
  */
 public final class Troops {
     /** The kinds of unit Prestol raises and the Druzhina role of each. */
@@ -66,11 +73,18 @@ public final class Troops {
             hooked = true;
             Relations.setProvider(Troops::stance);
             Relations.setRouted(Morale::routed);
+            Relations.setSideOf(Troops::sideOf);
         }
         try {
             Map<UUID, UUID> realmOf = new HashMap<>();
             for (Realm r : data.all()) {
                 realmOf.putIfAbsent(r.ruler(), r.id());
+            }
+            for (Realm r : data.all()) {
+                // and those who govern its settlements for it
+                for (UUID p : Wars.people(r)) {
+                    realmOf.putIfAbsent(p, r.id());
+                }
             }
             for (Realm r : data.all()) {
                 for (IColony c : Realms.members(r)) {
@@ -87,7 +101,8 @@ public final class Troops {
                 for (int j = i + 1; j < realms.size(); j++) {
                     Realm a = realms.get(i);
                     Realm b = realms.get(j);
-                    if (data.war(a.id(), b.id()) != null) {
+                    if (Wars.fighting(server, data, a, b)) {
+                        // a war in earnest, not one still mobilising
                         atWar.add(pair(a.id(), b.id()));
                     } else if (a.allies().contains(b.id()) && b.allies().contains(a.id()) || Fealty.on() && Fealty.bound(server, a, b)) {
                         allied.add(pair(a.id(), b.id()));
@@ -135,6 +150,40 @@ public final class Troops {
             return Relations.Stance.ALLY;
         }
         return s.atWar.contains(pair(ra, rb)) ? Relations.Stance.ENEMY : Relations.Stance.NEUTRAL;
+    }
+
+    /** The lord a colony's guard fights for: the owner of his colony. Other creatures fight for nobody. */
+    @Nullable
+    private static UUID sideOf(Entity e) {
+        if (e instanceof AbstractEntityCitizen citizen && !e.level().isClientSide) {
+            try {
+                ICitizenData data = citizen.getCitizenData();
+                if (data != null && data.getJob() instanceof AbstractJobGuard) {
+                    IColony colony = citizen.getCitizenColonyHandler().getColonyOrRegister();
+                    return colony == null ? null : Settlements.owner(colony);
+                }
+            } catch (RuntimeException ex) {
+                // a citizen half loaded fights for nobody yet
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Whether a guard of a colony falls upon {@code target}: a bandit, or a soldier (or a guard) of a side at war with
+     * the colony's lord. Players are left to MineColonies (an enemy realm's people are made hostile in the colony).
+     */
+    public static boolean enemyOfGuard(AbstractEntityCitizen guard, @Nullable Entity target) {
+        if (target == null || target instanceof Player || !target.isAlive()) {
+            return false;
+        }
+        try {
+            IColony colony = guard.getCitizenColonyHandler().getColonyOrRegister();
+            UUID lord = colony == null ? null : Settlements.owner(colony);
+            return lord != null && Relations.hostile(lord, target);
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     // ------------------------------------------------------------------ raising and leading

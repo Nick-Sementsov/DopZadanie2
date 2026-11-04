@@ -67,6 +67,7 @@ public class MusterTableBlock extends HorizontalDirectionalBlock {
         if (level.isClientSide) {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientHooks.openMuster(pos));
         } else if (player instanceof ServerPlayer serverPlayer) {
+            io.github.nicksementsov.druzhina.server.Army.tellMuster(serverPlayer);
             // Told at once, not only when the hire button is pressed, if something more than gold is wanted.
             Component refusal = Hiring.refusal(serverPlayer, pos);
             if (refusal != null) {

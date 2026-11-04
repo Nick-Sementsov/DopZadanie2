@@ -232,6 +232,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
                     || !this.isBandit() && Relations.between(this.getOwnerUUID(), other.getOwnerUUID()) == Relations.Stance.ENEMY;
         } else if (this.isBandit()) {
             return false;
+        } else if (!(e instanceof Player) && Relations.hostile(this.getOwnerUUID(), e)) {
+            // one who fights for a side at war with his commander's (a guard of an enemy realm's colony)
+            return true;
         } else {
             return e instanceof Enemy && !(e instanceof Creeper);
         }
@@ -686,6 +689,10 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     // ------------------------------------------------------------------ friends and foes
 
+    private static boolean alliedSide(UUID mine, @Nullable UUID side) {
+        return side != null && Relations.between(mine, side) == Relations.Stance.ALLY;
+    }
+
     @Override
     public boolean isAlliedTo(Entity other) {
         if (other == this) {
@@ -702,6 +709,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             if (mine != null && other instanceof Player && Relations.between(mine, other.getUUID()) == Relations.Stance.ALLY) {
                 return true;
             } else if (mine != null && other instanceof OwnableEntity pet && mine.equals(pet.getOwnerUUID())) {
+                return true;
+            } else if (mine != null && !(other instanceof Player) && alliedSide(mine, Relations.sideOf(other))) {
+                // one who fights for his side or an allied one (a guard of an allied colony)
                 return true;
             } else {
                 return super.isAlliedTo(other);

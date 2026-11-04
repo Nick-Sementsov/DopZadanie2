@@ -226,5 +226,7 @@
   "druzhina.command.attack_move": "Fighting their way: %s",
   "druzhina.command.patrol": "Patrolling: %s",
   "druzhina.command.keep_ranks": "Keeping ranks: %s",
-  "druzhina.command.fight_freely": "Fighting freely: %s"
+  "druzhina.command.fight_freely": "Fighting freely: %s",
+  "druzhina.msg.hired_free": "%s joins your band (soldiers: %s)",
+  "druzhina.gui.army_free": "Band: %s / ∞"
 }

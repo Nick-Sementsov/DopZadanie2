@@ -15,7 +15,8 @@ public final class DruzhinaConfig {
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
         b.push("army");
-        MAX_SOLDIERS = b.comment("How many soldiers one player may lead").defineInRange("maxSoldiers", 12, 1, 64);
+        MAX_SOLDIERS = b.comment("How many soldiers one player may lead (0: as many as he can pay for). A mod with realms",
+                "(Prestol) may set the limit itself, by how far the player's realm has grown").defineInRange("armyLimit", 0, 0, 100000);
         PRICE = b.comment("Hiring prices are multiplied by this").defineInRange("priceMultiplier", 1.0, 0.0, 10.0);
         b.pop();
         b.push("bandits");

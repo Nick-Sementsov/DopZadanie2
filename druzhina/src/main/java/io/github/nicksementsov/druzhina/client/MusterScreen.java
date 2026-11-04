@@ -1,6 +1,5 @@
 package io.github.nicksementsov.druzhina.client;
 
-import io.github.nicksementsov.druzhina.DruzhinaConfig;
 import io.github.nicksementsov.druzhina.entity.Role;
 import io.github.nicksementsov.druzhina.entity.Soldier;
 import io.github.nicksementsov.druzhina.network.DruzhinaNetwork;
@@ -31,6 +30,11 @@ public class MusterScreen extends Screen {
     private static final int LIST_Y = TABS_Y + TAB_H + 4;
     /** The tab last looked at, kept while the game runs. */
     private static Role.Branch lastTab = Role.Branch.INFANTRY;
+    /** What the server says: how many men the player leads, how many he may (-1: no limit, -2: not told yet), and why. */
+    private static int men;
+    private static int max = -2;
+    @javax.annotation.Nullable
+    private static Component why;
     private static final int BG = 0xE0201812;
     private static final int FRAME = 0xFF8B6B3E;
     private static final int GOLD = 0xFFE8C766;
@@ -87,6 +91,18 @@ public class MusterScreen extends Screen {
         };
     }
 
+    /** The server's word on the size of the army (see {@code MusterInfoPacket}). */
+    public static void info(int count, int limit, @javax.annotation.Nullable Component reason) {
+        men = count;
+        max = limit;
+        why = reason;
+    }
+
+    /** Whether {@code more} men fit into the army. */
+    private static boolean room(int more) {
+        return max < 0 || men + more <= max;
+    }
+
     private void select(Role.Branch branch) {
         this.tab = branch;
         lastTab = branch;
@@ -139,21 +155,20 @@ public class MusterScreen extends Screen {
         }
         int gold = Army.gold(player);
         boolean free = player.getAbilities().instabuild;
-        int men = this.army(player);
         for (int i = 0; i < this.buttons.size(); i++) {
             Role role = this.roles[i];
-            this.buttons.get(i).active = men + role.crew() <= DruzhinaConfig.MAX_SOLDIERS.get() && (free || gold >= Army.price(role));
+            this.buttons.get(i).active = room(role.crew()) && (free || gold >= Army.price(role));
         }
     }
 
-    /** The player's soldiers this client knows of. */
+    /** The player's soldiers this client knows of (until the server tells). */
     private int army(Player player) {
-        if (player.level() == null) {
-            return 0;
+        if (max != -2) {
+            return men;
         }
         int n = 0;
         for (var e : Minecraft.getInstance().level.entitiesForRendering()) {
-            if (e instanceof Soldier s && player.getUUID().equals(s.getOwnerUUID())) {
+            if (e instanceof Soldier s && player.getUUID().equals(s.getOwnerUUID()) && !s.managed()) {
                 n++;
             }
         }
@@ -171,13 +186,20 @@ public class MusterScreen extends Screen {
         g.drawCenteredString(this.font, this.title.copy().withStyle(ChatFormatting.BOLD), x + w / 2, y + 8, GOLD);
 
         Player player = Minecraft.getInstance().player;
+        Component tooltip = null;
         int gold = player == null ? 0 : Army.gold(player);
         boolean free = player != null && player.getAbilities().instabuild;
         if (player != null) {
             g.renderItem(new ItemStack(Items.GOLD_INGOT), x + 8, y + 20);
             g.drawString(this.font, Component.translatable("druzhina.gui.purse", gold), x + 28, y + 25, COIN);
-            Component army = Component.translatable("druzhina.gui.army", this.army(player), DruzhinaConfig.MAX_SOLDIERS.get());
-            g.drawString(this.font, army, x + w - 8 - this.font.width(army), y + 25, 0xFFD8D0C0);
+            Component army = max < 0 ? Component.translatable("druzhina.gui.army_free", this.army(player))
+                    : Component.translatable("druzhina.gui.army", this.army(player), max);
+            int ax = x + w - 8 - this.font.width(army);
+            g.drawString(this.font, army, ax, y + 25, max >= 0 && men >= max ? 0xFFE06060 : 0xFFD8D0C0);
+            if (why != null && mouseX >= ax && mouseX < x + w - 8 && mouseY >= y + 22 && mouseY < y + 36) {
+                // what the limit comes from (the realm's barracks and towns, with Prestol)
+                tooltip = why;
+            }
         }
 
         // the tabs
@@ -224,6 +246,9 @@ public class MusterScreen extends Screen {
 
         g.drawCenteredString(this.font, Component.translatable("druzhina.gui.baton_hint"), x + w / 2, y + this.panelHeight - 38, 0xFFA09888);
         super.render(g, mouseX, mouseY, partialTick);
+        if (tooltip != null) {
+            g.renderTooltip(this.font, this.font.split(tooltip, 240), mouseX, mouseY);
+        }
     }
 
     @Override

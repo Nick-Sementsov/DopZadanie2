@@ -86,6 +86,7 @@ public class Prestol {
 
    private void onSetup(FMLCommonSetupEvent event) {
       event.enqueueWork(Barracks::hook);
+      event.enqueueWork(com.nick.prestol.army.ArmySize::hook);
       event.enqueueWork(() -> {
          try {
             IMinecoloniesAPI.getInstance().getEventBus().subscribe(ColonyDeletedModEvent.class, e -> {

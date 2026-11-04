@@ -40,7 +40,7 @@ displayTest="MATCH_VERSION"
 [[dependencies.prestol]]
     modId="druzhina"
     mandatory=true
-    versionRange="[1.1.0,)"
+    versionRange="[2.4.0,)"
     ordering="AFTER"
     side="BOTH"
 

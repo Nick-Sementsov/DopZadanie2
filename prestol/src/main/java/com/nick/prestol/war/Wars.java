@@ -314,6 +314,9 @@ public final class Wars {
             data.setDirty();
          }
       }
+
+      // the soldiers learn at once who is now a foe and who no longer is
+      com.nick.prestol.compat.Troops.sync(server, data);
    }
 
    /** Gives a no longer hostile player back the rank he had before the war. */

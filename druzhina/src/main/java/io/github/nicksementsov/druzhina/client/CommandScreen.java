@@ -49,6 +49,7 @@ public class CommandScreen extends Screen {
     private enum Mode { MARCH, FIGHT, PATROL }
 
     private Mode mode = Mode.MARCH;
+    private int scoutTimer;
     private boolean help;
 
     private double leftX = -1;
@@ -228,9 +229,10 @@ public class CommandScreen extends Screen {
     }
 
     /**
-     * Whom a right click attacks: monsters, bandits, other commanders' soldiers and players not allied to him. His own
-     * men, their horses and elephants, his tamed beasts, animals and villagers are not foes (a click on them is a
-     * click on the ground where they stand).
+     * Whom a right click attacks: monsters, bandits, and whoever fights for a side at war with his (as the server's
+     * scouts say: soldiers and players of an enemy realm, its colonies' guards). His own men, their horses and
+     * elephants, his allies, neutral men, animals and villagers are not foes (a click on them is a click on the ground
+     * where they stand); any creature can still be attacked with the right button held on it and Ctrl.
      */
     private boolean foe(LivingEntity e) {
         Minecraft mc = Minecraft.getInstance();
@@ -241,10 +243,8 @@ public class CommandScreen extends Screen {
                 || e instanceof net.minecraft.world.entity.OwnableEntity own && mc.player.getUUID().equals(own.getOwnerUUID())) {
             return false;
         }
-        if (e instanceof Soldier s) {
-            return s.isBandit() || !mc.player.getUUID().equals(s.getOwnerUUID());
-        }
-        return e instanceof net.minecraft.world.entity.monster.Enemy || e instanceof net.minecraft.world.entity.player.Player;
+        return CommandView.hostile(e) || e instanceof net.minecraft.world.entity.monster.Enemy
+                || hasControlDown() && !(e instanceof Soldier s && mc.player.getUUID().equals(s.getOwnerUUID()));
     }
 
     private boolean patrolling() {
@@ -668,6 +668,11 @@ public class CommandScreen extends Screen {
 
     @Override
     public void tick() {
+        if (this.scoutTimer-- <= 0) {
+            // who around is an enemy, now and then
+            this.scoutTimer = 20;
+            DruzhinaNetwork.CHANNEL.sendToServer(new io.github.nicksementsov.druzhina.network.ScoutPacket());
+        }
         if (this.mouseNowY >= this.panelTop() - 14) {
             CommandView.hovered = null;
             CommandView.hoveredVessel = null;
