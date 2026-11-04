@@ -67,12 +67,18 @@ public class BoardGoal extends Goal {
         return true;
     }
 
-    /** The vessel his commander sits in, if he is to follow him into it. */
+    /** The vessel he was sent aboard, or the one his commander sits in if he is to follow him into it. */
     @Nullable
     private Entity wanted() {
         Soldier s = this.soldier;
-        if (s.isBandit() || s.getOwnerUUID() == null || s.routed() || s.isCrew() || s.steed() instanceof WarElephant
-                || s.orders() != Orders.FOLLOW && s.orders() != Orders.CHARGE || s.getTarget() != null) {
+        if (s.isBandit() || s.getOwnerUUID() == null || s.routed() || s.isCrew() || s.steed() instanceof WarElephant) {
+            return null;
+        }
+        Entity ordered = s.shipOrdered();
+        if (ordered != null) {
+            return ordered.level() == s.level() && ordered.distanceToSqr(s) < 64 * 64 ? ordered : null;
+        }
+        if (s.orders() != Orders.FOLLOW && s.orders() != Orders.CHARGE || s.getTarget() != null) {
             return null;
         }
         Player boss = s.commander();
@@ -141,7 +147,19 @@ public class BoardGoal extends Goal {
             this.soldier.stopRiding();
             this.soldier.readyToBoard();
         }
+        Vessels.allowSoldiersAtHelm();
         if (room && this.soldier.startRiding(v)) {
+            if (this.soldier.shipOrdered() == v) {
+                // sent aboard: he stays there (the first at the helm)
+                this.soldier.shipBoarded();
+                this.soldier.order(Orders.HOLD, null, this.soldier.getYRot());
+                if (Vessels.isHelmsman(v, this.soldier)) {
+                    Player boss = this.soldier.commander();
+                    if (boss != null) {
+                        boss.displayClientMessage(Component.translatable("druzhina.msg.captain", this.soldier.plainName()).withStyle(ChatFormatting.GOLD), true);
+                    }
+                }
+            }
             Vessels.settle(this.soldier, v);
             this.soldier.playSound(net.minecraft.sounds.SoundEvents.WOOD_STEP, 0.8f, 0.9f);
         } else {

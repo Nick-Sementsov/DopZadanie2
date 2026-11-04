@@ -40,6 +40,9 @@ public class CommandScreen extends Screen {
     private Vec3 rightFrom;
     @Nullable
     private LivingEntity rightFoe;
+    /** A boat or ship the right button went down on. */
+    @Nullable
+    private Entity rightShip;
     private double rightX;
     private double rightY;
     private boolean rightDragged;
@@ -77,6 +80,7 @@ public class CommandScreen extends Screen {
             this.rightY = my;
             this.rightDragged = false;
             this.rightFoe = pick != null && pick.entity() != null && this.foe(pick.entity()) ? pick.entity() : null;
+            this.rightShip = pick != null && this.rightFoe == null ? pick.vessel() : null;
             this.rightFrom = pick == null ? null : pick.point();
             return true;
         }
@@ -121,6 +125,7 @@ public class CommandScreen extends Screen {
             CommandView.previewTo = null;
             this.rightFrom = null;
             this.rightFoe = null;
+            this.rightShip = null;
             return true;
         }
         return super.mouseReleased(mx, my, button);
@@ -256,6 +261,11 @@ public class CommandScreen extends Screen {
         int[] ids = men.stream().mapToInt(Entity::getId).toArray();
         if (this.rightFoe != null && !this.rightDragged) {
             send(new CommandPacket(ids, Army.Command.ATTACK.ordinal(), this.rightFoe.position(), 0, 0, 0, this.rightFoe.getId()));
+            return;
+        }
+        if (this.rightShip != null && !this.rightDragged) {
+            // a ship: they go aboard her
+            send(new CommandPacket(ids, Army.Command.ATTACK.ordinal(), this.rightShip.position(), 0, 0, 0, this.rightShip.getId()));
             return;
         }
         if (this.rightFrom == null) {

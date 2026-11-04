@@ -34,7 +34,10 @@ public class BatonItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!level.isClientSide && player instanceof ServerPlayer sp) {
-            Army.order(sp, player.isShiftKeyDown() ? Orders.CHARGE : Orders.FOLLOW);
+            // aboard a ship one of his men steers: the course, where he looks
+            if (player.isShiftKeyDown() || !Army.course(sp)) {
+                Army.order(sp, player.isShiftKeyDown() ? Orders.CHARGE : Orders.FOLLOW);
+            }
         }
         player.getCooldowns().addCooldown(this, COOLDOWN);
         player.swing(hand);
@@ -64,6 +67,7 @@ public class BatonItem extends Item {
         lines.add(Component.translatable("item.druzhina.commander_baton.follow").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("item.druzhina.commander_baton.hold").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("item.druzhina.commander_baton.charge").withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("item.druzhina.commander_baton.ship").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("item.druzhina.commander_baton.view").withStyle(ChatFormatting.GOLD));
     }
 }

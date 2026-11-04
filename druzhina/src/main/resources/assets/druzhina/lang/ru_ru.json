@@ -165,5 +165,9 @@
   "subtitles.druzhina.war_elephant.hurt": "Слон ранен",
   "subtitles.druzhina.war_elephant.death": "Слон погибает",
   "item.druzhina.war_elephant_spawn_egg": "Яйцо призыва боевого слона",
-  "druzhina.msg.no_seats": "На корабле нет мест: часть воинов ждёт на берегу"
+  "druzhina.msg.no_seats": "На корабле нет мест: часть воинов ждёт на берегу",
+  "druzhina.msg.boarding": "Воины идут на корабль: %s",
+  "druzhina.msg.captain": "%s встаёт к штурвалу",
+  "druzhina.msg.course": "%s ведёт корабль туда: %s бл.",
+  "item.druzhina.commander_baton.ship": "ПКМ по кораблю: воины садятся на него, первый — к штурвалу; на корабле с вашим рулевым ПКМ в воздух — курс туда, куда смотрите"
 }

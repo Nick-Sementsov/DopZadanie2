@@ -259,7 +259,8 @@ public final class CommandView {
     // ---------------------------------------------------------------- mouse to world, world to mouse
 
     /** The point under the mouse and the entity there, if any: what the commander points at. */
-    record Pick(@Nullable Vec3 point, @Nullable LivingEntity entity) {
+    /** What is under the mouse: the place, a creature, or else a boat or ship. */
+    record Pick(@Nullable Vec3 point, @Nullable LivingEntity entity, @Nullable Entity vessel) {
     }
 
     @Nullable
@@ -300,7 +301,21 @@ public final class CommandView {
         if (best != null) {
             point = best.position();
         }
-        return new Pick(point, best);
+        Entity vessel = null;
+        if (best == null) {
+            double nearest = reach;
+            for (Entity e : mc.level.entitiesForRendering()) {
+                Entity ship = io.github.nicksementsov.druzhina.compat.Vessels.resolve(e);
+                if (io.github.nicksementsov.druzhina.compat.Vessels.isVessel(ship)) {
+                    var hit = e.getBoundingBox().inflate(0.2).clip(a, end);
+                    if (hit.isPresent() && hit.get().distanceTo(a) < nearest) {
+                        nearest = hit.get().distanceTo(a);
+                        vessel = ship;
+                    }
+                }
+            }
+        }
+        return new Pick(point, best, vessel);
     }
 
     /** Where {@code world} is on the screen, in GUI pixels, or null when it is behind the camera. */

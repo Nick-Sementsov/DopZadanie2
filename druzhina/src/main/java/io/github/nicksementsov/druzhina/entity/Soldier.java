@@ -1,5 +1,6 @@
 package io.github.nicksementsov.druzhina.entity;
 
+import io.github.nicksementsov.druzhina.compat.Helm;
 import io.github.nicksementsov.druzhina.compat.Vessels;
 import io.github.nicksementsov.druzhina.entity.ai.BoardGoal;
 import io.github.nicksementsov.druzhina.entity.ai.CommanderTargetGoal;
@@ -147,6 +148,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private Entity boardingTo;
     /** How many checks in a row his commander has been ashore while he is still aboard. */
     private int ashoreChecks;
+    /** At the helm of a ship: how he sails her (made when he first takes the helm). */
+    @Nullable
+    private Helm helm;
+    /** A ship he was sent aboard (with the baton or from the commander's view), and until when the order holds. */
+    @Nullable
+    private UUID boardShip;
+    private long boardUntil;
 
     public Soldier(EntityType<? extends Soldier> type, Level level) {
         super(type, level);
@@ -278,6 +286,38 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     public boolean isCrew() {
         Entity v = this.getVehicle();
         return v != null && !(v instanceof Mob m && m.getControllingPassenger() == this);
+    }
+
+    /** Sends him aboard {@code ship}: he goes to it and takes a seat, the first at her helm. */
+    public void sendAboard(Entity ship) {
+        this.boardShip = ship.getUUID();
+        this.boardUntil = this.level().getGameTime() + 20 * 60;
+    }
+
+    /** The ship he was sent aboard, while the order holds. */
+    @Nullable
+    public Entity shipOrdered() {
+        if (this.boardShip == null) {
+            return null;
+        }
+        if (this.level().getGameTime() > this.boardUntil || !(this.level() instanceof ServerLevel server)) {
+            this.boardShip = null;
+            return null;
+        }
+        Entity e = server.getEntity(this.boardShip);
+        if (e == null || !e.isAlive()) {
+            this.boardShip = null;
+        }
+        return e;
+    }
+
+    public void shipBoarded() {
+        this.boardShip = null;
+    }
+
+    /** At the helm, she can get no nearer to where he takes her. */
+    public boolean helmStalled() {
+        return this.helm != null && this.helm.stalled();
     }
 
     /** He may climb into a vessel at once, though he has just got off his horse. */
@@ -668,6 +708,17 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.tickArms();
             this.tickVoyage();
         }
+        if (!this.level().isClientSide && this.isAlive() && this.tickCount % Helm.PERIOD == 0) {
+            Entity vessel = Vessels.vesselOf(this);
+            if (vessel != null && Vessels.isHelmsman(vessel, this) && this.getOwnerUUID() != null) {
+                if (this.helm == null) {
+                    this.helm = new Helm(this);
+                }
+                this.helm.tick(vessel);
+            } else {
+                this.helm = null;
+            }
+        }
         if (!this.level().isClientSide && this.isAlive() && this.tickCount % 40 == 0 && !this.fightingRecently() && this.getHealth() < this.getMaxHealth()) {
             // wounds close out of the fight
             this.heal(1.0f);
@@ -945,7 +996,11 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         }
         Player boss = this.commander();
         boolean following = this.orders() == Orders.FOLLOW || this.orders() == Orders.CHARGE;
-        if (following && boss != null && boss.level() == this.level() && Vessels.vesselOf(boss) == null && boss.distanceToSqr(this) < 64 * 64) {
+        Soldier captain = Vessels.captainOf(vessel);
+        boolean brought = captain != null && captain.isAlliedTo(this) && vessel.distanceToSqr(boss == null ? this : boss) > 24 * 24
+                && !captain.helmStalled();
+        if (following && boss != null && boss.level() == this.level() && Vessels.vesselOf(boss) == null && boss.distanceToSqr(this) < 64 * 64
+                && !brought) {
             // the commander has gone ashore: after him (a moment later, not when he only changes his seat)
             if (++this.ashoreChecks >= 2) {
                 this.ashoreChecks = 0;

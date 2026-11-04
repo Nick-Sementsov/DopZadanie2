@@ -41,6 +41,8 @@ public final class Vessels {
 
     @Nullable
     private static final Bridge BRIDGE = Bridge.load();
+    private static final String SOLDIER_ID = "druzhina:soldier";
+    private static volatile boolean helmAllowed;
 
     private Vessels() {
     }
@@ -48,6 +50,105 @@ public final class Vessels {
     /** A boat, a raft or a ship. */
     public static boolean isVessel(@Nullable Entity e) {
         return e instanceof Boat;
+    }
+
+    /** The ship a part of its hull belongs to (Small Ships' hull pieces), or the entity itself. */
+    @Nullable
+    public static Entity resolve(@Nullable Entity e) {
+        if (e == null || isVessel(e) || BRIDGE == null) {
+            return e;
+        }
+        Entity ship = BRIDGE.shipOf(e);
+        return ship != null ? ship : e;
+    }
+
+    /** Whether ships can be sailed by soldiers here (Small Ships 2.0 or newer). */
+    public static boolean canSail() {
+        return BRIDGE != null;
+    }
+
+    /** Whether {@code e} stands at the ship's helm. */
+    public static boolean isHelmsman(@Nullable Entity ship, Entity e) {
+        return BRIDGE != null && isShip(ship) && BRIDGE.isHelmsman(ship, e);
+    }
+
+    /** The soldier at the ship's helm, or null. */
+    @Nullable
+    public static Soldier captainOf(@Nullable Entity ship) {
+        return BRIDGE != null && isShip(ship) && BRIDGE.helmsman(ship) instanceof Soldier s ? s : null;
+    }
+
+    /** Holds (or lets go of) the helmsman's keys: forward and back work the sails or the oars, left and right the rudder. */
+    public static void keys(Entity ship, boolean forward, boolean backward, boolean left, boolean right) {
+        if (BRIDGE != null) {
+            BRIDGE.keys(ship, forward, backward, left, right);
+        }
+    }
+
+    /** Sets the sail, or takes it in. */
+    public static void toggleSail(Entity ship) {
+        if (BRIDGE != null) {
+            BRIDGE.sail(ship);
+        }
+    }
+
+    /** 0: no sail; 1 to 4: how much sail is set. */
+    public static int sailState(Entity ship) {
+        return BRIDGE == null ? 0 : BRIDGE.sailState(ship);
+    }
+
+    /** Speed through the water, blocks a tick (negative going astern). */
+    public static float speed(Entity ship) {
+        return BRIDGE == null ? 0 : BRIDGE.speed(ship);
+    }
+
+    /** How fast she turns, degrees a tick (positive to starboard). */
+    public static float rotSpeed(Entity ship) {
+        return BRIDGE == null ? 0 : BRIDGE.rotSpeed(ship);
+    }
+
+    /** Afloat, not leashed, locked, sinking or in a dockyard. */
+    public static boolean canMakeWay(Entity ship) {
+        return BRIDGE != null && BRIDGE.canMakeWay(ship);
+    }
+
+    /** Her size, speed, sails, oars and cannons. */
+    public static CompoundTag profile(Entity ship) {
+        return BRIDGE == null ? new CompoundTag() : BRIDGE.profile(ship);
+    }
+
+    /**
+     * Lets soldiers take the helm: Small Ships lets only players and the entities of its "driverEntities" setting
+     * steer, so soldiers are added to that list (for the running server; the setting's file is left as it is).
+     */
+    public static void allowSoldiersAtHelm() {
+        if (BRIDGE == null || helmAllowed) {
+            return;
+        }
+        try {
+            Class<?> server = Class.forName("com.talhanation.smallships.config.SmallShipsConfig$Server");
+            Object value = server.getField("driverEntities").get(null);
+            if (value instanceof net.minecraftforge.common.ForgeConfigSpec.ConfigValue<?> config) {
+                @SuppressWarnings("unchecked")
+                net.minecraftforge.common.ForgeConfigSpec.ConfigValue<List<String>> drivers =
+                        (net.minecraftforge.common.ForgeConfigSpec.ConfigValue<List<String>>) config;
+                List<String> now = drivers.get();
+                if (!now.contains(SOLDIER_ID)) {
+                    List<String> more = new java.util.ArrayList<>(now);
+                    more.add(SOLDIER_ID);
+                    drivers.set(more);
+                }
+                helmAllowed = true;
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+            LOG.warn("Druzhina: could not let soldiers take the helm of Small Ships' ships", e);
+            helmAllowed = true;
+        }
+    }
+
+    /** Forgets that soldiers were let at the helm (a new server, a reloaded setting). */
+    public static void resetHelm() {
+        helmAllowed = false;
     }
 
     /** A ship of Small Ships. */
@@ -103,7 +204,8 @@ public final class Vessels {
      * stays at the rail).
      */
     public static void settle(Soldier s, Entity vessel) {
-        if (BRIDGE == null || !isShip(vessel) || s.getMainHandItem().getItem() instanceof BowItem || s.getMainHandItem().getItem() instanceof CrossbowItem) {
+        if (BRIDGE == null || !isShip(vessel) || s.getMainHandItem().getItem() instanceof BowItem || s.getMainHandItem().getItem() instanceof CrossbowItem
+                || BRIDGE.isHelmsman(vessel, s)) {
             return;
         }
         ListTag seats = BRIDGE.seats(vessel);
@@ -223,7 +325,9 @@ public final class Vessels {
 
     /** Small Ships' bridge for other mods, from version 2.0. */
     private record Bridge(MethodHandle seats, MethodHandle takeSeat, MethodHandle cannons, MethodHandle fire, MethodHandle aim,
-                          MethodHandle helmsman, MethodHandle hull) {
+                          MethodHandle helmsman, MethodHandle hull, MethodHandle shipOf, MethodHandle isHelmsman, MethodHandle keys,
+                          MethodHandle sail, MethodHandle sailState, MethodHandle speed, MethodHandle rotSpeed, MethodHandle canMakeWay,
+                          MethodHandle profile) {
         @Nullable
         static Bridge load() {
             try {
@@ -236,7 +340,16 @@ public final class Vessels {
                     l.findStatic(c, "fireCannon", MethodType.methodType(boolean.class, Entity.class, LivingEntity.class, int.class)),
                     l.findStatic(c, "setBroadsideAim", MethodType.methodType(void.class, Entity.class, boolean.class, float.class, float.class)),
                     l.findStatic(c, "getHelmsman", MethodType.methodType(Entity.class, Entity.class)),
-                    l.findStatic(c, "getHullBoxes", MethodType.methodType(List.class, Entity.class)));
+                    l.findStatic(c, "getHullBoxes", MethodType.methodType(List.class, Entity.class)),
+                    l.findStatic(c, "getShipOf", MethodType.methodType(Entity.class, Entity.class)),
+                    l.findStatic(c, "isHelmsman", MethodType.methodType(boolean.class, Entity.class, Entity.class)),
+                    l.findStatic(c, "pressKeys", MethodType.methodType(void.class, Entity.class, boolean.class, boolean.class, boolean.class, boolean.class)),
+                    l.findStatic(c, "pressSailKey", MethodType.methodType(void.class, Entity.class)),
+                    l.findStatic(c, "getSailState", MethodType.methodType(int.class, Entity.class)),
+                    l.findStatic(c, "getSpeed", MethodType.methodType(float.class, Entity.class)),
+                    l.findStatic(c, "getRotSpeed", MethodType.methodType(float.class, Entity.class)),
+                    l.findStatic(c, "canMakeWay", MethodType.methodType(boolean.class, Entity.class)),
+                    l.findStatic(c, "getProfile", MethodType.methodType(CompoundTag.class, Entity.class)));
             } catch (ClassNotFoundException e) {
                 return null;
             } catch (ReflectiveOperationException | LinkageError e) {
@@ -292,6 +405,79 @@ public final class Vessels {
                 return (Entity) this.helmsman.invokeExact(ship);
             } catch (Throwable t) {
                 return null;
+            }
+        }
+
+        @Nullable
+        Entity shipOf(Entity e) {
+            try {
+                return (Entity) this.shipOf.invokeExact(e);
+            } catch (Throwable t) {
+                return null;
+            }
+        }
+
+        boolean isHelmsman(Entity ship, Entity e) {
+            try {
+                return (boolean) this.isHelmsman.invokeExact(ship, e);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        void keys(Entity ship, boolean forward, boolean backward, boolean left, boolean right) {
+            try {
+                this.keys.invokeExact(ship, forward, backward, left, right);
+            } catch (Throwable t) {
+                // the ship stays as she is
+            }
+        }
+
+        void sail(Entity ship) {
+            try {
+                this.sail.invokeExact(ship);
+            } catch (Throwable t) {
+                // no sail
+            }
+        }
+
+        int sailState(Entity ship) {
+            try {
+                return (int) this.sailState.invokeExact(ship);
+            } catch (Throwable t) {
+                return 0;
+            }
+        }
+
+        float speed(Entity ship) {
+            try {
+                return (float) this.speed.invokeExact(ship);
+            } catch (Throwable t) {
+                return 0;
+            }
+        }
+
+        float rotSpeed(Entity ship) {
+            try {
+                return (float) this.rotSpeed.invokeExact(ship);
+            } catch (Throwable t) {
+                return 0;
+            }
+        }
+
+        boolean canMakeWay(Entity ship) {
+            try {
+                return (boolean) this.canMakeWay.invokeExact(ship);
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+
+        CompoundTag profile(Entity ship) {
+            try {
+                return (CompoundTag) this.profile.invokeExact(ship);
+            } catch (Throwable t) {
+                return new CompoundTag();
             }
         }
 

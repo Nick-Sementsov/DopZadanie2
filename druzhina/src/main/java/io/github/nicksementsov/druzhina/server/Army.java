@@ -2,6 +2,7 @@ package io.github.nicksementsov.druzhina.server;
 
 import io.github.nicksementsov.druzhina.DruzhinaConfig;
 import io.github.nicksementsov.druzhina.api.Hiring;
+import io.github.nicksementsov.druzhina.compat.Vessels;
 import io.github.nicksementsov.druzhina.entity.Formation;
 import io.github.nicksementsov.druzhina.entity.Mounts;
 import io.github.nicksementsov.druzhina.entity.Orders;
@@ -216,8 +217,11 @@ public final class Army {
     public static void form(ServerLevel level, List<Soldier> men, Vec3 center, float yaw, double width, Formation formation) {
         List<Soldier> order = new ArrayList<>();
         for (Soldier s : men) {
-            if (s.isCrew()) {
-                // in a howdah: he goes where the beast goes
+            if (Vessels.isHelmsman(s.getVehicle(), s)) {
+                // at a ship's helm: he sails her there
+                s.order(Orders.HOLD, center, yaw);
+            } else if (s.isCrew()) {
+                // in a howdah or aboard a ship: he goes where she goes
                 s.order(Orders.HOLD, null, yaw);
             } else {
                 order.add(s);
@@ -291,7 +295,13 @@ public final class Army {
                 form(level, men, at, yaw, Math.min(width, 64), formation);
             }
             case ATTACK -> {
-                if (!(level.getEntity(target) instanceof LivingEntity foe) || !foe.isAlive()) {
+                Entity picked = Vessels.resolve(level.getEntity(target));
+                if (Vessels.isVessel(picked)) {
+                    // a ship: they go aboard her
+                    sendAboard(player, men, picked);
+                    return;
+                }
+                if (!(picked instanceof LivingEntity foe) || !foe.isAlive()) {
                     return;
                 }
                 for (Soldier s : men) {
@@ -313,6 +323,65 @@ public final class Army {
             default -> SoundEvents.ARMOR_EQUIP_CHAIN;
         };
         player.playNotifySound(sound, SoundSource.PLAYERS, command == Command.ATTACK || command == Command.CHARGE ? 1.2f : 0.8f, 1.0f);
+    }
+
+    // ---------------------------------------------------------------- ships
+
+    /** The baton on a ship: the commander's men within earshot (not those aboard some other vessel) go aboard her. */
+    public static int board(ServerPlayer player, Entity ship) {
+        List<Soldier> men = new ArrayList<>();
+        for (Soldier s : near(player)) {
+            if (!s.isPassenger() || s.steed() != null && !(s.steed() instanceof io.github.nicksementsov.druzhina.entity.WarElephant)) {
+                men.add(s);
+            }
+        }
+        sendAboard(player, men, ship);
+        return men.size();
+    }
+
+    private static void sendAboard(ServerPlayer player, List<Soldier> men, Entity ship) {
+        Vessels.allowSoldiersAtHelm();
+        int n = 0;
+        for (Soldier s : men) {
+            if (s.getVehicle() != ship && !s.isCrew() && !(s.steed() instanceof io.github.nicksementsov.druzhina.entity.WarElephant)) {
+                s.sendAboard(ship);
+                n++;
+            }
+        }
+        player.displayClientMessage(n == 0 ? Component.translatable("druzhina.msg.nobody_hears").withStyle(ChatFormatting.GRAY)
+                : Component.translatable("druzhina.msg.boarding", n).withStyle(ChatFormatting.GOLD), true);
+        if (n > 0) {
+            player.playNotifySound(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.PLAYERS, 0.8f, 1.2f);
+        }
+    }
+
+    /**
+     * Aboard a ship that one of his men steers, the baton gives the course: she sails to where the commander looks
+     * (the water or the shore he looks at, or far ahead that way). Returns whether there was such a helmsman.
+     */
+    public static boolean course(ServerPlayer player) {
+        Entity ship = Vessels.vesselOf(player);
+        Soldier captain = Vessels.captainOf(ship);
+        if (ship == null || captain == null || !player.getUUID().equals(captain.getOwnerUUID())) {
+            return false;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getViewVector(1.0f);
+        Vec3 far = eye.add(look.scale(160));
+        var hit = player.level().clip(new net.minecraft.world.level.ClipContext(eye, far, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.ANY, player));
+        Vec3 to;
+        if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
+            to = hit.getLocation();
+        } else {
+            Vec3 flat = new Vec3(look.x, 0, look.z);
+            to = flat.lengthSqr() < 1.0E-4 ? ship.position() : ship.position().add(flat.normalize().scale(96));
+        }
+        captain.order(Orders.HOLD, new Vec3(to.x, ship.getY(), to.z), player.getYRot());
+        int dist = (int) Math.round(Math.sqrt(to.distanceToSqr(ship.getX(), to.y, ship.getZ())));
+        player.displayClientMessage(Component.translatable("druzhina.msg.course", captain.plainName(), dist).withStyle(ChatFormatting.GOLD), true);
+        player.playNotifySound(SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.PLAYERS, 0.8f, 0.9f);
+        return true;
     }
 
     private static void announce(ServerPlayer player, Orders orders, int men) {
