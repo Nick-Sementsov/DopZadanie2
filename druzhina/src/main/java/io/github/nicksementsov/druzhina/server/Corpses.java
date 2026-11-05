@@ -74,16 +74,16 @@ public final class Corpses {
     }
 
     /**
-     * The fallen lie flat: their room is low and as wide as a body lying at length, so that they do not stand in the
-     * way of a blow or a click aimed past them (on both sides: the pose of the dying is shared). It stays wide enough
-     * for them to be drawn from as far as the living.
+     * The fallen lie flat: their room is low, so that they do not stand in the way of a blow or a click aimed past
+     * them (on both sides: the pose of the dying is shared). Soldiers and elephants are still drawn from as far as
+     * the living (see their {@code shouldRenderAtSqrDistance}).
      */
     @SubscribeEvent
     public static void onSize(EntityEvent.Size event) {
         if (event.getPose() == Pose.DYING && event.getEntity() instanceof LivingEntity e && !(e instanceof Player) && !(e instanceof SiegeEngine)) {
-            EntityDimensions standing = e.getType().getDimensions();
-            float lying = (standing.width + standing.height) / 2;
-            event.setNewSize(EntityDimensions.scalable(lying, Math.min(standing.height, 0.3f)), true);
+            // no wider than it stood: a wider box would be lifted off the ground to fit
+            EntityDimensions standing = event.getOldSize();
+            event.setNewSize(EntityDimensions.scalable(standing.width, Math.min(standing.height, 0.3f)), true);
         }
     }
 
@@ -106,6 +106,11 @@ public final class Corpses {
             left = data.getInt(LEFT);
         }
         if (left <= 0) {
+            return;
+        }
+        if (e.getY() < e.level().getMinBuildHeight() - 32) {
+            // fallen out of the world: nothing to lie on
+            data.putInt(LEFT, 0);
             return;
         }
         data.putInt(LEFT, left - 1);
