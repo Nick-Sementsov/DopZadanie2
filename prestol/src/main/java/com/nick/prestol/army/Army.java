@@ -284,7 +284,10 @@ public final class Army {
 
          for (UUID id : p.units) {
             Entity unit = level.getEntity(id);
-            if (unit != null && !orders.equals(GIVEN.get(id)) && Troops.orders(unit, home, var14, follow)) {
+            if (unit != null && Troops.commanded(unit)) {
+               // the lord leads him himself; once sent back to his post he takes the tower's orders again
+               GIVEN.remove(id);
+            } else if (unit != null && !orders.equals(GIVEN.get(id)) && Troops.orders(unit, home, var14, follow)) {
                GIVEN.put(id, orders);
             }
          }

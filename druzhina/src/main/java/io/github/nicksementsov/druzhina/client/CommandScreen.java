@@ -12,8 +12,11 @@ import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -56,6 +59,65 @@ public class CommandScreen extends Screen {
         return false;
     }
 
+    private final List<Button> formationButtons = new ArrayList<>();
+    private int squadKey = -1;
+    private long squadAt;
+
+    /** The bar of orders and formations over the hints: everything the keys do, for the mouse too. */
+    @Override
+    protected void init() {
+        this.formationButtons.clear();
+        this.hintLines.clear();
+        for (String h : HINTS) {
+            this.hintLines.addAll(this.font.split(Component.translatable(h), this.width - 12));
+        }
+        record Entry(String key, Runnable run) {
+        }
+        List<Entry> orders = List.of(
+                new Entry("druzhina.view.btn.follow", () -> this.simple(Army.Command.FOLLOW)),
+                new Entry("druzhina.view.btn.hold", () -> this.simple(Army.Command.HOLD)),
+                new Entry("druzhina.view.btn.charge", () -> this.simple(Army.Command.CHARGE)),
+                new Entry("druzhina.view.btn.post", () -> this.simple(Army.Command.POST)));
+        int gap = 4;
+        int total = 0;
+        List<Integer> widths = new ArrayList<>();
+        for (Entry e : orders) {
+            int w = this.font.width(Component.translatable(e.key)) + 12;
+            widths.add(w);
+            total += w + gap;
+        }
+        for (Formation f : Formation.values()) {
+            int w = this.font.width(Component.translatable("druzhina.formation." + f.id())) + 16;
+            widths.add(w);
+            total += w + gap;
+        }
+        total += 10;
+        int x = Math.max(2, (this.width - total) / 2);
+        int y = this.height - 11 * this.hintLines.size() - 30;
+        int i = 0;
+        for (Entry e : orders) {
+            int w = widths.get(i++);
+            this.addRenderableWidget(Button.builder(Component.translatable(e.key), b -> {
+                e.run.run();
+                this.setFocused(null);
+            }).bounds(x, y, w, 20).build());
+            x += w + gap;
+        }
+        x += 10;
+        for (Formation f : Formation.values()) {
+            int w = widths.get(i++);
+            Button b = Button.builder(Component.empty(), btn -> {
+                CommandView.formation = f;
+                this.setFocused(null);
+            }).bounds(x, y, w, 20).build();
+            this.formationButtons.add(this.addRenderableWidget(b));
+            x += w + gap;
+        }
+    }
+
+    private static final String[] HINTS = {"druzhina.view.hint1", "druzhina.view.hint2"};
+    private final List<FormattedCharSequence> hintLines = new ArrayList<>();
+
     @Override
     public void removed() {
         CommandView.leave();
@@ -65,6 +127,12 @@ public class CommandScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        for (var child : this.children()) {
+            if (child.isMouseOver(mx, my)) {
+                this.leftX = -1;
+                return super.mouseClicked(mx, my, button);
+            }
+        }
         if (button == 0) {
             this.leftX = mx;
             this.leftY = my;
@@ -250,7 +318,7 @@ public class CommandScreen extends Screen {
     private void order(double mx, double my) {
         List<Soldier> men = CommandView.selected();
         if (men.isEmpty()) {
-            Minecraft.getInstance().gui.setOverlayMessage(Component.translatable("druzhina.view.pick_first").withStyle(ChatFormatting.GRAY), false);
+            CommandView.say(Component.translatable("druzhina.view.pick_first").withStyle(ChatFormatting.GRAY));
             return;
         }
         int[] ids = men.stream().mapToInt(Entity::getId).toArray();
@@ -294,7 +362,7 @@ public class CommandScreen extends Screen {
     private void simple(Army.Command command) {
         List<Soldier> men = CommandView.selected();
         if (men.isEmpty()) {
-            Minecraft.getInstance().gui.setOverlayMessage(Component.translatable("druzhina.view.pick_first").withStyle(ChatFormatting.GRAY), false);
+            CommandView.say(Component.translatable("druzhina.view.pick_first").withStyle(ChatFormatting.GRAY));
             return;
         }
         send(new CommandPacket(men.stream().mapToInt(Entity::getId).toArray(), command.ordinal(), men.get(0).position(), 0, 0, 0, -1));
@@ -304,27 +372,82 @@ public class CommandScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (DruzhinaKeys.COMMAND.matches(key, scan)) {
+        if (DruzhinaKeys.COMMAND.matches(key, scan) || key == InputConstants.KEY_ESCAPE) {
             this.onClose();
+            return true;
+        }
+        if (key >= InputConstants.KEY_1 && key <= InputConstants.KEY_9) {
+            this.squad(key - InputConstants.KEY_0);
             return true;
         }
         switch (key) {
             case InputConstants.KEY_F -> this.simple(Army.Command.FOLLOW);
             case InputConstants.KEY_H -> this.simple(Army.Command.HOLD);
             case InputConstants.KEY_C -> this.simple(Army.Command.CHARGE);
-            case InputConstants.KEY_1 -> CommandView.formation = Formation.LINE;
-            case InputConstants.KEY_2 -> CommandView.formation = Formation.COLUMN;
-            case InputConstants.KEY_3 -> CommandView.formation = Formation.WEDGE;
+            case InputConstants.KEY_R -> this.simple(Army.Command.POST);
+            case InputConstants.KEY_TAB -> CommandView.formation = Formation.byId((CommandView.formation.ordinal() + 1) % Formation.values().length);
             case InputConstants.KEY_A -> {
                 if (hasControlDown()) {
                     this.selectAll();
                 }
             }
             default -> {
-                return super.keyPressed(key, scan, mods);
+                // nothing else: Space and Enter move the camera, they must not press a button
             }
         }
         return true;
+    }
+
+    /** Ctrl and a digit: these men are squad n; the digit: pick squad n; the digit twice: the camera goes to them. */
+    private void squad(int n) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        if (hasControlDown()) {
+            List<java.util.UUID> ids = CommandView.selected().stream().map(Entity::getUUID).toList();
+            if (ids.isEmpty()) {
+                CommandView.SQUADS.remove(n);
+            } else {
+                CommandView.SQUADS.put(n, ids);
+            }
+            CommandView.say(Component.translatable("druzhina.view.squad_set", n, ids.size()).withStyle(ChatFormatting.GOLD));
+            return;
+        }
+        List<java.util.UUID> ids = CommandView.SQUADS.getOrDefault(n, List.of());
+        List<Soldier> men = new ArrayList<>();
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (e instanceof Soldier s && CommandView.mine(s) && ids.contains(s.getUUID())) {
+                men.add(s);
+            }
+        }
+        if (!hasShiftDown()) {
+            CommandView.SELECTED.clear();
+        }
+        men.forEach(s -> CommandView.SELECTED.add(s.getId()));
+        long now = System.currentTimeMillis();
+        if (n == this.squadKey && now - this.squadAt < 400 && !men.isEmpty()) {
+            Vec3 middle = Vec3.ZERO;
+            for (Soldier s : men) {
+                middle = middle.add(s.position());
+            }
+            CommandView.focus(middle.scale(1.0 / men.size()));
+        }
+        this.squadKey = n;
+        this.squadAt = now;
+        CommandView.say(Component.translatable(men.isEmpty() ? "druzhina.view.squad_empty" : "druzhina.view.squad_picked", n, men.size())
+                .withStyle(ChatFormatting.GOLD));
+    }
+
+    /** The squads a soldier is in, for the digits over his head. */
+    private static String squadsOf(Soldier s) {
+        StringBuilder sb = new StringBuilder();
+        for (var e : CommandView.SQUADS.entrySet()) {
+            if (e.getValue().contains(s.getUUID())) {
+                sb.append(e.getKey());
+            }
+        }
+        return sb.toString();
     }
 
     // ---------------------------------------------------------------- drawing
@@ -371,16 +494,24 @@ public class CommandScreen extends Screen {
         g.fill(this.width / 2 - w / 2, 4, this.width / 2 + w / 2, 30, 0xA0201812);
         g.drawCenteredString(this.font, title, this.width / 2, 8, GOLD);
         g.drawCenteredString(this.font, state, this.width / 2, 19, GREEN);
-        if (this.mine() == 0) {
+        if (CommandView.said != null && System.currentTimeMillis() < CommandView.saidUntil) {
+            int sw = this.font.width(CommandView.said) + 12;
+            g.fill(this.width / 2 - sw / 2, 33, this.width / 2 + sw / 2, 46, 0xA0201812);
+            g.drawCenteredString(this.font, CommandView.said, this.width / 2, 36, GOLD);
+        } else if (this.mine() == 0) {
             g.drawCenteredString(this.font, Component.translatable("druzhina.view.none"), this.width / 2, 36, 0xFFE0A0A0);
         }
 
-        String[] hints = {"druzhina.view.hint1", "druzhina.view.hint2", "druzhina.view.hint3"};
-        int y = this.height - 12 * hints.length - 4;
-        g.fill(0, y - 3, this.width, this.height, 0x90000000);
-        for (String h : hints) {
-            g.drawCenteredString(this.font, Component.translatable(h), this.width / 2, y, 0xFFD8D0C0);
-            y += 12;
+        for (int i = 0; i < this.formationButtons.size(); i++) {
+            Formation f = Formation.values()[i];
+            MutableComponent label = Component.translatable("druzhina.formation." + f.id());
+            this.formationButtons.get(i).setMessage(f == CommandView.formation ? label.withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD) : label);
+        }
+        int y = this.height - 11 * this.hintLines.size() - 4;
+        g.fill(0, y - 30, this.width, this.height, 0x90000000);
+        for (FormattedCharSequence line : this.hintLines) {
+            g.drawCenteredString(this.font, line, this.width / 2, y, 0xFFD8D0C0);
+            y += 11;
         }
         super.render(g, mouseX, mouseY, partialTick);
     }
@@ -405,6 +536,12 @@ public class CommandScreen extends Screen {
         }
         int x = (int) p[0] - 10;
         int y = (int) p[1];
+        if (e instanceof Soldier s) {
+            String squads = squadsOf(s);
+            if (!squads.isEmpty()) {
+                g.drawString(this.font, squads, x + 23, y - 3, GOLD);
+            }
+        }
         float f = Mth.clamp(e.getHealth() / e.getMaxHealth(), 0, 1);
         int color = f > 0.6f ? 0xFF55DD55 : f > 0.3f ? 0xFFE8C040 : 0xFFE04040;
         g.fill(x - 1, y - 1, x + 21, y + 3, 0xC0000000);

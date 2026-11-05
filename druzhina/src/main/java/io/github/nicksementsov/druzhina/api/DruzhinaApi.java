@@ -112,6 +112,14 @@ public final class DruzhinaApi {
         }
     }
 
+    /**
+     * Whether his lord leads him himself from the commander's view: a mod that keeps him (a garrison) should leave his
+     * orders be until the lord sends him back to his post.
+     */
+    public static boolean commanded(Entity e) {
+        return e instanceof Soldier s && s.commanded();
+    }
+
     /** Names him; the name is kept when he rises in rank. */
     public static void setName(Entity e, Component name) {
         if (e instanceof Soldier s) {

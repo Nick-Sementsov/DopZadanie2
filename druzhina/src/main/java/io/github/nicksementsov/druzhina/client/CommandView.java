@@ -142,10 +142,27 @@ public final class CommandView {
         hovered = null;
     }
 
-    /** One of the player's own men whom he may lead (not one kept by a realm's garrison). */
+    /** One of the player's own men: his retinue, or the garrison of one of his towers. */
     static boolean mine(Entity e) {
         LocalPlayer player = Minecraft.getInstance().player;
-        return e instanceof Soldier s && s.isAlive() && player != null && player.getUUID().equals(s.getOwnerUUID()) && !s.managed();
+        return e instanceof Soldier s && s.isAlive() && player != null && player.getUUID().equals(s.getOwnerUUID());
+    }
+
+    /** Squads the commander put together (Ctrl and a digit), by the men's UUIDs: kept while the game runs. */
+    static final java.util.Map<Integer, List<java.util.UUID>> SQUADS = new java.util.HashMap<>();
+
+    /** Moves the camera so that it looks at {@code at} from where it is now looking, at the height it has now. */
+    static void focus(Vec3 at) {
+        Minecraft mc = Minecraft.getInstance();
+        double h = Math.max(6, y - at.y);
+        Vec3 look = Vec3.directionFromRotation(pitch, yaw);
+        double dist = h / Math.max(0.2, -look.y);
+        x = at.x - look.x * dist;
+        y = at.y + h;
+        z = at.z - look.z * dist;
+        if (mc.player != null) {
+            clamp(mc.player);
+        }
     }
 
     static List<Soldier> selected() {
@@ -363,7 +380,12 @@ public final class CommandView {
         VertexConsumer lines = buffers.getBuffer(RenderType.lines());
         for (Soldier s : selected()) {
             Vec3 at = s.getPosition(partial);
-            ring(pose, lines, at.x, at.y + 0.05, at.z, 0.55, 0.35f, 1.0f, 0.35f, 1.0f);
+            // the men of a tower's garrison in blue, the lord's own men in green
+            if (s.managed()) {
+                ring(pose, lines, at.x, at.y + 0.05, at.z, 0.55, 0.4f, 0.7f, 1.0f, 1.0f);
+            } else {
+                ring(pose, lines, at.x, at.y + 0.05, at.z, 0.55, 0.35f, 1.0f, 0.35f, 1.0f);
+            }
         }
         if (hovered != null && hovered.isAlive()) {
             Vec3 at = hovered.getPosition(partial);
@@ -423,6 +445,24 @@ public final class CommandView {
         if (!id.equals(VanillaGuiOverlay.CHAT_PANEL.id()) && !id.equals(VanillaGuiOverlay.RECORD_OVERLAY.id())
                 && !id.equals(VanillaGuiOverlay.TITLE_TEXT.id()) && !id.equals(VanillaGuiOverlay.SUBTITLES.id())) {
             event.setCanceled(true);
+        }
+    }
+
+    /** The last word over the field (an order carried out, a squad picked): shown under the title, over the bar. */
+    @Nullable
+    static net.minecraft.network.chat.Component said;
+    static long saidUntil;
+
+    static void say(net.minecraft.network.chat.Component text) {
+        said = text;
+        saidUntil = System.currentTimeMillis() + 2500;
+    }
+
+    /** The lines over the hotbar are hidden under the bar of orders: they are shown under the title too. */
+    @SubscribeEvent
+    public static void onSystemMessage(net.minecraftforge.client.event.ClientChatReceivedEvent.System event) {
+        if (active && event.isOverlay()) {
+            say(event.getMessage());
         }
     }
 

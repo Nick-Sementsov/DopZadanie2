@@ -186,6 +186,11 @@ public final class Troops {
         return true;
     }
 
+    /** His lord leads him himself from the commander's view (Druzhina): the tower does not give him orders meanwhile. */
+    public static boolean commanded(Entity unit) {
+        return DruzhinaApi.commanded(unit);
+    }
+
     /** His rank: 1 for a recruit, up to {@link #maxRank()}; -1 for anything but a soldier. */
     public static int rank(Entity unit) {
         int r = DruzhinaApi.rank(unit);

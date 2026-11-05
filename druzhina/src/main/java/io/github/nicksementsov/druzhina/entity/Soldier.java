@@ -89,6 +89,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final int HEAL_DELAY = 200;
     private static final String MANAGED = "druzhina.managed";
     private static final String NAMED = "druzhina.named";
+    private static final String COMMANDED = "druzhina.commanded";
 
     @Nullable
     private Vec3 post;
@@ -283,6 +284,15 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     public void setManaged(boolean managed) {
         this.getPersistentData().putBoolean(MANAGED, managed);
         this.entityData.set(MANAGED_DATA, managed);
+    }
+
+    /** A garrison man (see {@link #managed()}) whom his lord leads himself from the commander's view. */
+    public boolean commanded() {
+        return this.getPersistentData().getBoolean(COMMANDED);
+    }
+
+    public void setCommanded(boolean commanded) {
+        this.getPersistentData().putBoolean(COMMANDED, commanded);
     }
 
     /** Gives him a name of another mod's choosing, kept through promotions. */

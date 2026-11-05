@@ -231,7 +231,9 @@ public final class Army {
         FOLLOW,
         /** Stop and stand where you are. */
         HOLD,
-        CHARGE;
+        CHARGE,
+        /** Back to the post (a realm's garrison): the mod that keeps them gives them their orders again. */
+        POST;
 
         public static Command byId(int ordinal) {
             Command[] all = values();
@@ -247,13 +249,32 @@ public final class Army {
         ServerLevel level = player.serverLevel();
         List<Soldier> men = new ArrayList<>();
         for (int id : ids) {
-            if (level.getEntity(id) instanceof Soldier s && s.isAlive() && player.getUUID().equals(s.getOwnerUUID()) && !s.managed()
+            // his own men, and the garrisons of his own towers
+            if (level.getEntity(id) instanceof Soldier s && s.isAlive() && player.getUUID().equals(s.getOwnerUUID())
                     && s.distanceToSqr(player) < FIELD * FIELD) {
                 men.add(s);
             }
         }
         if (men.isEmpty()) {
             return;
+        }
+        if (command == Command.POST) {
+            int back = 0;
+            for (Soldier s : men) {
+                if (s.managed() && s.commanded()) {
+                    s.setCommanded(false);
+                    back++;
+                }
+            }
+            player.displayClientMessage(Component.translatable("druzhina.command.post", back).withStyle(ChatFormatting.GOLD), true);
+            player.playNotifySound(SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.PLAYERS, 0.8f, 1.0f);
+            return;
+        }
+        for (Soldier s : men) {
+            if (s.managed()) {
+                // a garrison man under his lord's own hand: his tower leaves him be until he is sent back
+                s.setCommanded(true);
+            }
         }
         switch (command) {
             case MOVE -> {

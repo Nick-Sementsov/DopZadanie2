@@ -110,12 +110,19 @@
   "druzhina.formation.wedge": "клин",
   "druzhina.view.none": "Рядом нет ваших воинов: наймите их у вербовочного стола",
   "druzhina.view.pick_first": "Сначала выберите воинов: ЛКМ по воину или рамкой",
-  "druzhina.view.hint1": "ЛКМ — выбрать воина (рамкой — многих, Shift — добавить, двойной клик — всех той же роли), Ctrl+A — всех",
-  "druzhina.view.hint2": "ПКМ по земле — идти и построиться (протяните — ширина и направление строя), ПКМ по врагу — атаковать",
-  "druzhina.view.hint3": "F за мной · H стоять · C в атаку · 1 2 3 линия, колонна, клин · WASD Пробел Shift Q E колесо СКМ — камера · K выход",
+  "druzhina.view.hint1": "ЛКМ — выбрать (рамкой — многих, Shift — добавить, двойной клик — всех той же роли, Ctrl+A — всех) · ПКМ по земле — идти строем (протяните — фронт), по врагу — атаковать",
+  "druzhina.view.hint2": "Ctrl+1…9 — запомнить отряд, 1…9 — выбрать (дважды — к нему) · Tab — строй · WASD Пробел Shift Q E колесо СКМ — камера · K — выход",
   "druzhina.command.move": "Строятся: %s",
   "druzhina.command.attack": "Атакуют: %s",
   "druzhina.command.follow": "За вами: %s",
   "druzhina.command.hold": "Стоят на месте: %s",
-  "druzhina.command.charge": "В атаку: %s"
+  "druzhina.command.charge": "В атаку: %s",
+  "druzhina.command.post": "На пост вернулись: %s",
+  "druzhina.view.btn.follow": "За мной [F]",
+  "druzhina.view.btn.hold": "Стоять [H]",
+  "druzhina.view.btn.charge": "В атаку [C]",
+  "druzhina.view.btn.post": "На пост [R]",
+  "druzhina.view.squad_set": "Отряд %s: %s воинов",
+  "druzhina.view.squad_picked": "Отряд %s: %s воинов",
+  "druzhina.view.squad_empty": "Отряд %s пуст: выберите воинов и нажмите Ctrl+%1$s"
 }
