@@ -1,5 +1,6 @@
 package io.github.nicksementsov.druzhina.entity;
 
+import io.github.nicksementsov.druzhina.entity.siege.SiegeEngine;
 import io.github.nicksementsov.druzhina.registry.DruzhinaRegistry;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +64,25 @@ public final class Mounts {
                     archer.setMount(beast.getUUID());
                     crew.add(archer);
                 }
+            }
+            case TREBUCHET, BALLISTA, RAM -> {
+                EntityType<? extends SiegeEngine> type = switch (s.role().mount) {
+                    case TREBUCHET -> DruzhinaRegistry.TREBUCHET.get();
+                    case BALLISTA -> DruzhinaRegistry.BALLISTA.get();
+                    default -> DruzhinaRegistry.RAM.get();
+                };
+                SiegeEngine engine = type.create(level);
+                if (engine == null) {
+                    return crew;
+                }
+                Vec3 at = spot(level, type, s.position());
+                engine.moveTo(at.x, at.y, at.z, s.getYRot(), 0);
+                engine.setYBodyRot(s.getYRot());
+                engine.setOwnerUUID(s.getOwnerUUID());
+                engine.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(at)), MobSpawnType.MOB_SUMMONED, null, null);
+                level.addFreshEntity(engine);
+                s.startRiding(engine, true);
+                s.setMount(engine.getUUID());
             }
             default -> {
             }
@@ -130,7 +150,7 @@ public final class Mounts {
 
     /** A place near {@code near} where a beast of {@code type} fits. */
     public static Vec3 spot(ServerLevel level, EntityType<?> type, Vec3 near) {
-        for (int r = 0; r <= 4; r++) {
+        for (int r = 0; r <= 5; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {

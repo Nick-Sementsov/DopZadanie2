@@ -319,7 +319,7 @@ public final class Vessels {
     /** No friend in the way of the shot, nor close to where it falls (a ball scatters what it strikes). */
     private static boolean clear(Soldier s, Vec3 from, LivingEntity t) {
         Vec3 to = t.position().add(0, t.getBbHeight() / 2, 0);
-        if (!s.level().getEntitiesOfClass(LivingEntity.class, t.getBoundingBox().inflate(3), e -> e != t && s.isAlliedTo(e)).isEmpty()) {
+        if (!s.level().getEntitiesOfClass(LivingEntity.class, t.getBoundingBox().inflate(3), e -> e != t && e.isAlive() && s.isAlliedTo(e)).isEmpty()) {
             return false;
         }
         AABB box = new AABB(from, to).inflate(2);

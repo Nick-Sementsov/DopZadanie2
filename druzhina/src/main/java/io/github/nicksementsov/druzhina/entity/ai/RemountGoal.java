@@ -57,6 +57,9 @@ public class RemountGoal extends Goal {
         if (m instanceof WarElephant e) {
             return e.hasSeatFor(this.soldier);
         }
+        if (m instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine e) {
+            return e.getPassengers().isEmpty();
+        }
         return m instanceof AbstractHorse && m.getPassengers().isEmpty();
     }
 

@@ -326,7 +326,9 @@ public final class Army {
         /** Walk back and forth between where you are and there. */
         PATROL,
         /** Keep your places in the ranks (target 1) or fight freely (target 0). */
-        STANCE;
+        STANCE,
+        /** The siege engines among them: batter that place (and come within reach of it). */
+        BOMBARD;
 
         public static Command byId(int ordinal) {
             Command[] all = values();
@@ -419,16 +421,107 @@ public final class Army {
                 men.forEach(s -> s.setKeepRanks(target != 0));
                 said = target != 0 ? "keep_ranks" : "fight_freely";
             }
+            case BOMBARD -> {
+                if (at.distanceToSqr(player.position()) > FIELD * FIELD) {
+                    return;
+                }
+                int n = bombard(player, level, men, at);
+                if (n == 0) {
+                    player.displayClientMessage(Component.translatable("druzhina.command.no_engines").withStyle(ChatFormatting.GRAY), true);
+                    return;
+                }
+                said = "bombard";
+            }
         }
         player.displayClientMessage(Component.translatable("druzhina.command." + said, men.size()).withStyle(ChatFormatting.GOLD), true);
         SoundEvent sound = switch (command) {
-            case ATTACK, CHARGE -> SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(2).value();
+            case ATTACK, CHARGE, BOMBARD -> SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(2).value();
             case FOLLOW -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
             case MOVE -> aggressive ? SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(0).value() : SoundEvents.ARMOR_EQUIP_CHAIN;
             default -> SoundEvents.ARMOR_EQUIP_CHAIN;
         };
-        boolean loud = command == Command.ATTACK || command == Command.CHARGE;
+        boolean loud = command == Command.ATTACK || command == Command.CHARGE || command == Command.BOMBARD;
         player.playNotifySound(sound, SoundSource.PLAYERS, loud ? 1.2f : queue ? 0.5f : 0.8f, 1.0f);
+    }
+
+    /**
+     * The siege engines among {@code men} are set to batter the block at (or next to) {@code at}: each goes where it
+     * reaches it (a ram right up to it), side by side with the others. Returns how many engines got the order.
+     */
+    private static int bombard(ServerPlayer player, ServerLevel level, List<Soldier> men, Vec3 at) {
+        BlockPos block = BlockPos.containing(at);
+        if (level.getBlockState(block).getCollisionShape(level, block).isEmpty()) {
+            // a click on a face: the block behind it
+            BlockPos best = null;
+            double bestD = Double.MAX_VALUE;
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                BlockPos p = block.relative(d);
+                if (!level.getBlockState(p).getCollisionShape(level, p).isEmpty()) {
+                    double dist = Vec3.atCenterOf(p).distanceToSqr(at);
+                    if (dist < bestD) {
+                        bestD = dist;
+                        best = p;
+                    }
+                }
+            }
+            if (best != null) {
+                block = best;
+            }
+        }
+        List<Soldier> crews = new ArrayList<>();
+        for (Soldier s : men) {
+            if (s.operating() != null) {
+                crews.add(s);
+            }
+        }
+        Vec3 target = Vec3.atCenterOf(block);
+        // those that must move (rams, and engines out of reach) go side by side, each kind in its own row
+        List<Soldier> rams = new ArrayList<>();
+        List<Soldier> movers = new ArrayList<>();
+        for (Soldier s : crews) {
+            io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = s.operating();
+            double d = Math.sqrt(engine.distanceToSqr(target.x, engine.getY(), target.z));
+            if (engine instanceof io.github.nicksementsov.druzhina.entity.siege.Ram) {
+                rams.add(s);
+            } else if (d < engine.minRange() + 1 || d > engine.maxRange() - 2) {
+                movers.add(s);
+            }
+        }
+        for (Soldier s : crews) {
+            io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = s.operating();
+            double dx = target.x - engine.getX();
+            double dz = target.z - engine.getZ();
+            double dist = Math.max(0.01, Math.sqrt(dx * dx + dz * dz));
+            double fx = dx / dist;
+            double fz = dz / dist;
+            boolean ram = rams.contains(s);
+            double want = ram ? engine.getBbWidth() / 2 + 1.2 : Mth.clamp(dist, engine.minRange() + 3, engine.maxRange() - 6);
+            List<Soldier> row = ram ? rams : movers;
+            double side = (row.indexOf(s) - (row.size() - 1) / 2.0) * (engine.getBbWidth() + (ram ? 0.6 : 1.2));
+            Vec3 post;
+            if (!ram && !movers.contains(s)) {
+                // in reach already: it stays and turns to it
+                post = engine.position();
+            } else {
+                double x = target.x - fx * want - fz * side;
+                double z = target.z - fz * want + fx * side;
+                int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
+                if (ram || Math.abs(y - engine.getY()) > 6) {
+                    // under a wall, or in a castle yard: on the level of the engine, not on top of the wall
+                    y = Math.min(y, Mth.floor(engine.getY()) + 1);
+                }
+                post = new Vec3(x, y, z);
+            }
+            float yaw = (float) (Mth.atan2(-fx, fz) * Mth.RAD_TO_DEG);
+            s.order(Orders.HOLD, post, yaw);
+            engine.setSiegePoint(block);
+        }
+        if (!crews.isEmpty()) {
+            List<Vec3> points = new ArrayList<>();
+            points.add(target);
+            March.echoNone(player, crews, points);
+        }
+        return crews.size();
     }
 
     /** The march all of {@code men} are on, or null when they are not all on one. */

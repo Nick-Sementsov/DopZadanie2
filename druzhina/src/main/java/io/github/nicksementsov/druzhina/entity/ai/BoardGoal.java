@@ -58,7 +58,7 @@ public class BoardGoal extends Goal {
         if (free > 0) {
             // as many go down to it as there are seats
             int going = this.soldier.level().getEntitiesOfClass(Soldier.class, v.getBoundingBox().inflate(REACH + 8),
-                    o -> o != this.soldier && o.boardingTo() == v).size();
+                    o -> o != this.soldier && o.isAlive() && o.boardingTo() == v).size();
             if (going >= free) {
                 return false;
             }
@@ -71,7 +71,7 @@ public class BoardGoal extends Goal {
     @Nullable
     private Entity wanted() {
         Soldier s = this.soldier;
-        if (s.isBandit() || s.getOwnerUUID() == null || s.routed() || s.isCrew() || s.steed() instanceof WarElephant) {
+        if (s.isBandit() || s.getOwnerUUID() == null || s.routed() || s.isCrew() || s.steed() instanceof WarElephant || s.operating() != null) {
             return null;
         }
         Entity ordered = s.shipOrdered();

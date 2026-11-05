@@ -46,7 +46,7 @@ public class CommandScreen extends Screen {
     private static final long DOUBLE = 350;
 
     /** What the next right click on the ground does, when it is not a plain march. */
-    private enum Mode { MARCH, FIGHT, PATROL }
+    private enum Mode { MARCH, FIGHT, PATROL, BOMBARD }
 
     private Mode mode = Mode.MARCH;
     private int scoutTimer;
@@ -145,10 +145,11 @@ public class CommandScreen extends Screen {
             this.rightY = my;
             this.rightDown = true;
             this.rightDragged = false;
-            this.rightFoe = pick != null && pick.entity() != null && this.foe(pick.entity()) ? pick.entity() : null;
-            this.rightShip = pick != null && this.rightFoe == null ? pick.vessel() : null;
+            boolean bombard = this.mode == Mode.BOMBARD;
+            this.rightFoe = !bombard && pick != null && pick.entity() != null && this.foe(pick.entity()) ? pick.entity() : null;
+            this.rightShip = !bombard && pick != null && this.rightFoe == null ? pick.vessel() : null;
             this.rightFrom = pick == null ? null : pick.point();
-            if (this.rightFrom != null && this.rightFoe == null && this.rightShip == null && !this.patrolling()) {
+            if (this.rightFrom != null && this.rightFoe == null && this.rightShip == null && !this.patrolling() && !bombard) {
                 // where they would stand if he let go now
                 List<Soldier> men = CommandView.selected();
                 if (!men.isEmpty()) {
@@ -172,7 +173,7 @@ public class CommandScreen extends Screen {
         } else if (button == 2) {
             CommandView.turn(dx * 0.4, dy * 0.4);
         } else if (button == 1 && this.rightDown && this.rightFrom != null && this.rightFoe == null && this.rightShip == null
-                && !this.patrolling() && (Math.abs(mx - this.rightX) > DRAG || Math.abs(my - this.rightY) > DRAG)) {
+                && !this.patrolling() && this.mode != Mode.BOMBARD && (Math.abs(mx - this.rightX) > DRAG || Math.abs(my - this.rightY) > DRAG)) {
             this.rightDragged = true;
             CommandView.Pick pick = CommandView.pick(mx, my);
             if (pick != null && pick.point() != null) {
@@ -322,6 +323,9 @@ public class CommandScreen extends Screen {
         orders.add(this.button("fight", () -> this.mode = this.mode == Mode.FIGHT ? Mode.MARCH : Mode.FIGHT, this.mode == Mode.FIGHT));
         orders.add(this.button("patrol", () -> this.mode = this.mode == Mode.PATROL ? Mode.MARCH : Mode.PATROL, this.mode == Mode.PATROL));
         orders.add(this.button("ranks", this::toggleRanks, any && keeping == picked.size()));
+        if (picked.stream().anyMatch(s -> s.operating() != null)) {
+            orders.add(this.button("bombard", () -> this.mode = this.mode == Mode.BOMBARD ? Mode.MARCH : Mode.BOMBARD, this.mode == Mode.BOMBARD));
+        }
         List<Button> forms = new ArrayList<>();
         for (Formation f : Formation.values()) {
             forms.add(this.formationButton(f));
@@ -557,7 +561,11 @@ public class CommandScreen extends Screen {
         if (this.rightFrom == null) {
             return;
         }
-        if (this.patrolling()) {
+        if (this.mode == Mode.BOMBARD) {
+            // the engines batter that place; the others keep their orders
+            send(new CommandPacket(ids, Army.Command.BOMBARD.ordinal(), this.rightFrom, 0, 0, 0, -1, 0));
+            CommandView.showOrder(List.of(this.rightFrom));
+        } else if (this.patrolling()) {
             send(new CommandPacket(ids, Army.Command.PATROL.ordinal(), this.rightFrom, 0, 0, 0, -1, flags & Army.QUEUE));
             CommandView.showOrder(List.of(this.rightFrom));
         } else {
@@ -631,6 +639,7 @@ public class CommandScreen extends Screen {
             case InputConstants.KEY_B -> this.toggleRanks();
             case InputConstants.KEY_R -> this.mode = this.mode == Mode.FIGHT ? Mode.MARCH : Mode.FIGHT;
             case InputConstants.KEY_P -> this.mode = this.mode == Mode.PATROL ? Mode.MARCH : Mode.PATROL;
+            case InputConstants.KEY_G -> this.mode = this.mode == Mode.BOMBARD ? Mode.MARCH : Mode.BOMBARD;
             case InputConstants.KEY_Z -> CommandView.formation = hasShiftDown() ? Formation.byId((CommandView.formation.ordinal() + Formation.values().length - 1)
                     % Formation.values().length) : CommandView.formation.next();
             case InputConstants.KEY_TAB -> {
@@ -797,7 +806,7 @@ public class CommandScreen extends Screen {
             boolean all = c.picked() == c.men().size();
             g.fill(c.x(), c.y(), c.x() + CARD_W, c.y() + CARD_H, all ? 0xC0405828 : some ? 0xC0353020 : 0xC0242018);
             g.renderOutline(c.x(), c.y(), CARD_W, CARD_H, all ? 0xFF7CE07C : some ? 0xFFE8C766 : 0x60A09080);
-            ItemStack icon = c.men().get(0).getMainHandItem();
+            ItemStack icon = c.role().engineer() ? c.role().icon() : c.men().get(0).getMainHandItem();
             g.renderItem(icon.isEmpty() ? new ItemStack(Items.IRON_SWORD) : icon, c.x() + 5, c.y() + 2);
             String count = some ? c.picked() + "/" + c.men().size() : String.valueOf(c.men().size());
             g.drawCenteredString(this.font, count, c.x() + CARD_W / 2, c.y() + 20, some ? 0xFFFFFFFF : 0xFFB0A898);
@@ -848,7 +857,10 @@ public class CommandScreen extends Screen {
         }
         Component hint = null;
         int color = 0xFFFFFFFF;
-        if (CommandView.hovered != null && this.foe(CommandView.hovered)) {
+        if (this.mode == Mode.BOMBARD) {
+            hint = Component.translatable("druzhina.view.cursor.bombard");
+            color = 0xFFFF9040;
+        } else if (CommandView.hovered != null && this.foe(CommandView.hovered)) {
             hint = Component.translatable("druzhina.view.cursor.attack");
             color = 0xFFFF7070;
         } else if (CommandView.hoveredVessel != null) {
@@ -873,7 +885,7 @@ public class CommandScreen extends Screen {
     private void helpBox(GuiGraphics g) {
         List<FormattedCharSequence> lines = new ArrayList<>();
         int wrap = Math.min(560, this.width - 40);
-        for (int i = 1; i <= 12; i++) {
+        for (int i = 1; i <= 13; i++) {
             String key = "druzhina.view.help." + i;
             lines.addAll(this.font.split(Component.translatable(key), wrap));
         }

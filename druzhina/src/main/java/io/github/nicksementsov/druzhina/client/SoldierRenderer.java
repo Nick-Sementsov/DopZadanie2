@@ -34,7 +34,7 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
     }
 
     public SoldierRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx, new PlayerModel<>(ctx.bakeLayer(ModelLayers.PLAYER), false), 0.5f);
+        super(ctx, new Model(ctx.bakeLayer(ModelLayers.PLAYER)), 0.5f);
         this.addLayer(new HumanoidArmorLayer<>(this, new HumanoidArmorModel<>(ctx.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),
                 new HumanoidArmorModel<>(ctx.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)), ctx.getModelManager()));
         this.addLayer(new WeaponLayer<>(this));
@@ -73,6 +73,43 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
     public ResourceLocation getTextureLocation(Soldier soldier) {
         ResourceLocation[] skins = soldier.isBandit() ? BANDITS : SOLDIERS;
         return skins[Math.floorMod(soldier.skin(), skins.length)];
+    }
+
+    /** The player model, whose limbs go slack when he falls. */
+    static class Model extends PlayerModel<Soldier> {
+        Model(net.minecraft.client.model.geom.ModelPart root) {
+            super(root, false);
+        }
+
+        @Override
+        public void setupAnim(Soldier s, float limbSwing, float limbAmount, float age, float headYaw, float headPitch) {
+            super.setupAnim(s, limbSwing, limbAmount, age, headYaw, headPitch);
+            float since = DeathPoses.since(s, net.minecraft.client.Minecraft.getInstance().getFrameTime());
+            if (since < 0) {
+                return;
+            }
+            float k = net.minecraft.util.Mth.clamp(since / DeathPoses.FALL, 0, 1);
+            boolean back = DeathPoses.fall(s) == DeathPoses.Fall.BACK;
+            // the arms fly up as he goes over, and fall spread on the ground; the legs give way
+            float flail = net.minecraft.util.Mth.sin(k * net.minecraft.util.Mth.PI);
+            this.rightArm.xRot = net.minecraft.util.Mth.lerp(k, this.rightArm.xRot, back ? -2.6f : -0.4f) - flail * 0.8f;
+            this.leftArm.xRot = net.minecraft.util.Mth.lerp(k, this.leftArm.xRot, back ? -2.3f : -0.2f) - flail * 0.6f;
+            this.rightArm.zRot = net.minecraft.util.Mth.lerp(k, this.rightArm.zRot, 0.55f);
+            this.leftArm.zRot = net.minecraft.util.Mth.lerp(k, this.leftArm.zRot, -0.7f);
+            this.rightArm.yRot = net.minecraft.util.Mth.lerp(k, this.rightArm.yRot, 0);
+            this.leftArm.yRot = net.minecraft.util.Mth.lerp(k, this.leftArm.yRot, 0);
+            this.rightLeg.xRot = net.minecraft.util.Mth.lerp(k, this.rightLeg.xRot, back ? -0.25f : 0.15f);
+            this.leftLeg.xRot = net.minecraft.util.Mth.lerp(k, this.leftLeg.xRot, back ? 0.1f : -0.1f);
+            this.rightLeg.zRot = net.minecraft.util.Mth.lerp(k, this.rightLeg.zRot, 0.18f);
+            this.leftLeg.zRot = net.minecraft.util.Mth.lerp(k, this.leftLeg.zRot, -0.12f);
+            this.head.xRot = net.minecraft.util.Mth.lerp(k, this.head.xRot, back ? -0.35f : 0.25f);
+            this.head.yRot = net.minecraft.util.Mth.lerp(k, this.head.yRot, (s.getId() % 3 - 1) * 0.6f);
+            this.hat.copyFrom(this.head);
+            this.leftSleeve.copyFrom(this.leftArm);
+            this.rightSleeve.copyFrom(this.rightArm);
+            this.leftPants.copyFrom(this.leftLeg);
+            this.rightPants.copyFrom(this.rightLeg);
+        }
     }
 
     @Override

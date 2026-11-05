@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["HHH", "ILI", "P P"],
+  "key": {
+    "H": { "item": "minecraft:leather" },
+    "I": { "item": "minecraft:iron_block" },
+    "L": { "tag": "minecraft:logs" },
+    "P": { "tag": "minecraft:planks" }
+  },
+  "result": { "item": "druzhina:battering_ram" }
+}

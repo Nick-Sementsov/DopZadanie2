@@ -225,11 +225,16 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
     /** Whom this soldier attacks on sight. */
     public boolean isFoe(LivingEntity e) {
-        if (!this.withinReach(e) || this.routed()) {
+        if (!e.isAlive() || !this.withinReach(e) || this.routed()) {
             return false;
         } else if (e instanceof Soldier other) {
             return this.isBandit() != other.isBandit()
                     || !this.isBandit() && Relations.between(this.getOwnerUUID(), other.getOwnerUUID()) == Relations.Stance.ENEMY;
+        } else if (e instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine) {
+            // an enemy's engine: they go for the man who works it first, then for the engine left alone
+            Soldier crew = engine.crew();
+            return crew != null ? false : !this.isBandit() && engine.getOwnerUUID() != null
+                    && Relations.between(this.getOwnerUUID(), engine.getOwnerUUID()) == Relations.Stance.ENEMY;
         } else if (this.isBandit()) {
             return false;
         } else if (!(e instanceof Player) && Relations.hostile(this.getOwnerUUID(), e)) {
@@ -251,8 +256,9 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         if (this.hunt != null && this.hunt.equals(e.getUUID())) {
             return true;
         }
-        // archers shoot far, riders ride far
-        double leash = this.shooter() ? 26 : this.isPassenger() ? 24 : 16;
+        // archers shoot far, riders ride far, engines reach farther still
+        io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = this.operating();
+        double leash = engine != null ? engine.maxRange() + 2 : this.shooter() ? 26 : this.isPassenger() ? 24 : 16;
         return switch (this.orders()) {
             case CHARGE -> true;
             case PATROL -> {
@@ -274,7 +280,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
                     yield true;
                 }
                 // keeping the ranks, a man with a blade fights only at his place
-                double reach = this.keepRanks() && !this.shooter() ? 3.5 : leash;
+                double reach = this.keepRanks() && !this.shooter() && engine == null ? 3.5 : leash;
                 yield e.distanceToSqr(this.post) < reach * reach;
             }
             case FOLLOW -> {
@@ -398,6 +404,12 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             }
         }
         return false;
+    }
+
+    /** The siege engine he works, or null. */
+    @Nullable
+    public io.github.nicksementsov.druzhina.entity.siege.SiegeEngine operating() {
+        return this.getVehicle() instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine e && e.crew() == this ? e : null;
     }
 
     /** The one he drives: his horse or elephant when he sits on it in front, or null. */
@@ -560,6 +572,11 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     }
 
     public void order(Orders orders, @Nullable Vec3 post, float yaw) {
+        io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = this.operating();
+        if (engine != null) {
+            // a new order: the engine leaves off battering the place it was set to
+            engine.setSiegePoint(null);
+        }
         this.entityData.set(ORDERS, orders.ordinal());
         this.post = post;
         this.postYaw = yaw;
@@ -818,6 +835,19 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     @Override
     public boolean removeWhenFarAway(double distance) {
         return this.isBandit() && !this.hasCustomRank() && distance > 96 * 96;
+    }
+
+    /** Fallen, he is drawn from as far as when he stood (his box is low then). */
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        double size = 64 * getViewScale();
+        return this.isDeadOrDying() ? distance < size * size : super.shouldRenderAtSqrDistance(distance);
+    }
+
+    /** Fallen, he lies at full length: drawn while any of him is in sight (his box is small then). */
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        return this.isDeadOrDying() ? new net.minecraft.world.phys.AABB(this.blockPosition()).inflate(1.5, 0.5, 1.5) : super.getBoundingBoxForCulling();
     }
 
     private boolean hasCustomRank() {

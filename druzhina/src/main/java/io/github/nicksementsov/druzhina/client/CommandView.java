@@ -187,7 +187,7 @@ public final class CommandView {
             return out;
         }
         for (Entity e : mc.level.entitiesForRendering()) {
-            if (mine(e) && e instanceof Soldier s && e.distanceToSqr(mc.player) < Army.FIELD * Army.FIELD) {
+            if (mine(e) && e instanceof Soldier s && s.isAlive() && e.distanceToSqr(mc.player) < Army.FIELD * Army.FIELD) {
                 out.add(s);
             }
         }
@@ -537,7 +537,18 @@ public final class CommandView {
         List<Soldier> picked = selected();
         for (Soldier s : picked) {
             Vec3 at = s.getPosition(partial);
-            double r = s.steed() != null ? 1.0 : 0.55;
+            double r = s.steed() != null ? Math.max(1.0, s.steed().getBbWidth() * 0.7) : 0.55;
+            if (s.operating() != null) {
+                // the engine he works is what is ringed, and the place it batters
+                at = s.operating().getPosition(partial);
+                net.minecraft.core.BlockPos point = s.operating().siegePoint();
+                if (point != null) {
+                    Vec3 p = Vec3.atBottomCenterOf(point);
+                    cross(pose, lines, p.x, p.y + 1.02, p.z, 0.6, 1.0f, 0.5f, 0.15f, 1.0f);
+                    ring(pose, lines, p.x, p.y + 1.02, p.z, 0.9, 1.0f, 0.5f, 0.15f, 1.0f);
+                    line(pose, lines, at.add(0, 0.2, 0), p.add(0, 1.1, 0), 1.0f, 0.5f, 0.15f, 0.5f);
+                }
+            }
             ring(pose, lines, at.x, at.y + 0.05, at.z, r, 0.35f, 1.0f, 0.35f, 1.0f);
             Vec3 dest = DESTS.get(s.getId());
             if (dest != null) {

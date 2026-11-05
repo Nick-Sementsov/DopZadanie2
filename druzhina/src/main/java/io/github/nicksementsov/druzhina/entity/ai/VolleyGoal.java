@@ -35,7 +35,7 @@ public class VolleyGoal extends Goal {
     public boolean canUse() {
         LivingEntity t = this.soldier.getTarget();
         return t != null && t.isAlive() && this.launcher() && !(this.soldier.steed() instanceof WarElephant)
-                && this.soldier.canAttack(t) && this.soldier.withinReach(t) && !this.soldier.routed();
+                && this.soldier.operating() == null && this.soldier.canAttack(t) && this.soldier.withinReach(t) && !this.soldier.routed();
     }
 
     @Override
@@ -153,7 +153,7 @@ public class VolleyGoal extends Goal {
         var from = this.soldier.getEyePosition();
         var to = t.getEyePosition();
         var box = this.soldier.getBoundingBox().expandTowards(to.subtract(from)).inflate(1);
-        for (LivingEntity e : this.soldier.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this.soldier && e != t && this.soldier.isAlliedTo(e)
+        for (LivingEntity e : this.soldier.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != this.soldier && e != t && e.isAlive() && this.soldier.isAlliedTo(e)
                 && e != this.soldier.getVehicle() && !this.soldier.isPassengerOfSameVehicle(e))) {
             if (e.getBoundingBox().inflate(0.3).clip(from, to).isPresent() && e.distanceToSqr(this.soldier) < t.distanceToSqr(this.soldier)) {
                 return false;

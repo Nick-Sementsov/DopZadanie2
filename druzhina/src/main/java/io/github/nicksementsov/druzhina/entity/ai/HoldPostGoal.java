@@ -134,7 +134,7 @@ public class HoldPostGoal extends Goal {
         this.soldier.yBodyRot = yaw;
         this.soldier.setXRot(0);
         Mob steed = this.soldier.steed();
-        if (steed != null) {
+        if (steed != null && !(steed instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine e && e.aiming())) {
             float turn = Mth.approachDegrees(steed.getYRot(), to, 6);
             steed.setYRot(turn);
             steed.yBodyRot = turn;

@@ -313,10 +313,11 @@ public class MusterScreen extends Screen {
             int ry = y + LIST_Y + i * ROW;
             g.fill(x + 4, ry, x + w - 4, ry + ROW - 2, i % 2 == 0 ? 0x30FFFFFF : 0x18FFFFFF);
             g.renderItem(role.icon(), x + 10, ry + 8);
-            Component name = Component.translatable(role.crew() > 1 ? "druzhina.unit." + role.id() : "druzhina.role." + role.id())
+            Component name = Component.translatable(role.unit() ? "druzhina.unit." + role.id() : "druzhina.role." + role.id())
                     .withStyle(ChatFormatting.BOLD);
             g.drawString(this.font, name, x + 32, ry + 3, GOLD);
-            Component stats = role.crew() > 1 ? Component.translatable("druzhina.gui.crew", role.crew())
+            Component stats = role.engineer() ? Component.translatable("druzhina.gui.engine." + role.id())
+                    : role.crew() > 1 ? Component.translatable("druzhina.gui.crew", role.crew())
                     : Component.translatable("druzhina.gui.stats", Math.round(role.health), Math.round(role.skill * 100));
             g.drawString(this.font, stats, x + 32 + this.font.width(name) + 8, ry + 3, 0xFFB0A898);
             List<FormattedCharSequence> lines = this.font.split(Component.translatable("druzhina.role." + role.id() + ".desc"), textWidth);

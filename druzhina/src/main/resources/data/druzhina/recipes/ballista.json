@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["SXS", "IPI", "L L"],
+  "key": {
+    "S": { "item": "minecraft:string" },
+    "X": { "item": "minecraft:crossbow" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "P": { "tag": "minecraft:planks" },
+    "L": { "tag": "minecraft:logs" }
+  },
+  "result": { "item": "druzhina:ballista" }
+}

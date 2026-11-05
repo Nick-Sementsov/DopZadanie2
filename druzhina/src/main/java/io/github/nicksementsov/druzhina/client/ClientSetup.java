@@ -24,11 +24,19 @@ public final class ClientSetup {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(DruzhinaRegistry.SOLDIER.get(), SoldierRenderer::new);
         event.registerEntityRenderer(DruzhinaRegistry.WAR_ELEPHANT.get(), ElephantRenderer::new);
+        event.registerEntityRenderer(DruzhinaRegistry.TREBUCHET.get(), io.github.nicksementsov.druzhina.client.siege.SiegeRenderer::trebuchet);
+        event.registerEntityRenderer(DruzhinaRegistry.BALLISTA.get(), io.github.nicksementsov.druzhina.client.siege.SiegeRenderer::ballista);
+        event.registerEntityRenderer(DruzhinaRegistry.RAM.get(), io.github.nicksementsov.druzhina.client.siege.SiegeRenderer::ram);
+        event.registerEntityRenderer(DruzhinaRegistry.SIEGE_STONE.get(), io.github.nicksementsov.druzhina.client.siege.SiegeStoneRenderer::new);
+        event.registerEntityRenderer(DruzhinaRegistry.BALLISTA_BOLT.get(), io.github.nicksementsov.druzhina.client.siege.BoltRenderer::new);
     }
 
     @SubscribeEvent
     public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(ElephantModel.LAYER, ElephantModel::createBodyLayer);
+        event.registerLayerDefinition(io.github.nicksementsov.druzhina.client.siege.TrebuchetModel.LAYER, io.github.nicksementsov.druzhina.client.siege.TrebuchetModel::createBodyLayer);
+        event.registerLayerDefinition(io.github.nicksementsov.druzhina.client.siege.BallistaModel.LAYER, io.github.nicksementsov.druzhina.client.siege.BallistaModel::createBodyLayer);
+        event.registerLayerDefinition(io.github.nicksementsov.druzhina.client.siege.RamModel.LAYER, io.github.nicksementsov.druzhina.client.siege.RamModel::createBodyLayer);
     }
 
     @SubscribeEvent

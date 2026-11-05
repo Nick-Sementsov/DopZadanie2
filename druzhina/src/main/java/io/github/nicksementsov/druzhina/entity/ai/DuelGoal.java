@@ -70,14 +70,14 @@ public class DuelGoal extends Goal {
     public boolean canUse() {
         LivingEntity t = this.soldier.getTarget();
         return t != null && t.isAlive() && this.weapon() != null && this.soldier.canAttack(t) && this.soldier.withinReach(t)
-                && !this.soldier.routed() && this.canFightFromWhereHeIs();
+                && !this.soldier.routed() && this.soldier.operating() == null && this.canFightFromWhereHeIs();
     }
 
     @Override
     public boolean canContinueToUse() {
         LivingEntity t = this.soldier.getTarget();
         if (t == null || !t.isAlive() || this.weapon() == null || !this.soldier.canAttack(t) || this.soldier.routed()
-                || !this.canFightFromWhereHeIs()) {
+                || this.soldier.operating() != null || !this.canFightFromWhereHeIs()) {
             return false;
         }
         if (!this.soldier.withinReach(t)) {

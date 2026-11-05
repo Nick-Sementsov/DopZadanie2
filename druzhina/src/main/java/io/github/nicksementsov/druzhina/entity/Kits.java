@@ -131,6 +131,15 @@ public final class Kits {
     private static final String[] BYZANTINE_SHIELDS = {EK + "iron_kiteshield", EK + "steel_kiteshield", EK + "iron_ellipticalshield",
         EK + "steel_ellipticalshield"};
 
+    /** The men of the siege engines: a padded coat and a cap, a short blade for when the engine is lost. */
+    private static final Kit ENGINEER_KIT = new Kit(
+        new String[]{EK + "iron_shortsword", EK + "messer_sword", EK + "iron_stiletto", "minecraft:iron_axe"},
+        NONE,
+        new String[]{EK + "coif", EK + "kettlehat", RUS + "shapka"},
+        new String[]{EK + "gambeson_chestplate", RUS + "kaftan"},
+        NONE,
+        new String[]{EK + "gambeson_boots"});
+
     private static final Kit SARACEN_KIT = new Kit(
         new String[]{ADDON + "steel_scimitar", ADDON + "steel_sabre", DARK + "steel_magyar_sabre"},
         EAST_ROUND,
@@ -376,6 +385,7 @@ public final class Kits {
                 put(s, prefer(rnd, Kits::armour, STEPPE_BODIES, FALLBACK_BODIES));
                 put(s, prefer(rnd, Kits::armour, STEPPE_FEET, FALLBACK_FEET));
             }
+            case TREBUCHET, BALLISTA, RAM -> wear(s, rnd, ENGINEER_KIT, Kits::oneHanded);
             case MILITIA -> {
                 hand(s, pick(rnd, LEVY_ARMS, Kits::melee), rnd.nextInt(3) == 0 ? pick(rnd, SHIELDS[LEVY], Kits::shield) : ItemStack.EMPTY);
                 if (rnd.nextBoolean()) {
@@ -415,6 +425,13 @@ public final class Kits {
         if (role == Role.MAHOUT) {
             return new ItemStack(io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.WAR_ELEPHANT_EGG.get());
         }
+        if (role.engineer()) {
+            return new ItemStack(switch (role) {
+                case TREBUCHET -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.TREBUCHET_ICON.get();
+                case BALLISTA -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.BALLISTA_ICON.get();
+                default -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.RAM_ICON.get();
+            });
+        }
         String[] ids = switch (role) {
             case SWORDSMAN -> SWORDS[REGULAR];
             case SPEARMAN -> SPEARS[REGULAR];
@@ -443,6 +460,7 @@ public final class Kits {
             case MILITIA -> LEVY_ARMS;
             case BANDIT -> BANDIT_ARMS;
             case CHIEFTAIN -> CHIEFTAIN_ARMS;
+            case TREBUCHET, BALLISTA, RAM -> ENGINEER_KIT.arms();
         };
         for (String id : ids) {
             Item item = item(id);

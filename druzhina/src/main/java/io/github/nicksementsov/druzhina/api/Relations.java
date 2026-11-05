@@ -61,6 +61,11 @@ public final class Relations {
         if (e instanceof Player p) {
             return p.getUUID();
         }
+        if (e instanceof net.minecraft.world.entity.OwnableEntity o && (e instanceof io.github.nicksementsov.druzhina.entity.WarElephant
+                || e instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine)) {
+            // a war beast or an engine fights for its owner
+            return o.getOwnerUUID();
+        }
         Function<Entity, UUID> f = sideOf;
         return f == null ? null : f.apply(e);
     }

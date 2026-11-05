@@ -470,6 +470,19 @@ public class WarElephant extends PathfinderMob implements OwnableEntity, PlayerR
         return super.hurt(source, amount);
     }
 
+    /** Fallen, it is drawn from as far as when it stood (its box is low then). */
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        double size = 2.4 * 64 * getViewScale();
+        return this.isDeadOrDying() ? distance < size * size : super.shouldRenderAtSqrDistance(distance);
+    }
+
+    /** Fallen, it lies on its side: drawn while any of it is in sight (its box is small then). */
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        return this.isDeadOrDying() ? new net.minecraft.world.phys.AABB(this.blockPosition()).inflate(4, 2, 4) : super.getBoundingBoxForCulling();
+    }
+
     @Override
     public boolean removeWhenFarAway(double distance) {
         return false;

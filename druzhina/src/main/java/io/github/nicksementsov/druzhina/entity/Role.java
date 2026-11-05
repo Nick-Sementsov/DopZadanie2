@@ -39,6 +39,10 @@ public enum Role {
     MAMLUK(65, 28, 0.65f, false, false, Kits.PICKED, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
     HORSE_ARCHER(55, 22, 0.5f, true, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
     MAHOUT(160, 24, 0.5f, false, false, Kits.REGULAR, Branch.ELEPHANTS, Mount.ELEPHANT, Culture.EAST),
+    /** Siege engines: hired with the man who works them (and who fights with a short blade when it is lost). */
+    TREBUCHET(200, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.TREBUCHET, Culture.ANY),
+    BALLISTA(90, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.BALLISTA, Culture.ANY),
+    RAM(120, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.RAM, Culture.ANY),
     MILITIA(8, 20, 0.3f, false, false, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
     BANDIT(0, 18, 0.25f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
     BANDIT_ARCHER(0, 16, 0.25f, true, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
@@ -51,7 +55,9 @@ public enum Role {
         /** The East: the Rus, Byzantium, the Saracens and the steppe: scale and lamellar, round shields, sabres. */
         EAST,
         /** Militia and bandits: whoever they are. */
-        NONE;
+        NONE,
+        /** Hired on either side (siege engines: everyone builds them alike). */
+        ANY;
 
         public String id() {
             return this.name().toLowerCase(Locale.ROOT);
@@ -70,6 +76,7 @@ public enum Role {
         RANGED,
         CAVALRY,
         ELEPHANTS,
+        SIEGE,
         /** Not hired at a muster table. */
         NONE;
 
@@ -79,7 +86,7 @@ public enum Role {
 
         /** The tabs, in order. */
         public static Branch[] tabs() {
-            return new Branch[]{INFANTRY, KNIGHTS, RANGED, CAVALRY, ELEPHANTS};
+            return new Branch[]{INFANTRY, KNIGHTS, RANGED, CAVALRY, ELEPHANTS, SIEGE};
         }
 
         /** The tabs that have men of {@code culture} to hire. */
@@ -99,7 +106,16 @@ public enum Role {
         NONE,
         HORSE,
         /** A war elephant: he drives it, and an archer shoots from the howdah on its back. */
-        ELEPHANT
+        ELEPHANT,
+        /** Siege engines: he moves it and works it, standing at it. */
+        TREBUCHET,
+        BALLISTA,
+        RAM;
+
+        /** A siege engine rather than a beast. */
+        public boolean engine() {
+            return this == TREBUCHET || this == BALLISTA || this == RAM;
+        }
     }
 
     /** Price of hiring one (with his horse or his elephant and its archer), in gold ingots. */
@@ -185,7 +201,7 @@ public enum Role {
     public static Role[] forHire(Culture culture, Branch branch) {
         List<Role> out = new ArrayList<>();
         for (Role r : values()) {
-            if (r.branch == branch && r.culture == culture) {
+            if (r.branch == branch && (r.culture == culture || r.culture == Culture.ANY)) {
                 out.add(r);
             }
         }
@@ -197,8 +213,19 @@ public enum Role {
         return !this.bandit;
     }
 
+    /** On a horse or an elephant (not at a siege engine). */
     public boolean mounted() {
-        return this.mount != Mount.NONE;
+        return this.mount != Mount.NONE && !this.mount.engine();
+    }
+
+    /** He works a siege engine. */
+    public boolean engineer() {
+        return this.mount.engine();
+    }
+
+    /** Hired as a whole (an elephant with its crew, an engine with its man): the muster table names the whole. */
+    public boolean unit() {
+        return this.crew() > 1 || this.engineer();
     }
 
     /** How many men come with one hire: an elephant brings its driver and the archer in its howdah. */

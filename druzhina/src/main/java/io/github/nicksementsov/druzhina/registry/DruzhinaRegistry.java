@@ -4,6 +4,12 @@ import io.github.nicksementsov.druzhina.Druzhina;
 import io.github.nicksementsov.druzhina.block.MusterTableBlock;
 import io.github.nicksementsov.druzhina.entity.Soldier;
 import io.github.nicksementsov.druzhina.entity.WarElephant;
+import io.github.nicksementsov.druzhina.entity.siege.Ballista;
+import io.github.nicksementsov.druzhina.entity.siege.BallistaBolt;
+import io.github.nicksementsov.druzhina.entity.siege.Ram;
+import io.github.nicksementsov.druzhina.entity.siege.SiegeStone;
+import io.github.nicksementsov.druzhina.entity.siege.Trebuchet;
+import io.github.nicksementsov.druzhina.item.EngineItem;
 import io.github.nicksementsov.druzhina.menu.SoldierMenu;
 import io.github.nicksementsov.druzhina.item.BatonItem;
 import net.minecraft.core.registries.Registries;
@@ -45,6 +51,34 @@ public final class DruzhinaRegistry {
             .clientTrackingRange(10)
             .build(Druzhina.id("war_elephant").toString()));
 
+    public static final RegistryObject<EntityType<Trebuchet>> TREBUCHET = ENTITIES.register("trebuchet", () -> EntityType.Builder.<Trebuchet>of(Trebuchet::new, MobCategory.MISC)
+            .sized(2.4f, 3.4f)
+            .clientTrackingRange(10)
+            .build(Druzhina.id("trebuchet").toString()));
+
+    public static final RegistryObject<EntityType<Ballista>> BALLISTA = ENTITIES.register("ballista", () -> EntityType.Builder.<Ballista>of(Ballista::new, MobCategory.MISC)
+            .sized(1.5f, 1.5f)
+            .clientTrackingRange(10)
+            .build(Druzhina.id("ballista").toString()));
+
+    public static final RegistryObject<EntityType<Ram>> RAM = ENTITIES.register("battering_ram", () -> EntityType.Builder.<Ram>of(Ram::new, MobCategory.MISC)
+            .sized(1.9f, 2.2f)
+            .fireImmune()
+            .clientTrackingRange(10)
+            .build(Druzhina.id("battering_ram").toString()));
+
+    public static final RegistryObject<EntityType<SiegeStone>> SIEGE_STONE = ENTITIES.register("siege_stone", () -> EntityType.Builder.<SiegeStone>of(SiegeStone::new, MobCategory.MISC)
+            .sized(0.7f, 0.7f)
+            .clientTrackingRange(12)
+            .updateInterval(10)
+            .build(Druzhina.id("siege_stone").toString()));
+
+    public static final RegistryObject<EntityType<BallistaBolt>> BALLISTA_BOLT = ENTITIES.register("ballista_bolt", () -> EntityType.Builder.<BallistaBolt>of(BallistaBolt::new, MobCategory.MISC)
+            .sized(0.5f, 0.5f)
+            .clientTrackingRange(8)
+            .updateInterval(20)
+            .build(Druzhina.id("ballista_bolt").toString()));
+
     /** A soldier's things: what he wears and carries, and his horse's armour. */
     public static final RegistryObject<MenuType<SoldierMenu>> SOLDIER_MENU = MENUS.register("soldier", () -> IForgeMenuType.create(SoldierMenu::new));
 
@@ -60,6 +94,11 @@ public final class DruzhinaRegistry {
     public static final RegistryObject<Item> WAR_ELEPHANT_EGG = ITEMS.register("war_elephant_spawn_egg",
             () -> new ForgeSpawnEggItem(WAR_ELEPHANT, 0x7A7470, 0x98161E, new Item.Properties()));
 
+    /** Siege engines built by hand (a crafting table): set down, they wait for one of the owner's men to work them. */
+    public static final RegistryObject<Item> TREBUCHET_ICON = ITEMS.register("trebuchet", () -> new EngineItem(TREBUCHET, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> BALLISTA_ICON = ITEMS.register("ballista", () -> new EngineItem(BALLISTA, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> RAM_ICON = ITEMS.register("battering_ram", () -> new EngineItem(RAM, new Item.Properties().stacksTo(1)));
+
     public static final RegistryObject<CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.druzhina"))
             .icon(() -> new ItemStack(BATON.get()))
@@ -67,6 +106,9 @@ public final class DruzhinaRegistry {
                 out.accept(MUSTER_TABLE_ITEM.get());
                 out.accept(BATON.get());
                 out.accept(WAR_ELEPHANT_EGG.get());
+                out.accept(TREBUCHET_ICON.get());
+                out.accept(BALLISTA_ICON.get());
+                out.accept(RAM_ICON.get());
             })
             .build());
 
@@ -84,6 +126,9 @@ public final class DruzhinaRegistry {
         modBus.addListener((EntityAttributeCreationEvent event) -> {
             event.put(SOLDIER.get(), Soldier.createAttributes().build());
             event.put(WAR_ELEPHANT.get(), WarElephant.createAttributes().build());
+            event.put(TREBUCHET.get(), Trebuchet.createAttributes().build());
+            event.put(BALLISTA.get(), Ballista.createAttributes().build());
+            event.put(RAM.get(), Ram.createAttributes().build());
         });
     }
 }
