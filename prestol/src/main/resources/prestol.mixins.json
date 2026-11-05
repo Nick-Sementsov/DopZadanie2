@@ -16,7 +16,8 @@
     "SecurityMixin",
     "ManyColoniesMixin",
     "MercenaryMixin",
-    "GuardTargetMixin"
+    "GuardTargetMixin",
+    "SettleNearMixin"
   ],
   "client": [
     "GuiMapMixin",

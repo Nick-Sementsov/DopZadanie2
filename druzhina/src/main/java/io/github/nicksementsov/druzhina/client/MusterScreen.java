@@ -20,16 +20,19 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * The muster table: who can be hired, what each costs, and a button to hire him, in tabs: foot, the retinue and the
- * knights, archers, horse, elephants.
+ * The muster table: who can be hired, what each costs, and a button to hire him. It is turned to the West or to the
+ * East (the men of the Latin kingdoms, or those of the Rus, Byzantium, the Saracens and the steppe), and has tabs:
+ * foot, the knights or the retinue, archers, horse, elephants. A long list scrolls with the mouse wheel.
  */
 public class MusterScreen extends Screen {
     private static final int ROW = 33;
     private static final int TABS_Y = 40;
     private static final int TAB_H = 22;
     private static final int LIST_Y = TABS_Y + TAB_H + 4;
-    /** The tab last looked at, kept while the game runs. */
+    /** The side and the tab last looked at, kept while the game runs. */
+    private static Role.Culture lastCulture = Role.Culture.WEST;
     private static Role.Branch lastTab = Role.Branch.INFANTRY;
+    private static final int SIDE_W = 66;
     /** What the server says: how many men the player leads, how many he may (-1: no limit, -2: not told yet), and why. */
     private static int men;
     private static int max = -2;
@@ -43,9 +46,13 @@ public class MusterScreen extends Screen {
 
     private final BlockPos table;
     private boolean asked;
-    private final Role.Branch[] tabs = Role.Branch.tabs();
+    private Role.Culture culture = lastCulture;
+    private Role.Branch[] tabs = Role.Branch.tabs(lastCulture);
     private Role.Branch tab = lastTab;
-    private Role[] roles = Role.forHire(lastTab);
+    private Role[] roles = Role.forHire(lastCulture, lastTab);
+    /** The first role shown, and how many rows fit. */
+    private int scroll;
+    private int visible;
     private final List<Button> buttons = new ArrayList<>();
     private int panelWidth;
     private int left;
@@ -59,17 +66,24 @@ public class MusterScreen extends Screen {
 
     @Override
     protected void init() {
-        this.panelWidth = Math.min(400, this.width - 16);
-        int rows = 0;
-        for (Role.Branch b : this.tabs) {
-            rows = Math.max(rows, Role.forHire(b).length);
+        if (this.roles.length == 0) {
+            // a tab this side has none of (the West keeps no elephants)
+            this.tab = this.tabs.length > 0 ? this.tabs[0] : Role.Branch.INFANTRY;
+            this.roles = Role.forHire(this.culture, this.tab);
         }
-        this.panelHeight = LIST_Y + rows * ROW + 40;
+        this.panelWidth = Math.min(400, this.width - 16);
+        // the rows of this tab (three at least, so that the window does not jump about much)
+        int rows = Math.max(3, this.roles.length);
+        // as many rows as the screen has room for; the rest scroll
+        int room = Math.max(2, (this.height - 8 - LIST_Y - 40) / ROW);
+        this.visible = Math.min(rows, room);
+        this.scroll = Math.max(0, Math.min(this.scroll, this.roles.length - this.visible));
+        this.panelHeight = LIST_Y + this.visible * ROW + 40;
         this.left = (this.width - this.panelWidth) / 2;
         this.top = Math.max(4, (this.height - this.panelHeight) / 2);
         this.buttons.clear();
-        for (int i = 0; i < this.roles.length; i++) {
-            Role role = this.roles[i];
+        for (int i = 0; i < Math.min(this.visible, this.roles.length - this.scroll); i++) {
+            Role role = this.roles[this.scroll + i];
             int y = this.top + LIST_Y + i * ROW;
             Button b = Button.builder(Component.translatable("druzhina.gui.hire"), btn -> this.hire(role))
                     .bounds(this.left + this.panelWidth - 68, y + 6, 60, 20)
@@ -88,14 +102,50 @@ public class MusterScreen extends Screen {
     }
 
     /** What a tab is shown by. */
-    private static ItemStack icon(Role.Branch branch) {
+    private static ItemStack icon(Role.Culture culture, Role.Branch branch) {
+        boolean west = culture == Role.Culture.WEST;
         return switch (branch) {
-            case KNIGHTS -> Role.KNIGHT.icon();
-            case RANGED -> Role.ARCHER.icon();
-            case CAVALRY -> Role.LANCER.icon();
+            case KNIGHTS -> (west ? Role.FOOT_KNIGHT : Role.KNIGHT).icon();
+            case RANGED -> (west ? Role.ARCHER : Role.STEPPE_ARCHER).icon();
+            case CAVALRY -> (west ? Role.LANCER : Role.CATAPHRACT).icon();
             case ELEPHANTS -> new ItemStack(io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.WAR_ELEPHANT_EGG.get());
-            default -> Role.SWORDSMAN.icon();
+            default -> (west ? Role.SWORDSMAN : Role.SARACEN).icon();
         };
+    }
+
+    /** The label of a tab: the knights of the West, the retinue of the East. */
+    private static Component tabLabel(Role.Culture culture, Role.Branch branch) {
+        return branch == Role.Branch.KNIGHTS ? Component.translatable("druzhina.tab.knights." + culture.id())
+                : Component.translatable("druzhina.tab." + branch.id());
+    }
+
+    /** The side switch under the mouse, or null. */
+    private Role.Culture sideAt(double mx, double my) {
+        int x0 = this.left + this.panelWidth / 2 - SIDE_W;
+        int y = this.top + 20;
+        if (my < y || my >= y + 16 || mx < x0 || mx >= x0 + 2 * SIDE_W) {
+            return null;
+        }
+        return Role.Culture.sides()[(int) ((mx - x0) / SIDE_W)];
+    }
+
+    private void side(Role.Culture culture) {
+        this.culture = culture;
+        lastCulture = culture;
+        this.tabs = Role.Branch.tabs(culture);
+        this.roles = Role.forHire(culture, this.tab);
+        this.scroll = 0;
+        this.rebuildWidgets();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double delta) {
+        int before = this.scroll;
+        this.scroll = Math.max(0, Math.min(this.scroll - (int) Math.signum(delta), this.roles.length - this.visible));
+        if (this.scroll != before) {
+            this.rebuildWidgets();
+        }
+        return true;
     }
 
     /** The server's word on the size of the army (see {@code MusterInfoPacket}). */
@@ -113,7 +163,8 @@ public class MusterScreen extends Screen {
     private void select(Role.Branch branch) {
         this.tab = branch;
         lastTab = branch;
-        this.roles = Role.forHire(branch);
+        this.roles = Role.forHire(this.culture, branch);
+        this.scroll = 0;
         this.rebuildWidgets();
     }
 
@@ -130,6 +181,15 @@ public class MusterScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        Role.Culture c = this.sideAt(mx, my);
+        if (c != null && button == 0) {
+            if (c != this.culture) {
+                this.side(c);
+                Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0f));
+            }
+            return true;
+        }
         Role.Branch b = this.tabAt(mx, my);
         if (b != null && button == 0) {
             if (b != this.tab) {
@@ -163,7 +223,7 @@ public class MusterScreen extends Screen {
         int gold = Army.gold(player);
         boolean free = player.getAbilities().instabuild;
         for (int i = 0; i < this.buttons.size(); i++) {
-            Role role = this.roles[i];
+            Role role = this.roles[this.scroll + i];
             this.buttons.get(i).active = room(role.crew()) && (free || gold >= Army.price(role));
         }
     }
@@ -210,8 +270,27 @@ public class MusterScreen extends Screen {
             }
         }
 
+        // the side: West or East
+        int sx = x + w / 2 - SIDE_W;
+        for (int i = 0; i < 2; i++) {
+            Role.Culture c = Role.Culture.sides()[i];
+            int bx = sx + i * SIDE_W;
+            boolean on = c == this.culture;
+            boolean hover = this.sideAt(mouseX, mouseY) == c;
+            g.fill(bx, y + 20, bx + SIDE_W - 2, y + 36, on ? FRAME : hover ? 0x60FFFFFF : 0x30FFFFFF);
+            if (on) {
+                g.fill(bx + 1, y + 21, bx + SIDE_W - 3, y + 35, 0xFF3A2C1C);
+            }
+            g.pose().pushPose();
+            g.pose().translate(bx + 2, y + 20, 0);
+            g.pose().scale(0.875f, 0.875f, 1);
+            g.renderItem((c == Role.Culture.WEST ? Role.CRUSADER : Role.MAMLUK).icon(), 0, 0);
+            g.pose().popPose();
+            g.drawString(this.font, Component.translatable("druzhina.side." + c.id()), bx + 19, y + 24, on ? GOLD : 0xFFD8D0C0);
+        }
+
         // the tabs
-        int tw = (w - 8) / this.tabs.length;
+        int tw = (w - 8) / Math.max(1, this.tabs.length);
         for (int i = 0; i < this.tabs.length; i++) {
             Role.Branch b = this.tabs[i];
             int tx = x + 4 + i * tw;
@@ -222,15 +301,15 @@ public class MusterScreen extends Screen {
             if (on) {
                 g.fill(tx + 1, ty + 1, tx + tw - 3, ty + TAB_H, 0xFF3A2C1C);
             }
-            g.renderItem(icon(b), tx + 3, ty + 3);
-            Component label = Component.translatable("druzhina.tab." + b.id());
+            g.renderItem(icon(this.culture, b), tx + 3, ty + 3);
+            Component label = tabLabel(this.culture, b);
             String text = this.font.plainSubstrByWidth(label.getString(), tw - 26);
             g.drawString(this.font, text, tx + 22, ty + 7, on ? GOLD : 0xFFD8D0C0);
         }
 
         int textWidth = w - 32 - 116;
-        for (int i = 0; i < this.roles.length; i++) {
-            Role role = this.roles[i];
+        for (int i = 0; i < Math.min(this.visible, this.roles.length - this.scroll); i++) {
+            Role role = this.roles[this.scroll + i];
             int ry = y + LIST_Y + i * ROW;
             g.fill(x + 4, ry, x + w - 4, ry + ROW - 2, i % 2 == 0 ? 0x30FFFFFF : 0x18FFFFFF);
             g.renderItem(role.icon(), x + 10, ry + 8);
@@ -252,6 +331,17 @@ public class MusterScreen extends Screen {
             g.drawString(this.font, text, px, ry + 12, free || gold >= price ? COIN : 0xFFE06060);
         }
 
+        if (this.roles.length > this.visible) {
+            // more of them below or above: a bar at the side, and a word on the wheel
+            int listH = this.visible * ROW - 2;
+            int barH = Math.max(12, listH * this.visible / this.roles.length);
+            int barY = y + LIST_Y + (listH - barH) * this.scroll / Math.max(1, this.roles.length - this.visible);
+            g.fill(x + w - 3, y + LIST_Y, x + w - 1, y + LIST_Y + listH, 0x40FFFFFF);
+            g.fill(x + w - 3, barY, x + w - 1, barY + barH, GOLD);
+            Component more = Component.translatable("druzhina.gui.scroll", this.scroll + 1,
+                    Math.min(this.roles.length, this.scroll + this.visible), this.roles.length);
+            g.drawString(this.font, more, x + w - 8 - this.font.width(more), y + 8, 0xFF908878);
+        }
         g.drawCenteredString(this.font, Component.translatable("druzhina.gui.baton_hint"), x + w / 2, y + this.panelHeight - 38, 0xFFA09888);
         super.render(g, mouseX, mouseY, partialTick);
         if (tooltip != null) {

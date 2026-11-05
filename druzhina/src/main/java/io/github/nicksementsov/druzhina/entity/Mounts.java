@@ -54,7 +54,8 @@ public final class Mounts {
                 Soldier archer = DruzhinaRegistry.SOLDIER.get().create(level);
                 if (archer != null) {
                     archer.moveTo(at.x, at.y, at.z, s.getYRot(), 0);
-                    archer.enlist(Role.ARCHER, s.getOwnerUUID(), Kits.REGULAR, rnd);
+                    // a bowman of the East in the howdah
+                    archer.enlist(Role.STEPPE_ARCHER, s.getOwnerUUID(), Kits.REGULAR, rnd);
                     archer.finalizeSpawn(level, level.getCurrentDifficultyAt(BlockPos.containing(at)), MobSpawnType.MOB_SUMMONED, null, null);
                     archer.order(s.orders(), s.post(), s.postYaw());
                     level.addFreshEntity(archer);
@@ -83,7 +84,7 @@ public final class Mounts {
         horse.setPersistenceRequired();
         horse.equipSaddle(null);
         // a war horse: strong, quick, not afraid
-        boolean heavy = s.role() == Role.LANCER;
+        boolean heavy = s.role() == Role.LANCER || s.role() == Role.CATAPHRACT;
         set(horse, Attributes.MAX_HEALTH, heavy ? 30 + rnd.nextInt(5) : 24 + rnd.nextInt(5));
         set(horse, Attributes.MOVEMENT_SPEED, (heavy ? 0.25 : 0.27) + rnd.nextDouble() * 0.03);
         set(horse, Attributes.JUMP_STRENGTH, 0.7 + rnd.nextDouble() * 0.1);
@@ -107,7 +108,8 @@ public final class Mounts {
     private static ItemStack barding(Role role) {
         return switch (role) {
             case LANCER -> first("magistuarmory:barding", "minecraft:diamond_horse_armor");
-            case HORSEMAN -> first("magistuarmory:chainmail_horse_armor", "minecraft:iron_horse_armor");
+            case CATAPHRACT -> first("magistuarmoryaddon:dark_barding", "magistuarmory:barding", "minecraft:diamond_horse_armor");
+            case HORSEMAN, SERGEANT, MAMLUK -> first("magistuarmory:chainmail_horse_armor", "minecraft:iron_horse_armor");
             case HORSE_ARCHER -> new ItemStack(Items.LEATHER_HORSE_ARMOR);
             default -> ItemStack.EMPTY;
         };

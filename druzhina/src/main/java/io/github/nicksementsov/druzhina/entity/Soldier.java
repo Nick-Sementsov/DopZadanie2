@@ -677,7 +677,8 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
             this.nameIndex = this.random.nextInt(NAMES);
         }
 
-        MutableComponent name = Component.translatable("druzhina.name." + this.nameIndex);
+        String pool = this.role().names();
+        MutableComponent name = Component.translatable("druzhina.name." + (pool.isEmpty() ? "" : pool + ".") + this.nameIndex);
         name.append(" · ").append(Component.translatable("druzhina.role." + this.role().id()));
         if (this.rank() > 0) {
             name.append(" · ").append(Component.translatable("druzhina.rank." + this.rank()));

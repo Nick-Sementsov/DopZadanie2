@@ -11,26 +11,57 @@ import net.minecraft.world.item.ItemStack;
  * well he fights. Hired roles serve a player; the bandits roam the land on their own.
  */
 public enum Role {
-    //               gold  health  skill   ranged  bandit  grade          branch           mount
-    SWORDSMAN(20, 24, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    DRUZHINNIK(36, 28, 0.6f, false, false, Kits.REGULAR, Branch.KNIGHTS, Mount.NONE),
-    SPEARMAN(20, 24, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    SHIELDBEARER(25, 26, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    AXEMAN(22, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    MACEMAN(25, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    WARRIOR(22, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE),
-    FOOT_KNIGHT(70, 32, 0.75f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE),
-    KNIGHT(75, 32, 0.75f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE),
-    ARCHER(24, 20, 0.45f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE),
-    CROSSBOWMAN(30, 22, 0.45f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE),
-    HORSEMAN(60, 26, 0.55f, false, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE),
-    LANCER(100, 32, 0.7f, false, false, Kits.PICKED, Branch.CAVALRY, Mount.HORSE),
-    HORSE_ARCHER(55, 22, 0.5f, true, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE),
-    MAHOUT(160, 24, 0.5f, false, false, Kits.REGULAR, Branch.ELEPHANTS, Mount.ELEPHANT),
-    MILITIA(8, 20, 0.3f, false, false, Kits.LEVY, Branch.NONE, Mount.NONE),
-    BANDIT(0, 18, 0.25f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE),
-    BANDIT_ARCHER(0, 16, 0.25f, true, true, Kits.LEVY, Branch.NONE, Mount.NONE),
-    CHIEFTAIN(0, 30, 0.5f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE);
+    //                 gold  health skill  ranged bandit grade          branch           mount        side
+    SWORDSMAN(20, 24, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    DRUZHINNIK(36, 28, 0.6f, false, false, Kits.REGULAR, Branch.KNIGHTS, Mount.NONE, Culture.EAST),
+    SPEARMAN(20, 24, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    SHIELDBEARER(25, 26, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    AXEMAN(22, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    MACEMAN(25, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    WARRIOR(22, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    HALBERDIER(24, 26, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.WEST),
+    SARACEN(22, 24, 0.55f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.EAST),
+    SKUTATOS(25, 26, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.EAST),
+    BERDYSHNIK(22, 26, 0.45f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.EAST),
+    ROGATINSHCHIK(20, 24, 0.5f, false, false, Kits.REGULAR, Branch.INFANTRY, Mount.NONE, Culture.EAST),
+    FOOT_KNIGHT(70, 32, 0.75f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE, Culture.WEST),
+    CRUSADER(65, 32, 0.7f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE, Culture.WEST),
+    KNIGHT(75, 32, 0.75f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE, Culture.EAST),
+    VARANGIAN(45, 30, 0.65f, false, false, Kits.PICKED, Branch.KNIGHTS, Mount.NONE, Culture.EAST),
+    ARCHER(24, 20, 0.45f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE, Culture.WEST),
+    CROSSBOWMAN(30, 22, 0.45f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE, Culture.WEST),
+    STEPPE_ARCHER(24, 20, 0.5f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE, Culture.EAST),
+    SAMOSTRELSHCHIK(30, 22, 0.45f, true, false, Kits.REGULAR, Branch.RANGED, Mount.NONE, Culture.EAST),
+    HORSEMAN(60, 26, 0.55f, false, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
+    SERGEANT(55, 26, 0.55f, false, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE, Culture.WEST),
+    LANCER(100, 32, 0.7f, false, false, Kits.PICKED, Branch.CAVALRY, Mount.HORSE, Culture.WEST),
+    CATAPHRACT(110, 34, 0.7f, false, false, Kits.PICKED, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
+    MAMLUK(65, 28, 0.65f, false, false, Kits.PICKED, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
+    HORSE_ARCHER(55, 22, 0.5f, true, false, Kits.REGULAR, Branch.CAVALRY, Mount.HORSE, Culture.EAST),
+    MAHOUT(160, 24, 0.5f, false, false, Kits.REGULAR, Branch.ELEPHANTS, Mount.ELEPHANT, Culture.EAST),
+    MILITIA(8, 20, 0.3f, false, false, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
+    BANDIT(0, 18, 0.25f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
+    BANDIT_ARCHER(0, 16, 0.25f, true, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
+    CHIEFTAIN(0, 30, 0.5f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE);
+
+    /** Where a soldier comes from, and so how he is armed: the muster table is turned to one side or the other. */
+    public enum Culture {
+        /** The Latin West: mail and plate, heater shields, arming swords, halberds, longbows and crossbows. */
+        WEST,
+        /** The East: the Rus, Byzantium, the Saracens and the steppe: scale and lamellar, round shields, sabres. */
+        EAST,
+        /** Militia and bandits: whoever they are. */
+        NONE;
+
+        public String id() {
+            return this.name().toLowerCase(Locale.ROOT);
+        }
+
+        /** The two sides of the muster table. */
+        public static Culture[] sides() {
+            return new Culture[]{WEST, EAST};
+        }
+    }
 
     /** The tabs of the muster table. */
     public enum Branch {
@@ -49,6 +80,17 @@ public enum Role {
         /** The tabs, in order. */
         public static Branch[] tabs() {
             return new Branch[]{INFANTRY, KNIGHTS, RANGED, CAVALRY, ELEPHANTS};
+        }
+
+        /** The tabs that have men of {@code culture} to hire. */
+        public static Branch[] tabs(Culture culture) {
+            List<Branch> out = new ArrayList<>();
+            for (Branch b : tabs()) {
+                if (forHire(culture, b).length > 0) {
+                    out.add(b);
+                }
+            }
+            return out.toArray(new Branch[0]);
         }
     }
 
@@ -71,8 +113,9 @@ public enum Role {
     public final int grade;
     public final Branch branch;
     public final Mount mount;
+    public final Culture culture;
 
-    Role(int cost, float health, float skill, boolean ranged, boolean bandit, int grade, Branch branch, Mount mount) {
+    Role(int cost, float health, float skill, boolean ranged, boolean bandit, int grade, Branch branch, Mount mount, Culture culture) {
         this.cost = cost;
         this.health = health;
         this.skill = skill;
@@ -81,10 +124,24 @@ public enum Role {
         this.grade = grade;
         this.branch = branch;
         this.mount = mount;
+        this.culture = culture;
     }
 
     public String id() {
         return this.name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The names his kind are given: those of the West, of the Saracens and the steppe, of the Greeks, of the Norsemen,
+     * or (an empty string) those of the Rus.
+     */
+    public String names() {
+        return switch (this) {
+            case SARACEN, MAMLUK, STEPPE_ARCHER, HORSE_ARCHER, MAHOUT -> "east";
+            case SKUTATOS, CATAPHRACT -> "greek";
+            case VARANGIAN -> "norse";
+            default -> this.culture == Culture.WEST ? "west" : "";
+        };
     }
 
     public static Role byId(int ordinal) {
@@ -118,6 +175,17 @@ public enum Role {
         List<Role> out = new ArrayList<>();
         for (Role r : values()) {
             if (r.branch == branch) {
+                out.add(r);
+            }
+        }
+        return out.toArray(new Role[0]);
+    }
+
+    /** The roles of one tab of the muster table turned to {@code culture}. */
+    public static Role[] forHire(Culture culture, Branch branch) {
+        List<Role> out = new ArrayList<>();
+        for (Role r : values()) {
+            if (r.branch == branch && r.culture == culture) {
                 out.add(r);
             }
         }

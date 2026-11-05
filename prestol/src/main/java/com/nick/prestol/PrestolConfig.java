@@ -66,6 +66,7 @@ public final class PrestolConfig {
    public static final IntValue OFFLINE_COLONIES;
    public static final BooleanValue AI_FIXES;
    public static final BooleanValue SEVERAL_COLONIES;
+   public static final IntValue OWN_SETTLEMENT_DISTANCE;
    public static final BooleanValue ARMY_GARRISON;
    public static final IntValue ARMY_UNITS_PER_LEVEL;
    public static final IntValue ARMY_REFILL_SECONDS;
@@ -184,6 +185,17 @@ public final class PrestolConfig {
             }
          )
          .define("severalColoniesPerPlayer", true);
+      OWN_SETTLEMENT_DISTANCE = b.comment(
+            new String[]{
+               "Новую ратушу можно поставить рядом со своими поселениями и поселениями своей державы: не ближе стольких блоков",
+               "к их центрам и не на их земле (MineColonies требует 128 блоков от любой колонии). Чужие колонии — по правилу",
+               "MineColonies. 0 — правило MineColonies для всех.",
+               "A new town hall may stand near your own settlements and those of your realm: no closer than this many blocks to",
+               "their centres and not on their land (MineColonies asks 128 blocks from any colony). Others' colonies: MineColonies'",
+               "rule. 0: MineColonies' rule for all."
+            }
+         )
+         .defineInRange("ownSettlementDistance", 48, 0, 1000);
       b.pop();
       b.push("lands");
       b.comment(
