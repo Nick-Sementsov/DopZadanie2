@@ -101,6 +101,13 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
     private static final EntityDataAccessor<Boolean> MANAGED_DATA = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> KILLS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> KEEP_RANKS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.BOOLEAN);
+    /** What the blow that killed him cut off (see {@link #HEAD} and the others): shown on his body. */
+    private static final EntityDataAccessor<Integer> WOUNDS = SynchedEntityData.defineId(Soldier.class, EntityDataSerializers.INT);
+    public static final int HEAD = 1;
+    public static final int RIGHT_ARM = 2;
+    public static final int LEFT_ARM = 4;
+    public static final int RIGHT_LEG = 8;
+    public static final int LEFT_LEG = 16;
     public static final int SKINS = 8;
     public static final int BANDIT_SKINS = 4;
     public static final int NAMES = 40;
@@ -194,6 +201,7 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
         this.entityData.define(MANAGED_DATA, false);
         this.entityData.define(KILLS, 0);
         this.entityData.define(KEEP_RANKS, false);
+        this.entityData.define(WOUNDS, 0);
     }
 
     @Override
@@ -827,9 +835,59 @@ public class Soldier extends PathfinderMob implements CombatFighter, OwnableEnti
 
             // what the commander handed over is left on the ground
             this.dropGiven();
+            this.entityData.set(WOUNDS, this.cutOff(source));
         }
 
         super.die(source);
+    }
+
+    /** The parts cut off him by the blow that killed him. */
+    public int wounds() {
+        return this.entityData.get(WOUNDS);
+    }
+
+    /**
+     * What a killing blow takes off: a stone, a ball or a blast tears off a limb or more; an axe, a sword or a polearm
+     * may take a head, an arm or a leg; a mace crushes, an arrow pierces, they cut nothing.
+     */
+    private int cutOff(DamageSource source) {
+        int[] parts = {HEAD, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG};
+        int[] weights = {3, 4, 3, 3, 3};
+        float chance;
+        int most;
+        if (source.getDirectEntity() instanceof io.github.nicksementsov.druzhina.entity.siege.Hurled
+                || source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)) {
+            chance = 0.85f;
+            most = 3;
+        } else if (source.getDirectEntity() instanceof LivingEntity killer && !source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
+            io.github.nicksementsov.knightcombat.combat.WeaponStats w = KnightCombatApi.weapon(killer.getMainHandItem());
+            if (w == null || w.kind() == io.github.nicksementsov.knightcombat.combat.WeaponKind.BLUNT
+                    || w.kind() == io.github.nicksementsov.knightcombat.combat.WeaponKind.DAGGER) {
+                return 0;
+            }
+            boolean heavy = w.kind() == io.github.nicksementsov.knightcombat.combat.WeaponKind.AXE
+                    || w.kind() == io.github.nicksementsov.knightcombat.combat.WeaponKind.POLEAXE || w.twoHanded();
+            chance = heavy ? 0.6f : 0.35f;
+            most = 1;
+        } else {
+            return 0;
+        }
+        if (this.random.nextFloat() >= chance) {
+            return 0;
+        }
+        int wounds = 0;
+        int count = 1 + this.random.nextInt(most);
+        for (int n = 0; n < count; n++) {
+            int pick = this.random.nextInt(16);
+            for (int i = 0; i < parts.length; i++) {
+                pick -= weights[i];
+                if (pick < 0) {
+                    wounds |= parts[i];
+                    break;
+                }
+            }
+        }
+        return wounds;
     }
 
     @Override

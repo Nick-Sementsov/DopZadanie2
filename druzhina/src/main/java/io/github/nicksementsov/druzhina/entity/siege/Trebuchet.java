@@ -17,13 +17,15 @@ import net.minecraft.world.phys.Vec3;
  * falls and cracks the walls.
  */
 public class Trebuchet extends SiegeEngine {
+    /** How much larger it is drawn than its model (the model is in pixels of a block). */
+    public static final float SCALE = 1.6f;
     /** Ticks from the release of the weight to the stone leaving the sling: the arm swings up first. */
     public static final int RELEASE = 7;
     public static final int RELOAD = 200;
     private static final double SPEED = 1.8;
     /** The sling's height above the ground and its reach forward when the stone leaves it. */
-    private static final double SLING_UP = 4.2;
-    private static final double SLING_FORWARD = 0.8;
+    private static final double SLING_UP = 9.0;
+    private static final double SLING_FORWARD = 3.6;
 
     private int launchIn;
     @Nullable
@@ -34,7 +36,7 @@ public class Trebuchet extends SiegeEngine {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return engineAttributes(120, 8, 0.14);
+        return engineAttributes(140, 8, 0.15);
     }
 
     @Override
@@ -64,13 +66,13 @@ public class Trebuchet extends SiegeEngine {
 
     @Override
     protected double crewBack() {
-        return 0.9;
+        return 1.0;
     }
 
     /** Beside the winch, clear of the arm as it swings down. */
     @Override
     protected double crewSide() {
-        return 1.75;
+        return 2.7;
     }
 
     /** The throw it makes: a stone leaves the sling at about fifty degrees, faster the farther it goes. */

@@ -65,10 +65,14 @@ public final class Mounts {
                     crew.add(archer);
                 }
             }
-            case TREBUCHET, BALLISTA, RAM -> {
+            case TREBUCHET, BALLISTA, RAM, MANGONEL, BOMBARD, SIEGE_TOWER, MANTLET -> {
                 EntityType<? extends SiegeEngine> type = switch (s.role().mount) {
                     case TREBUCHET -> DruzhinaRegistry.TREBUCHET.get();
                     case BALLISTA -> DruzhinaRegistry.BALLISTA.get();
+                    case MANGONEL -> DruzhinaRegistry.MANGONEL.get();
+                    case BOMBARD -> DruzhinaRegistry.BOMBARD.get();
+                    case SIEGE_TOWER -> DruzhinaRegistry.SIEGE_TOWER.get();
+                    case MANTLET -> DruzhinaRegistry.MANTLET.get();
                     default -> DruzhinaRegistry.RAM.get();
                 };
                 SiegeEngine engine = type.create(level);

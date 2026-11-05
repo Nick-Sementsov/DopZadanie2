@@ -385,7 +385,7 @@ public final class Kits {
                 put(s, prefer(rnd, Kits::armour, STEPPE_BODIES, FALLBACK_BODIES));
                 put(s, prefer(rnd, Kits::armour, STEPPE_FEET, FALLBACK_FEET));
             }
-            case TREBUCHET, BALLISTA, RAM -> wear(s, rnd, ENGINEER_KIT, Kits::oneHanded);
+            case TREBUCHET, BALLISTA, RAM, MANGONEL, BOMBARD, SIEGE_TOWER, MANTLET -> wear(s, rnd, ENGINEER_KIT, Kits::oneHanded);
             case MILITIA -> {
                 hand(s, pick(rnd, LEVY_ARMS, Kits::melee), rnd.nextInt(3) == 0 ? pick(rnd, SHIELDS[LEVY], Kits::shield) : ItemStack.EMPTY);
                 if (rnd.nextBoolean()) {
@@ -429,6 +429,10 @@ public final class Kits {
             return new ItemStack(switch (role) {
                 case TREBUCHET -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.TREBUCHET_ICON.get();
                 case BALLISTA -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.BALLISTA_ICON.get();
+                case MANGONEL -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.MANGONEL_ICON.get();
+                case BOMBARD -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.BOMBARD_ICON.get();
+                case SIEGE_TOWER -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.SIEGE_TOWER_ICON.get();
+                case MANTLET -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.MANTLET_ICON.get();
                 default -> io.github.nicksementsov.druzhina.registry.DruzhinaRegistry.RAM_ICON.get();
             });
         }
@@ -460,7 +464,7 @@ public final class Kits {
             case MILITIA -> LEVY_ARMS;
             case BANDIT -> BANDIT_ARMS;
             case CHIEFTAIN -> CHIEFTAIN_ARMS;
-            case TREBUCHET, BALLISTA, RAM -> ENGINEER_KIT.arms();
+            case TREBUCHET, BALLISTA, RAM, MANGONEL, BOMBARD, SIEGE_TOWER, MANTLET -> ENGINEER_KIT.arms();
         };
         for (String id : ids) {
             Item item = item(id);

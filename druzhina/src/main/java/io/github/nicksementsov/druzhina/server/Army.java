@@ -470,7 +470,7 @@ public final class Army {
         }
         List<Soldier> crews = new ArrayList<>();
         for (Soldier s : men) {
-            if (s.operating() != null) {
+            if (s.operating() != null && s.operating().batters()) {
                 crews.add(s);
             }
         }
@@ -481,7 +481,7 @@ public final class Army {
         for (Soldier s : crews) {
             io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = s.operating();
             double d = Math.sqrt(engine.distanceToSqr(target.x, engine.getY(), target.z));
-            if (engine instanceof io.github.nicksementsov.druzhina.entity.siege.Ram) {
+            if (engine.closeIn()) {
                 rams.add(s);
             } else if (d < engine.minRange() + 1 || d > engine.maxRange() - 2) {
                 movers.add(s);
@@ -495,7 +495,7 @@ public final class Army {
             double fx = dx / dist;
             double fz = dz / dist;
             boolean ram = rams.contains(s);
-            double want = ram ? engine.getBbWidth() / 2 + 1.2 : Mth.clamp(dist, engine.minRange() + 3, engine.maxRange() - 6);
+            double want = ram ? engine.getBbWidth() / 2 + 0.9 : Mth.clamp(dist, engine.minRange() + 3, engine.maxRange() - 6);
             List<Soldier> row = ram ? rams : movers;
             double side = (row.indexOf(s) - (row.size() - 1) / 2.0) * (engine.getBbWidth() + (ram ? 0.6 : 1.2));
             Vec3 post;

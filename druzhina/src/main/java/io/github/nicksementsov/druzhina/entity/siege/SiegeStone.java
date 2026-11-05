@@ -11,22 +11,16 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * A stone hurled by a trebuchet: it flies in a high arc (no air slows it), and where it falls it crushes men and
  * cracks walls around (see {@link SiegeDamage}).
  */
-public class SiegeStone extends Projectile {
-    public static final double GRAVITY = 0.05;
+public class SiegeStone extends Hurled {
     private static final double RADIUS = 2.6;
 
     public SiegeStone(EntityType<? extends SiegeStone> type, Level level) {
@@ -39,47 +33,20 @@ public class SiegeStone extends Projectile {
     }
 
     @Override
-    protected void defineSynchedData() {
+    protected void trail() {
+        this.level().addParticle(ParticleTypes.SMOKE, this.getX(), this.getY(), this.getZ(), 0, 0, 0);
     }
 
     @Override
-    public void tick() {
-        super.tick();
-        Vec3 v = this.getDeltaMovement();
-        HitResult hit = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
-        if (hit.getType() != HitResult.Type.MISS && !this.level().isClientSide) {
-            this.onHit(hit);
-            return;
-        }
-        this.setPos(this.getX() + v.x, this.getY() + v.y, this.getZ() + v.z);
-        this.setDeltaMovement(v.x, v.y - GRAVITY, v.z);
-        if (this.level().isClientSide) {
-            this.level().addParticle(ParticleTypes.SMOKE, this.getX(), this.getY(), this.getZ(), 0, 0, 0);
-        }
-        if (this.getY() < this.level().getMinBuildHeight() - 16 || this.tickCount > 600) {
-            this.discard();
-        }
-    }
-
-    @Override
-    protected void onHitEntity(EntityHitResult hit) {
-        this.impact(hit.getLocation(), null);
-    }
-
-    @Override
-    protected void onHitBlock(BlockHitResult hit) {
-        this.impact(hit.getLocation(), hit.getBlockPos());
-    }
-
-    private void impact(Vec3 at, @Nullable BlockPos block) {
-        if (!(this.level() instanceof ServerLevel level) || this.isRemoved()) {
+    protected void impact(Vec3 at, @Nullable BlockPos block) {
+        if (!(this.level() instanceof ServerLevel level)) {
             return;
         }
         Entity owner = this.getOwner();
         // men crushed or knocked down around
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().move(at.subtract(this.position())).inflate(RADIUS))) {
             double d = e.position().add(0, e.getBbHeight() / 2, 0).distanceTo(at);
-            if (d > RADIUS || owner != null && (e == owner || e.isAlliedTo(owner) || owner.isAlliedTo(e) || e == owner.getVehicle())) {
+            if (d > RADIUS || this.spared(e)) {
                 continue;
             }
             float damage = (float) (6 + 18 * (1 - d / RADIUS));
@@ -98,11 +65,5 @@ public class SiegeStone extends Projectile {
         level.sendParticles(ParticleTypes.CLOUD, at.x, at.y, at.z, 8, 0.6, 0.3, 0.6, 0.05);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.NEUTRAL, 1.4f, 0.65f + this.random.nextFloat() * 0.1f);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.STONE_BREAK, SoundSource.NEUTRAL, 2.0f, 0.5f);
-        this.discard();
-    }
-
-    @Override
-    public boolean isPickable() {
-        return false;
     }
 }

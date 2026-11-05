@@ -36,9 +36,19 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
     public SoldierRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new Model(ctx.bakeLayer(ModelLayers.PLAYER)), 0.5f);
         this.addLayer(new HumanoidArmorLayer<>(this, new HumanoidArmorModel<>(ctx.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),
-                new HumanoidArmorModel<>(ctx.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)), ctx.getModelManager()));
+                new HumanoidArmorModel<>(ctx.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)), ctx.getModelManager()) {
+            @Override
+            protected void setPartVisibility(HumanoidArmorModel<Soldier> model, net.minecraft.world.entity.EquipmentSlot slot) {
+                super.setPartVisibility(model, slot);
+                // no armour where the limb is gone
+                hideCut(model, cut);
+            }
+        });
         this.addLayer(new WeaponLayer<>(this));
     }
+
+    /** The parts cut off the soldier being drawn (see {@link Soldier#wounds()}). */
+    private static int cut;
 
     @Override
     public void render(Soldier soldier, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
@@ -47,7 +57,63 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
         model.crouching = soldier.isCrouching();
         model.rightArmPose = this.armPose(soldier, InteractionHand.MAIN_HAND);
         model.leftArmPose = this.armPose(soldier, InteractionHand.OFF_HAND);
-        super.render(soldier, yaw, partialTick, pose, buffers, light);
+        int wounds = soldier.isDeadOrDying() ? soldier.wounds() : 0;
+        if (wounds == 0) {
+            cut = 0;
+            super.render(soldier, yaw, partialTick, pose, buffers, light);
+            return;
+        }
+        // what the cut-off hands held is not drawn in the air
+        boolean rightMain = soldier.getMainArm() == net.minecraft.world.entity.HumanoidArm.RIGHT;
+        ItemStack main = soldier.getMainHandItem();
+        ItemStack off = soldier.getOffhandItem();
+        boolean dropMain = (wounds & (rightMain ? Soldier.RIGHT_ARM : Soldier.LEFT_ARM)) != 0;
+        boolean dropOff = (wounds & (rightMain ? Soldier.LEFT_ARM : Soldier.RIGHT_ARM)) != 0;
+        if (dropMain) {
+            soldier.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        }
+        if (dropOff) {
+            soldier.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        }
+        cut = wounds;
+        try {
+            super.render(soldier, yaw, partialTick, pose, buffers, light);
+            Severed.render(soldier, model, this.getTextureLocation(soldier), wounds, partialTick, pose, buffers, light);
+        } finally {
+            cut = 0;
+            if (dropMain) {
+                soldier.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, main);
+            }
+            if (dropOff) {
+                soldier.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, off);
+            }
+        }
+    }
+
+    /** Hides on {@code model} the parts in {@code wounds}. */
+    static void hideCut(HumanoidModel<?> model, int wounds) {
+        if ((wounds & Soldier.HEAD) != 0) {
+            model.head.visible = false;
+            model.hat.visible = false;
+        }
+        if ((wounds & Soldier.RIGHT_ARM) != 0) {
+            model.rightArm.visible = false;
+        }
+        if ((wounds & Soldier.LEFT_ARM) != 0) {
+            model.leftArm.visible = false;
+        }
+        if ((wounds & Soldier.RIGHT_LEG) != 0) {
+            model.rightLeg.visible = false;
+        }
+        if ((wounds & Soldier.LEFT_LEG) != 0) {
+            model.leftLeg.visible = false;
+        }
+        if (model instanceof PlayerModel<?> p) {
+            p.rightSleeve.visible &= model.rightArm.visible;
+            p.leftSleeve.visible &= model.leftArm.visible;
+            p.rightPants.visible &= model.rightLeg.visible;
+            p.leftPants.visible &= model.leftLeg.visible;
+        }
     }
 
     private HumanoidModel.ArmPose armPose(Soldier soldier, InteractionHand hand) {
@@ -84,10 +150,12 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
         @Override
         public void setupAnim(Soldier s, float limbSwing, float limbAmount, float age, float headYaw, float headPitch) {
             super.setupAnim(s, limbSwing, limbAmount, age, headYaw, headPitch);
+            this.setAllVisible(true);
             float since = DeathPoses.since(s, net.minecraft.client.Minecraft.getInstance().getFrameTime());
             if (since < 0) {
                 return;
             }
+            hideCut(this, cut);
             float k = net.minecraft.util.Mth.clamp(since / DeathPoses.FALL, 0, 1);
             boolean back = DeathPoses.fall(s) == DeathPoses.Fall.BACK;
             // the arms fly up as he goes over, and fall spread on the ground; the legs give way
@@ -100,6 +168,10 @@ public class SoldierRenderer extends HumanoidMobRenderer<Soldier, PlayerModel<So
             this.leftArm.yRot = net.minecraft.util.Mth.lerp(k, this.leftArm.yRot, 0);
             this.rightLeg.xRot = net.minecraft.util.Mth.lerp(k, this.rightLeg.xRot, back ? -0.25f : 0.15f);
             this.leftLeg.xRot = net.minecraft.util.Mth.lerp(k, this.leftLeg.xRot, back ? 0.1f : -0.1f);
+            // the knees give first: the legs fold under him, then straighten as he lies
+            float kneel = net.minecraft.util.Mth.sin(net.minecraft.util.Mth.clamp(since / (DeathPoses.FALL * 0.8f), 0, 1) * net.minecraft.util.Mth.PI);
+            this.rightLeg.xRot -= 0.9f * kneel;
+            this.leftLeg.xRot -= 0.7f * kneel;
             this.rightLeg.zRot = net.minecraft.util.Mth.lerp(k, this.rightLeg.zRot, 0.18f);
             this.leftLeg.zRot = net.minecraft.util.Mth.lerp(k, this.leftLeg.zRot, -0.12f);
             this.head.xRot = net.minecraft.util.Mth.lerp(k, this.head.xRot, back ? -0.35f : 0.25f);

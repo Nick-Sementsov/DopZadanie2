@@ -22,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
  * and whoever stands in front.
  */
 public class Ram extends SiegeEngine {
+    public static final float SCALE = 1.4f;
     public static final int RELOAD = 50;
     /** Ticks of the swing forward, from the moment it is let go to the blow. */
     public static final int SWING = 4;
@@ -37,7 +38,7 @@ public class Ram extends SiegeEngine {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return engineAttributes(160, 14, 0.16);
+        return engineAttributes(180, 14, 0.17);
     }
 
     @Override
@@ -53,7 +54,7 @@ public class Ram extends SiegeEngine {
     /** It reaches what is just before its head. */
     @Override
     public double maxRange() {
-        return this.getBbWidth() / 2 + 2.4;
+        return this.getBbWidth() / 2 + 2.8;
     }
 
     @Override
@@ -68,7 +69,7 @@ public class Ram extends SiegeEngine {
 
     @Override
     protected double crewBack() {
-        return 0.9;
+        return 1.9;
     }
 
     @Override
@@ -110,12 +111,12 @@ public class Ram extends SiegeEngine {
         double fz = dz / d;
         boolean hit = false;
         // the head, then one block to either side at the height of the log
-        for (double h : new double[]{1.4, 0.5}) {
+        for (double h : new double[]{2.3, 1.4, 0.5}) {
             hit |= this.strikeColumn(level, fx, fz, 0, h, POWER);
         }
-        hit |= this.strikeColumn(level, fx, fz, 1, 1.4, SIDE_POWER);
-        hit |= this.strikeColumn(level, fx, fz, -1, 1.4, SIDE_POWER);
-        Vec3 head = this.position().add(fx * (this.getBbWidth() / 2 + 1.3), 1.4, fz * (this.getBbWidth() / 2 + 1.3));
+        hit |= this.strikeColumn(level, fx, fz, 1, 2.3, SIDE_POWER);
+        hit |= this.strikeColumn(level, fx, fz, -1, 2.3, SIDE_POWER);
+        Vec3 head = this.position().add(fx * (this.getBbWidth() / 2 + 1.8), 2.3, fz * (this.getBbWidth() / 2 + 1.8));
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(head, head).inflate(0.9, 1.0, 0.9),
                 e -> e != this && e != crew && !e.isAlliedTo(this) && !this.isAlliedTo(e))) {
             e.hurt(crew != null ? this.damageSources().mobAttack(crew) : this.damageSources().mobAttack(this), 14);
@@ -132,7 +133,7 @@ public class Ram extends SiegeEngine {
     /** Strikes the first solid block straight ahead ({@code side}: a block to the left or the right). */
     private boolean strikeColumn(ServerLevel level, double fx, double fz, int side, double h, float power) {
         double half = this.getBbWidth() / 2;
-        for (double reach = half + 0.6; reach <= half + 2.2; reach += 0.5) {
+        for (double reach = half + 0.6; reach <= half + 2.8; reach += 0.5) {
             double x = this.getX() + fx * reach - fz * side;
             double z = this.getZ() + fz * reach + fx * side;
             BlockPos pos = BlockPos.containing(x, this.getY() + h, z);

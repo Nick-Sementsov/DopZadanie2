@@ -43,6 +43,10 @@ public enum Role {
     TREBUCHET(200, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.TREBUCHET, Culture.ANY),
     BALLISTA(90, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.BALLISTA, Culture.ANY),
     RAM(120, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.RAM, Culture.ANY),
+    MANGONEL(110, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.MANGONEL, Culture.ANY),
+    BOMBARD(260, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.BOMBARD, Culture.ANY),
+    SIEGE_TOWER(150, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.SIEGE_TOWER, Culture.ANY),
+    MANTLET(40, 24, 0.35f, false, false, Kits.REGULAR, Branch.SIEGE, Mount.MANTLET, Culture.ANY),
     MILITIA(8, 20, 0.3f, false, false, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
     BANDIT(0, 18, 0.25f, false, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
     BANDIT_ARCHER(0, 16, 0.25f, true, true, Kits.LEVY, Branch.NONE, Mount.NONE, Culture.NONE),
@@ -110,11 +114,15 @@ public enum Role {
         /** Siege engines: he moves it and works it, standing at it. */
         TREBUCHET,
         BALLISTA,
-        RAM;
+        RAM,
+        MANGONEL,
+        BOMBARD,
+        SIEGE_TOWER,
+        MANTLET;
 
         /** A siege engine rather than a beast. */
         public boolean engine() {
-            return this == TREBUCHET || this == BALLISTA || this == RAM;
+            return this.ordinal() >= TREBUCHET.ordinal();
         }
     }
 

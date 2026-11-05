@@ -102,6 +102,26 @@ public abstract class SiegeEngine extends PathfinderMob implements OwnableEntity
     protected void aimAt(Vec3 at) {
     }
 
+    /** Whether it works right up against its target (a ram, a tower), not from afar. */
+    public boolean closeIn() {
+        return false;
+    }
+
+    /** Whether it can be set to batter a place at all (a mobile wall cannot). */
+    public boolean batters() {
+        return true;
+    }
+
+    /**
+     * The speed to throw at {@code angle} (radians) to strike a place {@code x} away and {@code y} up, with no air
+     * to slow it; NaN when it cannot be done at that angle.
+     */
+    protected static double speedFor(double x, double y, double angle) {
+        double c = Math.cos(angle);
+        double rise = x * Math.tan(angle) - y;
+        return rise <= 0 ? Double.NaN : Math.sqrt(Hurled.GRAVITY * x * x / (2 * c * c * rise));
+    }
+
     /** How fast it turns to aim, degrees a tick. */
     protected float turnSpeed() {
         return 3.0f;

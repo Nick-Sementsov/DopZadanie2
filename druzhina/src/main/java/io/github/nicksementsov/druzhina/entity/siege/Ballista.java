@@ -19,10 +19,11 @@ import net.minecraft.world.phys.Vec3;
  * forty-eight blocks away; a bolt goes through two or three men in a row. Quick to wind (three seconds), quick to move.
  */
 public class Ballista extends SiegeEngine {
+    public static final float SCALE = 1.3f;
     public static final int RELOAD = 60;
     private static final float SPEED = 3.2f;
-    private static final double MUZZLE_UP = 1.15;
-    private static final double MUZZLE_FORWARD = 0.9;
+    private static final double MUZZLE_UP = 2.0;
+    private static final double MUZZLE_FORWARD = 1.3;
     /** How high it aims, degrees (its head follows). */
     private static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(Ballista.class, EntityDataSerializers.FLOAT);
 
@@ -31,7 +32,7 @@ public class Ballista extends SiegeEngine {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return engineAttributes(60, 6, 0.2);
+        return engineAttributes(70, 6, 0.21);
     }
 
     @Override
@@ -71,7 +72,7 @@ public class Ballista extends SiegeEngine {
 
     @Override
     protected double crewBack() {
-        return 1.35;
+        return 1.8;
     }
 
     private Vec3 muzzle(Vec3 at) {

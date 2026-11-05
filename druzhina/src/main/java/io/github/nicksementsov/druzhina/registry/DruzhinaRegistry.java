@@ -5,6 +5,12 @@ import io.github.nicksementsov.druzhina.block.MusterTableBlock;
 import io.github.nicksementsov.druzhina.entity.Soldier;
 import io.github.nicksementsov.druzhina.entity.WarElephant;
 import io.github.nicksementsov.druzhina.entity.siege.Ballista;
+import io.github.nicksementsov.druzhina.entity.siege.Bombard;
+import io.github.nicksementsov.druzhina.entity.siege.CannonBall;
+import io.github.nicksementsov.druzhina.entity.siege.FirePot;
+import io.github.nicksementsov.druzhina.entity.siege.Mangonel;
+import io.github.nicksementsov.druzhina.entity.siege.Mantlet;
+import io.github.nicksementsov.druzhina.entity.siege.SiegeTower;
 import io.github.nicksementsov.druzhina.entity.siege.BallistaBolt;
 import io.github.nicksementsov.druzhina.entity.siege.Ram;
 import io.github.nicksementsov.druzhina.entity.siege.SiegeStone;
@@ -52,20 +58,53 @@ public final class DruzhinaRegistry {
             .build(Druzhina.id("war_elephant").toString()));
 
     public static final RegistryObject<EntityType<Trebuchet>> TREBUCHET = ENTITIES.register("trebuchet", () -> EntityType.Builder.<Trebuchet>of(Trebuchet::new, MobCategory.MISC)
-            .sized(2.4f, 3.4f)
+            .sized(2.8f, 4.0f)
             .clientTrackingRange(10)
             .build(Druzhina.id("trebuchet").toString()));
 
     public static final RegistryObject<EntityType<Ballista>> BALLISTA = ENTITIES.register("ballista", () -> EntityType.Builder.<Ballista>of(Ballista::new, MobCategory.MISC)
-            .sized(1.5f, 1.5f)
+            .sized(1.9f, 2.0f)
             .clientTrackingRange(10)
             .build(Druzhina.id("ballista").toString()));
 
     public static final RegistryObject<EntityType<Ram>> RAM = ENTITIES.register("battering_ram", () -> EntityType.Builder.<Ram>of(Ram::new, MobCategory.MISC)
-            .sized(1.9f, 2.2f)
+            .sized(2.6f, 3.4f)
             .fireImmune()
             .clientTrackingRange(10)
             .build(Druzhina.id("battering_ram").toString()));
+
+    public static final RegistryObject<EntityType<Mangonel>> MANGONEL = ENTITIES.register("mangonel", () -> EntityType.Builder.<Mangonel>of(Mangonel::new, MobCategory.MISC)
+            .sized(2.4f, 2.8f)
+            .clientTrackingRange(10)
+            .build(Druzhina.id("mangonel").toString()));
+
+    public static final RegistryObject<EntityType<Bombard>> BOMBARD = ENTITIES.register("bombard", () -> EntityType.Builder.<Bombard>of(Bombard::new, MobCategory.MISC)
+            .sized(2.2f, 1.9f)
+            .clientTrackingRange(10)
+            .build(Druzhina.id("bombard").toString()));
+
+    public static final RegistryObject<EntityType<SiegeTower>> SIEGE_TOWER = ENTITIES.register("siege_tower", () -> EntityType.Builder.<SiegeTower>of(SiegeTower::new, MobCategory.MISC)
+            .sized(3.3f, 8.0f)
+            .fireImmune()
+            .clientTrackingRange(12)
+            .build(Druzhina.id("siege_tower").toString()));
+
+    public static final RegistryObject<EntityType<Mantlet>> MANTLET = ENTITIES.register("mantlet", () -> EntityType.Builder.<Mantlet>of(Mantlet::new, MobCategory.MISC)
+            .sized(2.6f, 2.6f)
+            .clientTrackingRange(10)
+            .build(Druzhina.id("mantlet").toString()));
+
+    public static final RegistryObject<EntityType<CannonBall>> CANNON_BALL = ENTITIES.register("cannon_ball", () -> EntityType.Builder.<CannonBall>of(CannonBall::new, MobCategory.MISC)
+            .sized(0.5f, 0.5f)
+            .clientTrackingRange(12)
+            .updateInterval(10)
+            .build(Druzhina.id("cannon_ball").toString()));
+
+    public static final RegistryObject<EntityType<FirePot>> FIRE_POT = ENTITIES.register("fire_pot", () -> EntityType.Builder.<FirePot>of(FirePot::new, MobCategory.MISC)
+            .sized(0.5f, 0.5f)
+            .clientTrackingRange(12)
+            .updateInterval(10)
+            .build(Druzhina.id("fire_pot").toString()));
 
     public static final RegistryObject<EntityType<SiegeStone>> SIEGE_STONE = ENTITIES.register("siege_stone", () -> EntityType.Builder.<SiegeStone>of(SiegeStone::new, MobCategory.MISC)
             .sized(0.7f, 0.7f)
@@ -98,6 +137,10 @@ public final class DruzhinaRegistry {
     public static final RegistryObject<Item> TREBUCHET_ICON = ITEMS.register("trebuchet", () -> new EngineItem(TREBUCHET, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> BALLISTA_ICON = ITEMS.register("ballista", () -> new EngineItem(BALLISTA, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> RAM_ICON = ITEMS.register("battering_ram", () -> new EngineItem(RAM, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MANGONEL_ICON = ITEMS.register("mangonel", () -> new EngineItem(MANGONEL, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> BOMBARD_ICON = ITEMS.register("bombard", () -> new EngineItem(BOMBARD, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> SIEGE_TOWER_ICON = ITEMS.register("siege_tower", () -> new EngineItem(SIEGE_TOWER, new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MANTLET_ICON = ITEMS.register("mantlet", () -> new EngineItem(MANTLET, new Item.Properties().stacksTo(1)));
 
     public static final RegistryObject<CreativeModeTab> TAB = TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.druzhina"))
@@ -109,6 +152,10 @@ public final class DruzhinaRegistry {
                 out.accept(TREBUCHET_ICON.get());
                 out.accept(BALLISTA_ICON.get());
                 out.accept(RAM_ICON.get());
+                out.accept(MANGONEL_ICON.get());
+                out.accept(BOMBARD_ICON.get());
+                out.accept(SIEGE_TOWER_ICON.get());
+                out.accept(MANTLET_ICON.get());
             })
             .build());
 
@@ -129,6 +176,10 @@ public final class DruzhinaRegistry {
             event.put(TREBUCHET.get(), Trebuchet.createAttributes().build());
             event.put(BALLISTA.get(), Ballista.createAttributes().build());
             event.put(RAM.get(), Ram.createAttributes().build());
+            event.put(MANGONEL.get(), Mangonel.createAttributes().build());
+            event.put(BOMBARD.get(), Bombard.createAttributes().build());
+            event.put(SIEGE_TOWER.get(), SiegeTower.createAttributes().build());
+            event.put(MANTLET.get(), Mantlet.createAttributes().build());
         });
     }
 }

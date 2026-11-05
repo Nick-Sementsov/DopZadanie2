@@ -29,7 +29,9 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = Druzhina.MODID, value = Dist.CLIENT)
 public final class DeathPoses {
     /** Ticks of the fall. */
-    public static final float FALL = 13;
+    public static final float FALL = 16;
+    /** Ticks of the first moment, when the knees give way and he sinks. */
+    public static final float KNEEL = 5;
     /** Ticks of the settling after it. */
     private static final float SETTLE = 8;
     /** Ticks of the sinking into the ground at the end. */
@@ -73,9 +75,13 @@ public final class DeathPoses {
 
     /** 0 standing, 1 lying (with a little bounce past it as the body settles). */
     public static float lying(float since) {
+        if (since < KNEEL) {
+            // the knees give: he leans a little as he sinks
+            return 0.1f * since / KNEEL;
+        }
         if (since < FALL) {
-            float k = since / FALL;
-            return k * k;
+            float k = (since - KNEEL) / (FALL - KNEEL);
+            return 0.1f + 0.9f * k * k;
         }
         float k = (since - FALL) / SETTLE;
         return k >= 1 ? 1 : 1 - 0.08f * Mth.sin(k * Mth.PI) * (1 - k);
@@ -93,14 +99,22 @@ public final class DeathPoses {
         pose.pushPose();
         float yaw = 180 - Mth.rotLerp(partial, e.yBodyRotO, e.yBodyRot);
         EntityDimensions size = e.getType().getDimensions();
-        float angle = 90 * lying(since);
+        float lie = lying(since);
+        float angle = 90 * lie;
+        boolean man = size.height > size.width * 1.4f;
+        // he sinks as his knees give, and is down on the ground once he lies
+        float kneel = Mth.clamp(since / KNEEL, 0, 1);
+        float sink = (man ? 0.35f : size.height * 0.12f) * kneel * Mth.clamp(1 - lie * 1.1f, 0, 1);
+        // and the body twists as it goes over
+        float twist = ((e.getId() & 1) == 0 ? 1 : -1) * (man ? 22 : 8) * Mth.clamp(since / FALL, 0, 1);
         // its last moments: it sinks into the ground
         float left = Corpses.ticks(e) - since;
         if (left < SINK && since > FALL + SETTLE) {
             pose.translate(0, -Math.min(size.height, size.width) * 0.6f * (1 - Math.max(0, left) / SINK), 0);
         }
         // turned into its own frame (forward is -z there), it falls about the edge it goes over
-        pose.mulPose(Axis.YP.rotationDegrees(yaw));
+        pose.translate(0, -sink, 0);
+        pose.mulPose(Axis.YP.rotationDegrees(yaw + twist));
         switch (fall(e)) {
             case FACE -> {
                 float edge = Math.min(0.2f, size.width * 0.35f);
@@ -122,7 +136,7 @@ public final class DeathPoses {
                 pose.translate(side * edge, 0, 0);
             }
         }
-        pose.mulPose(Axis.YP.rotationDegrees(-yaw));
+        pose.mulPose(Axis.YP.rotationDegrees(-yaw - twist));
         // Minecraft must not tip it over again, nor keep it red once it lies
         SAVED.push(new Saved(e, e.deathTime, e.hurtTime, since));
         e.deathTime = 0;

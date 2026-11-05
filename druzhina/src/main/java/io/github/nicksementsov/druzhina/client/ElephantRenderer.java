@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.ResourceLocation;
 
 public class ElephantRenderer extends MobRenderer<WarElephant, ElephantModel> {
-    private static final ResourceLocation TEXTURE = Druzhina.id("textures/entity/war_elephant.png");
+    private static final ResourceLocation TEXTURE = io.github.nicksementsov.druzhina.client.mesh.ElephantMesh.TEXTURE;
 
     public ElephantRenderer(EntityRendererProvider.Context context) {
         super(context, new ElephantModel(context.bakeLayer(ElephantModel.LAYER)), 1.6f);
