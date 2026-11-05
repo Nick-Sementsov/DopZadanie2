@@ -62,9 +62,18 @@ public class HoldPostGoal extends Goal {
         if (post == null) {
             return;
         }
-        double dx = post.x - this.soldier.getX();
-        double dz = post.z - this.soldier.getZ();
+        boolean engine = this.soldier.steed() instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeEngine;
+        // an engine's place is where the engine stands (its man stands beside it)
+        net.minecraft.world.entity.Entity body = engine ? this.soldier.steed() : this.soldier;
+        double dx = post.x - body.getX();
+        double dz = post.z - body.getZ();
         double dist = dx * dx + dz * dz;
+        if (engine && dist > 0.35 * 0.35 && dist < 8 * 8 && Math.abs(post.y - this.soldier.getY()) < 1.5) {
+            // a great engine is driven the last few blocks straight to its place: no path is found for it so close in
+            this.soldier.getNavigation().stop();
+            this.soldier.getMoveControl().setWantedPosition(post.x, post.y, post.z, dist > 4 ? 0.9 : 0.6);
+            return;
+        }
         if (dist > 0.35 * 0.35 || Math.abs(post.y - this.soldier.getY()) > 2.5) {
             if (--this.pathDelay <= 0) {
                 this.pathDelay = 10;

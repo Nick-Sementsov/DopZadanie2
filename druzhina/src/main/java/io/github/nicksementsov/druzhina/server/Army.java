@@ -475,18 +475,63 @@ public final class Army {
             }
         }
         Vec3 target = Vec3.atCenterOf(block);
-        // those that must move (rams, and engines out of reach) go side by side, each kind in its own row
+        // the way they come at it (from the middle of the engines) and across it
+        double cx = 0;
+        double cz = 0;
+        for (Soldier s : crews) {
+            cx += s.operating().getX() / crews.size();
+            cz += s.operating().getZ() / crews.size();
+        }
+        double gd = Math.max(0.01, Math.sqrt((target.x - cx) * (target.x - cx) + (target.z - cz) * (target.z - cz)));
+        double gx = (target.x - cx) / gd;
+        double gz = (target.z - cz) / gd;
+        double px = -gz;
+        double pz = gx;
+        java.util.function.ToDoubleFunction<Soldier> across = s -> (s.operating().getX() - target.x) * px + (s.operating().getZ() - target.z) * pz;
+        // rams right before it, side by side as they come; towers beside the rams, each on the side it comes from;
+        // engines out of reach move in, side by side; the rest stay where they are
         List<Soldier> rams = new ArrayList<>();
+        List<Soldier> towers = new ArrayList<>();
         List<Soldier> movers = new ArrayList<>();
         for (Soldier s : crews) {
             io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = s.operating();
             double d = Math.sqrt(engine.distanceToSqr(target.x, engine.getY(), target.z));
-            if (engine.closeIn()) {
+            if (engine instanceof io.github.nicksementsov.druzhina.entity.siege.SiegeTower) {
+                towers.add(s);
+            } else if (engine.closeIn()) {
                 rams.add(s);
             } else if (d < engine.minRange() + 1 || d > engine.maxRange() - 2) {
                 movers.add(s);
             }
         }
+        rams.sort(Comparator.comparingDouble(across));
+        Map<Soldier, Double> offset = new java.util.HashMap<>();
+        double span = 0;
+        for (Soldier s : rams) {
+            span += s.operating().getBbWidth() + 0.6;
+        }
+        double at0 = -span / 2;
+        for (Soldier s : rams) {
+            double w = s.operating().getBbWidth() + 0.6;
+            offset.put(s, at0 + w / 2);
+            at0 += w;
+        }
+        double edge = rams.isEmpty() ? 0 : span / 2;
+        for (int sign : new int[]{1, -1}) {
+            double next = edge;
+            List<Soldier> side = new ArrayList<>(towers.stream().filter(s -> (across.applyAsDouble(s) >= 0) == (sign > 0)).toList());
+            side.sort(Comparator.comparingDouble(s -> Math.abs(across.applyAsDouble(s))));
+            for (Soldier s : side) {
+                double w = s.operating().getBbWidth();
+                double o = rams.isEmpty() && next == 0 && sign > 0 ? 0 : next + w / 2 + 0.3;
+                offset.put(s, sign * o);
+                next = Math.abs(o) + w / 2 + 0.3;
+            }
+            if (rams.isEmpty() && !side.isEmpty() && sign > 0) {
+                edge = Math.max(edge, side.get(0).operating().getBbWidth() / 2);
+            }
+        }
+        Vec3 towerPost = null;
         for (Soldier s : crews) {
             io.github.nicksementsov.druzhina.entity.siege.SiegeEngine engine = s.operating();
             double dx = target.x - engine.getX();
@@ -494,27 +539,53 @@ public final class Army {
             double dist = Math.max(0.01, Math.sqrt(dx * dx + dz * dz));
             double fx = dx / dist;
             double fz = dz / dist;
-            boolean ram = rams.contains(s);
-            double want = ram ? engine.getBbWidth() / 2 + 0.9 : Mth.clamp(dist, engine.minRange() + 3, engine.maxRange() - 6);
-            List<Soldier> row = ram ? rams : movers;
-            double side = (row.indexOf(s) - (row.size() - 1) / 2.0) * (engine.getBbWidth() + (ram ? 0.6 : 1.2));
             Vec3 post;
-            if (!ram && !movers.contains(s)) {
-                // in reach already: it stays and turns to it
-                post = engine.position();
-            } else {
+            if (offset.containsKey(s)) {
+                // right up against it
+                double want = engine.getBbWidth() / 2 + 0.9;
+                double x = target.x - gx * want + px * offset.get(s);
+                double z = target.z - gz * want + pz * offset.get(s);
+                int y = Math.min(level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z)),
+                        Mth.floor(engine.getY()) + 1);
+                post = new Vec3(x, y, z);
+                fx = gx;
+                fz = gz;
+                if (towerPost == null && towers.contains(s)) {
+                    towerPost = post.subtract(gx * (engine.getBbWidth() / 2 + 1.8), 0, gz * (engine.getBbWidth() / 2 + 1.8));
+                }
+            } else if (movers.contains(s)) {
+                double want = Mth.clamp(dist, engine.minRange() + 3, engine.maxRange() - 6);
+                double side = (movers.indexOf(s) - (movers.size() - 1) / 2.0) * (engine.getBbWidth() + 1.2);
                 double x = target.x - fx * want - fz * side;
                 double z = target.z - fz * want + fx * side;
                 int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
-                if (ram || Math.abs(y - engine.getY()) > 6) {
-                    // under a wall, or in a castle yard: on the level of the engine, not on top of the wall
+                if (Math.abs(y - engine.getY()) > 6) {
+                    // in a castle yard: on the level of the engine, not on top of the wall
                     y = Math.min(y, Mth.floor(engine.getY()) + 1);
                 }
                 post = new Vec3(x, y, z);
+            } else {
+                // in reach already: it stays and turns to it
+                post = engine.position();
             }
             float yaw = (float) (Mth.atan2(-fx, fz) * Mth.RAD_TO_DEG);
             s.order(Orders.HOLD, post, yaw);
             engine.setSiegePoint(block);
+        }
+        if (towerPost != null) {
+            // the men on foot sent with a tower go along behind it, to climb it at the wall
+            List<Soldier> escort = new ArrayList<>();
+            for (Soldier s : men) {
+                if (s.operating() == null && !s.isPassenger()) {
+                    escort.add(s);
+                }
+            }
+            float yaw = (float) (Mth.atan2(-gx, gz) * Mth.RAD_TO_DEG);
+            for (int i = 0; i < escort.size(); i++) {
+                double o = (i % 5 - 2) * 0.9;
+                double back = (i / 5) * 1.0;
+                escort.get(i).order(Orders.HOLD, towerPost.add(px * o - gx * back, 0, pz * o - gz * back), yaw);
+            }
         }
         if (!crews.isEmpty()) {
             List<Vec3> points = new ArrayList<>();

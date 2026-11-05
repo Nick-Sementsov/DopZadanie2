@@ -63,6 +63,11 @@ public class Ram extends SiegeEngine {
     }
 
     @Override
+    public boolean closeIn() {
+        return true;
+    }
+
+    @Override
     protected float turnSpeed() {
         return 2.0f;
     }

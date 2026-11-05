@@ -31,7 +31,7 @@ public class SiegeTower extends SiegeEngine {
     /** Ticks between two men crossing. */
     private static final int CLIMB = 16;
     /** How far about its foot the men are who climb it. */
-    private static final double GATHER = 10;
+    private static final double GATHER = 12;
 
     private float bridgeO;
     private float bridgeNow;
@@ -114,7 +114,14 @@ public class SiegeTower extends SiegeEngine {
             return null;
         }
         Vec3 at = Vec3.atCenterOf(point);
-        return this.horizontal(at) <= this.maxRange() ? at : null;
+        Soldier crew = this.crew();
+        if (crew == null || this.horizontal(at) > this.maxRange() + 6) {
+            return null;
+        }
+        // the wall straight before the place it was set at (it may stand beside the gate the rams batter)
+        float yaw = crew.postYaw() * Mth.DEG_TO_RAD;
+        double reach = this.getBbWidth() / 2 + 1.5;
+        return new Vec3(this.getX() - Mth.sin(yaw) * reach, at.y, this.getZ() + Mth.cos(yaw) * reach);
     }
 
     @Override
