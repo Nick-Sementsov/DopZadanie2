@@ -1,0 +1,7 @@
+{
+  "parent": "chessmod:block/template_chess_knight",
+  "textures": {
+    "body": "chessmod:block/piece/marble_black",
+    "accent": "chessmod:block/piece/marble_accent"
+  }
+}

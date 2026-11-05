@@ -1,0 +1,7 @@
+{
+  "parent": "chessmod:block/template_chess_pawn",
+  "textures": {
+    "body": "chessmod:block/piece/nether_white",
+    "accent": "chessmod:block/piece/nether_accent"
+  }
+}

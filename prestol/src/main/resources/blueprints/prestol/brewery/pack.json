@@ -1,0 +1,17 @@
+{
+  "icon": "icon.png",
+  "name": "Prestol: Brewery",
+  "authors": [
+    "MineColonies team (buildings)",
+    "Prestol"
+  ],
+  "desc": "The brewer hut of Prestol for Let's Do Brewery, built in the medieval oak style.",
+  "mods": [
+    "structurize",
+    "minecolonies",
+    "prestol",
+    "brewery"
+  ],
+  "version": "1",
+  "pack-format": "1"
+}

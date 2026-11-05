@@ -1,0 +1,12 @@
+{
+  "parent": "minecolonies:block/blockhutkitchen",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "block/stripped_spruce_log",
+    "base": "block/stripped_spruce_log",
+    "ctop": "block/barrel_top",
+    "planks": "block/spruce_planks",
+    "doors": "block/stripped_dark_oak_log",
+    "metal": "block/copper_block"
+  }
+}

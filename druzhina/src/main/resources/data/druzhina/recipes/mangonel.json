@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["L C", "SLS", "PIP"],
+  "key": {
+    "L": { "tag": "minecraft:logs" },
+    "C": { "item": "minecraft:cauldron" },
+    "S": { "item": "minecraft:string" },
+    "P": { "tag": "minecraft:planks" },
+    "I": { "item": "minecraft:iron_ingot" }
+  },
+  "result": { "item": "druzhina:mangonel" }
+}

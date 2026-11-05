@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["PHP", "LDL", "LIL"],
+  "key": {
+    "P": { "tag": "minecraft:planks" },
+    "H": { "item": "minecraft:leather" },
+    "L": { "tag": "minecraft:logs" },
+    "D": { "item": "minecraft:ladder" },
+    "I": { "item": "minecraft:iron_ingot" }
+  },
+  "result": { "item": "druzhina:siege_tower" }
+}

@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["LSL", "CIC", "PWP"],
+  "key": {
+    "L": { "tag": "minecraft:logs" },
+    "S": { "item": "minecraft:string" },
+    "C": { "item": "minecraft:cobblestone" },
+    "I": { "item": "minecraft:iron_block" },
+    "P": { "tag": "minecraft:planks" },
+    "W": { "item": "minecraft:chest" }
+  },
+  "result": { "item": "druzhina:trebuchet" }
+}

@@ -1,0 +1,24 @@
+{
+  "type": "recipe",
+  "crafter": "brewer_custom",
+  "inputs": [
+    {
+      "item": "brewery:hops"
+    },
+    {
+      "item": "brewery:dried_wheat",
+      "count": 2
+    },
+    {
+      "item": "minecraft:water_bucket"
+    }
+  ],
+  "result": "brewery:beer_wheat",
+  "show-tooltip": true,
+  "count": 2,
+  "additional-output": [
+    {
+      "item": "minecraft:bucket"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+// The mods are subprojects (see settings.gradle). ForgeGradle is declared here once
+// so that every mod uses the same plugin version.
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)' apply false
+}

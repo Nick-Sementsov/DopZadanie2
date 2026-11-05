@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["III", "GTI", "L L"],
+  "key": {
+    "I": { "item": "minecraft:iron_block" },
+    "G": { "item": "minecraft:gunpowder" },
+    "T": { "item": "minecraft:tnt" },
+    "L": { "tag": "minecraft:logs" }
+  },
+  "result": { "item": "druzhina:bombard" }
+}

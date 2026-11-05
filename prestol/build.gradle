@@ -1,0 +1,121 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.24,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+version = mod_version
+group = 'com.nick.prestol'
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            // Mods with mixins (MineColonies, Epic Knights) need their mixins remapped to the development names
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+        client {}
+        server {
+            args '--nogui'
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+// Compile-only stubs for mods that are not published anywhere (EcoMinecolonies).
+// They are compiled together with the mod and stripped from the jar.
+sourceSets.main.java.srcDir 'src/stubs/java'
+
+repositories {
+    maven { name = 'LDT Team'; url = 'https://ldtteam.jfrog.io/ldtteam/modding/' }
+    // Not exclusiveContent: ForgeGradle serves the remapped copies under the same group from its own repo.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+    // Druzhina and Knightly Combat are built next door (../druzhina, ../knightcombat): build them first
+    flatDir { dirs 'libs', '../druzhina/build/libs', '../knightcombat/build/libs' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    compileOnly fg.deobf("com.ldtteam:minecolonies:${minecolonies_version}") { transitive = false }
+    compileOnly fg.deobf("com.ldtteam:blockui:${blockui_version}") { transitive = false }
+    compileOnly fg.deobf("com.ldtteam:structurize:${structurize_version}") { transitive = false }
+    compileOnly fg.deobf("maven.modrinth:xaeros-minimap:${xaero_minimap_version}")
+    compileOnly fg.deobf("maven.modrinth:xaeros-world-map:${xaero_worldmap_version}")
+    compileOnly fg.deobf("maven.modrinth:immersive-paintings:${immersive_paintings_version}")
+    compileOnly fg.deobf("local:druzhina:${druzhina_version}")
+    compileOnly fg.deobf("local:knightcombat:${knightcombat_version}")
+
+    // The development game with every mod Prestol needs: ./gradlew runClient -PdevGame
+    // (build Druzhina and Knightly Combat first, as for the build)
+    if (project.hasProperty('devGame')) {
+        runtimeOnly fg.deobf("com.ldtteam:minecolonies:${minecolonies_version}") { transitive = false }
+        runtimeOnly fg.deobf("com.ldtteam:blockui:${blockui_version}") { transitive = false }
+        runtimeOnly fg.deobf("com.ldtteam:structurize:${structurize_version}") { transitive = false }
+        runtimeOnly fg.deobf("com.ldtteam:domum_ornamentum:${domum_ornamentum_version}:universal") { transitive = false }
+        runtimeOnly fg.deobf("maven.modrinth:immersive-paintings:${immersive_paintings_version}")
+        runtimeOnly fg.deobf("maven.modrinth:betsy-ross:${betsy_ross_version}")
+        runtimeOnly fg.deobf("local:druzhina:${druzhina_version}")
+        runtimeOnly fg.deobf("local:knightcombat:${knightcombat_version}")
+        runtimeOnly fg.deobf('maven.modrinth:epic-knights-shields-armor-and-weapons:gJ59URg4') // 10.15 for Forge
+        runtimeOnly fg.deobf('maven.modrinth:epic-knights-addon:xnYQSIH7') // 2.6
+        runtimeOnly fg.deobf('maven.modrinth:epic-knights-slavic-armory:Q5VtlZ47') // 2.1
+        runtimeOnly fg.deobf('maven.modrinth:architectury-api:1MKTLiiG') // 9.2.14
+        runtimeOnly fg.deobf('maven.modrinth:cloth-config:t8TXrZvZ') // 11.1.136
+    }
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    def props = [mod_version: mod_version]
+    inputs.properties props
+    filesMatching('META-INF/mods.toml') {
+        expand props
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    exclude 'com/ecominecolonies/**'
+    manifest {
+        attributes([
+            'Specification-Title'   : mod_id,
+            'Specification-Vendor'  : 'Nick',
+            'Specification-Version' : '1',
+            'Implementation-Title'  : project.name,
+            'Implementation-Version': project.jar.archiveVersion,
+            'Implementation-Vendor' : 'Nick',
+            'MixinConfigs'          : "${mod_id}.mixins.json"
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

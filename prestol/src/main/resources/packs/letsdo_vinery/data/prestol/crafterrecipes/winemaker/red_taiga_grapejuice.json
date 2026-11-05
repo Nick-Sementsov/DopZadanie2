@@ -1,0 +1,15 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:taiga_grapes_red",
+      "count": 4
+    },
+    {
+      "item": "minecraft:glass_bottle"
+    }
+  ],
+  "result": "vinery:red_taiga_grapejuice",
+  "show-tooltip": true
+}

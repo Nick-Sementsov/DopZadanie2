@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "LDL",
+    "DLD",
+    "SSS"
+  ],
+  "key": {
+    "L": {
+      "item": "minecraft:birch_planks"
+    },
+    "D": {
+      "item": "minecraft:dark_oak_planks"
+    },
+    "S": {
+      "tag": "minecraft:wooden_slabs"
+    }
+  },
+  "result": {
+    "item": "chessmod:chess_board"
+  }
+}

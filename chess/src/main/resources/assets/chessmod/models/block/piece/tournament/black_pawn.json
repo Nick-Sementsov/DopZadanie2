@@ -1,0 +1,7 @@
+{
+  "parent": "chessmod:block/template_chess_pawn",
+  "textures": {
+    "body": "chessmod:block/piece/tournament_black",
+    "accent": "chessmod:block/piece/tournament_accent"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "minecraft:polished_blackstone"
+  },
+  "result": "chessmod:black_knight",
+  "count": 1
+}

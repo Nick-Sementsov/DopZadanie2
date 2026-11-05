@@ -1,0 +1,22 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_grapejuice",
+      "count": 4
+    },
+    {
+      "item": "minecraft:honey_bottle"
+    },
+    {
+      "item": "vinery:cherry"
+    },
+    {
+      "item": "vinery:red_wine"
+    }
+  ],
+  "result": "vinery:bottle_mojang_noir",
+  "show-tooltip": true,
+  "min-building-level": 3
+}

@@ -1,0 +1,18 @@
+{
+  "type": "recipe",
+  "crafter": "winemaker_custom",
+  "inputs": [
+    {
+      "item": "vinery:red_grapejuice",
+      "count": 2
+    },
+    {
+      "item": "minecraft:sugar"
+    },
+    {
+      "item": "vinery:wine_bottle"
+    }
+  ],
+  "result": "vinery:red_wine",
+  "show-tooltip": true
+}

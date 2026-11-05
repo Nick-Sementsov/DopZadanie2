@@ -1,0 +1,8 @@
+{
+  "parent": "chessmod:block/template_chess_board",
+  "textures": {
+    "top": "chessmod:block/board/nether_top",
+    "side": "chessmod:block/board/nether_side",
+    "bottom": "chessmod:block/chess_board_bottom"
+  }
+}

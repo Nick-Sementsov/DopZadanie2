@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["PEP", "LSL", "L L"],
+  "key": {
+    "P": { "item": "minecraft:paper" },
+    "E": { "item": "minecraft:emerald" },
+    "S": { "item": "minecraft:iron_sword" },
+    "L": { "tag": "minecraft:logs" }
+  },
+  "result": { "item": "druzhina:muster_table" }
+}
