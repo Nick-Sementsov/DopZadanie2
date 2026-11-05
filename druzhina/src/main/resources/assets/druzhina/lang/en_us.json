@@ -228,5 +228,6 @@
   "druzhina.command.keep_ranks": "Keeping ranks: %s",
   "druzhina.command.fight_freely": "Fighting freely: %s",
   "druzhina.msg.hired_free": "%s joins your band (soldiers: %s)",
-  "druzhina.gui.army_free": "Band: %s / ∞"
+  "druzhina.gui.army_free": "Band: %s / ∞",
+  "druzhina.gui.army_count": "Band: %s"
 }

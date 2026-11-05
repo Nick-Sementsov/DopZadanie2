@@ -228,5 +228,6 @@
   "druzhina.command.keep_ranks": "Держат строй: %s",
   "druzhina.command.fight_freely": "Бьются вольно: %s",
   "druzhina.msg.hired_free": "%s вступает в дружину (воинов: %s)",
-  "druzhina.gui.army_free": "Дружина: %s / ∞"
+  "druzhina.gui.army_free": "Дружина: %s / ∞",
+  "druzhina.gui.army_count": "Дружина: %s"
 }

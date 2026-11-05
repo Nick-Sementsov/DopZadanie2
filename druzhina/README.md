@@ -288,7 +288,7 @@
 
 | Команда | Что делает |
 |---------|-----------|
-| `./gradlew :druzhina:build` | Собирает мод в `druzhina/build/libs/druzhina-2.4.0.jar` |
+| `./gradlew :druzhina:build` | Собирает мод в `druzhina/build/libs/druzhina-2.4.1.jar` |
 | `python3 tools/elephant_texture.py <png>` | Заново рисует текстуру боевого слона (места на текстуре совпадают с `client/ElephantModel`) |
 | `./gradlew :druzhina:runClient -PepicKnights` | Запускает Minecraft с «Дружиной», «Рыцарским боем» и Epic Knights с аддонами (скачиваются с Modrinth; Epic Knights обязателен) |
 | `./gradlew :druzhina:runClient -PepicKnights -PsmallShips` | То же, и ещё Small Ships 2.0.2 |

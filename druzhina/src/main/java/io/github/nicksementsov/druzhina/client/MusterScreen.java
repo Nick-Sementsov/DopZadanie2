@@ -42,6 +42,7 @@ public class MusterScreen extends Screen {
     private static final int COIN = 0xFFF5D255;
 
     private final BlockPos table;
+    private boolean asked;
     private final Role.Branch[] tabs = Role.Branch.tabs();
     private Role.Branch tab = lastTab;
     private Role[] roles = Role.forHire(lastTab);
@@ -77,6 +78,12 @@ public class MusterScreen extends Screen {
         }
         this.addRenderableWidget(Button.builder(Component.translatable("gui.done"), btn -> this.onClose())
                 .bounds(this.left + this.panelWidth / 2 - 40, this.top + this.panelHeight - 26, 80, 20).build());
+        if (!this.asked) {
+            // how many men the server lets him lead (with Prestol: as many as his realm keeps)
+            this.asked = true;
+            max = -2;
+            DruzhinaNetwork.CHANNEL.sendToServer(new HirePacket(this.table, HirePacket.ASK));
+        }
         this.refresh();
     }
 
@@ -192,7 +199,8 @@ public class MusterScreen extends Screen {
         if (player != null) {
             g.renderItem(new ItemStack(Items.GOLD_INGOT), x + 8, y + 20);
             g.drawString(this.font, Component.translatable("druzhina.gui.purse", gold), x + 28, y + 25, COIN);
-            Component army = max < 0 ? Component.translatable("druzhina.gui.army_free", this.army(player))
+            Component army = max == -2 ? Component.translatable("druzhina.gui.army_count", this.army(player))
+                    : max < 0 ? Component.translatable("druzhina.gui.army_free", this.army(player))
                     : Component.translatable("druzhina.gui.army", this.army(player), max);
             int ax = x + w - 8 - this.font.width(army);
             g.drawString(this.font, army, ax, y + 25, max >= 0 && men >= max ? 0xFFE06060 : 0xFFD8D0C0);
